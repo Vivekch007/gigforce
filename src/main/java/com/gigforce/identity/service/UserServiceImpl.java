@@ -45,7 +45,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public Page<UserResponseDTO> getAllUsers(int page, int size, String role, String status, Long orgId) {
+    public Page<UserResponseDTO> getAllUsers(int page, int size, String role, String status) {
         Pageable pageable = PageRequest.of(page, size);
         Specification<User> spec = Specification.where(null);
 
@@ -65,10 +65,6 @@ public class UserServiceImpl implements UserService {
             } catch (IllegalArgumentException e) {
                 // Ignore invalid statuses in filters
             }
-        }
-
-        if (orgId != null) {
-            spec = spec.and((root, query, cb) -> cb.equal(root.get("orgUnit").get("id"), orgId));
         }
 
         return userRepository.findAll(spec, pageable).map(userMapper::toUserDto);

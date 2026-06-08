@@ -3,16 +3,13 @@ package com.gigforce.identity.service;
 import com.gigforce.audit.service.AuditService;
 import com.gigforce.exception.ContractorProfileNotFoundException;
 import com.gigforce.exception.EngagementNotFoundException;
-import com.gigforce.exception.OrganizationNotFoundException;
 import com.gigforce.identity.dto.EngagementHistoryRequestDTO;
 import com.gigforce.identity.dto.EngagementHistoryResponseDTO;
 import com.gigforce.identity.entity.ContractorProfile;
 import com.gigforce.identity.entity.EngagementHistory;
-import com.gigforce.identity.entity.Organization;
 import com.gigforce.identity.entity.User;
 import com.gigforce.identity.repository.ContractorProfileRepository;
 import com.gigforce.identity.repository.EngagementHistoryRepository;
-import com.gigforce.identity.repository.OrganizationRepository;
 import com.gigforce.identity.repository.UserRepository;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -27,20 +24,17 @@ public class EngagementHistoryServiceImpl implements EngagementHistoryService {
 
     private final EngagementHistoryRepository engagementHistoryRepository;
     private final ContractorProfileRepository contractorProfileRepository;
-    private final OrganizationRepository organizationRepository;
     private final UserRepository userRepository;
     private final AuditService auditService;
 
     public EngagementHistoryServiceImpl(
             EngagementHistoryRepository engagementHistoryRepository,
             ContractorProfileRepository contractorProfileRepository,
-            OrganizationRepository organizationRepository,
             UserRepository userRepository,
             AuditService auditService
     ) {
         this.engagementHistoryRepository = engagementHistoryRepository;
         this.contractorProfileRepository = contractorProfileRepository;
-        this.organizationRepository = organizationRepository;
         this.userRepository = userRepository;
         this.auditService = auditService;
     }
@@ -51,12 +45,9 @@ public class EngagementHistoryServiceImpl implements EngagementHistoryService {
         ContractorProfile profile = contractorProfileRepository.findById(profileId)
                 .orElseThrow(() -> new ContractorProfileNotFoundException("Contractor profile not found with ID: " + profileId));
 
-        Organization org = organizationRepository.findById(request.getClientOrgId())
-                .orElseThrow(() -> new OrganizationNotFoundException("Organization not found with ID: " + request.getClientOrgId()));
-
         EngagementHistory engagement = EngagementHistory.builder()
                 .contractorProfile(profile)
-                .clientOrganization(org)
+                .clientName(request.getClientName().trim())
                 .roleTitle(request.getRoleTitle().trim())
                 .startDate(request.getStartDate())
                 .endDate(request.getEndDate())
@@ -76,7 +67,7 @@ public class EngagementHistoryServiceImpl implements EngagementHistoryService {
                 "CONTRACTOR_ENGAGEMENT_CREATED",
                 "ContractorProfile",
                 profile.getId(),
-                "Engagement added at client org '" + org.getName() + "' for contractor: " + profile.getUser().getEmail()
+                "Engagement added at client '" + request.getClientName().trim() + "' for contractor: " + profile.getUser().getEmail()
         );
 
         return toDto(saved);
@@ -106,10 +97,7 @@ public class EngagementHistoryServiceImpl implements EngagementHistoryService {
             throw new IllegalArgumentException("Engagement does not belong to the specified profile.");
         }
 
-        Organization org = organizationRepository.findById(request.getClientOrgId())
-                .orElseThrow(() -> new OrganizationNotFoundException("Organization not found with ID: " + request.getClientOrgId()));
-
-        engagement.setClientOrganization(org);
+        engagement.setClientName(request.getClientName().trim());
         engagement.setRoleTitle(request.getRoleTitle().trim());
         engagement.setStartDate(request.getStartDate());
         engagement.setEndDate(request.getEndDate());
@@ -128,7 +116,7 @@ public class EngagementHistoryServiceImpl implements EngagementHistoryService {
                 "CONTRACTOR_ENGAGEMENT_UPDATED",
                 "ContractorProfile",
                 profile.getId(),
-                "Engagement updated for client org '" + org.getName() + "' for contractor: " + profile.getUser().getEmail()
+                "Engagement updated for client '" + request.getClientName().trim() + "' for contractor: " + profile.getUser().getEmail()
         );
 
         return toDto(updated);
@@ -159,7 +147,7 @@ public class EngagementHistoryServiceImpl implements EngagementHistoryService {
                 "CONTRACTOR_ENGAGEMENT_DELETED",
                 "ContractorProfile",
                 profile.getId(),
-                "Engagement deleted for client org '" + engagement.getClientOrganization().getName() + "' for contractor: " + profile.getUser().getEmail()
+                "Engagement deleted for client '" + engagement.getClientName() + "' for contractor: " + profile.getUser().getEmail()
         );
     }
 
@@ -167,8 +155,7 @@ public class EngagementHistoryServiceImpl implements EngagementHistoryService {
         return EngagementHistoryResponseDTO.builder()
                 .id(eng.getId())
                 .contractorProfileId(eng.getContractorProfile().getId())
-                .clientOrgId(eng.getClientOrganization().getId())
-                .clientOrgName(eng.getClientOrganization().getName())
+                .clientName(eng.getClientName())
                 .roleTitle(eng.getRoleTitle())
                 .startDate(eng.getStartDate())
                 .endDate(eng.getEndDate())

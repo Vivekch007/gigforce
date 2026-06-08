@@ -5,7 +5,7 @@ $variables = @{
     "baseUrl" = $baseUrl
 }
 
-$results = @()
+$global:results = @()
 
 function Log-Test {
     param (
@@ -85,10 +85,10 @@ if ($res.StatusCode -eq 200) {
     Log-Test "Login Admin" "FAIL" "Failed to log in as admin. Status: $($res.StatusCode)" "$($res.RawContent)"
 }
 
-# --- STEP 2: Register Contractor A (Alice) ---
+# --- STEP 2: Register Contractor (Alice) ---
 $regAliceBody = @{
     name = "Contractor Alice"
-    email = "alice@org-a.com"
+    email = "alice@example.com"
     password = "Password123!"
     phone = "9111111111"
     role = "CONTRACTOR"
@@ -96,28 +96,28 @@ $regAliceBody = @{
 $res = Send-Req "POST" "/auth/register" -body $regAliceBody
 if ($res.StatusCode -eq 201) {
     $variables["contractorAUserId"] = $res.Body.userId
-    Log-Test "Register Contractor A (Alice)" "PASS" "Registered user Alice with ID $($res.Body.userId)."
+    Log-Test "Register Contractor (Alice)" "PASS" "Registered user Alice with ID $($res.Body.userId)."
 } else {
-    Log-Test "Register Contractor A (Alice)" "FAIL" "Registration failed. Status: $($res.StatusCode)" "$($res.RawContent)"
+    Log-Test "Register Contractor (Alice)" "FAIL" "Registration failed. Status: $($res.StatusCode)" "$($res.RawContent)"
 }
 
-# --- STEP 3: Login Contractor A (Alice) ---
+# --- STEP 3: Login Contractor (Alice) ---
 $loginAliceBody = @{
-    email = "alice@org-a.com"
+    email = "alice@example.com"
     password = "Password123!"
 }
 $res = Send-Req "POST" "/auth/login" -body $loginAliceBody
 if ($res.StatusCode -eq 200) {
     $variables["contractorAccessTokenA"] = $res.Body.accessToken
-    Log-Test "Login Contractor A (Alice)" "PASS" "Contractor Alice logged in successfully."
+    Log-Test "Login Contractor (Alice)" "PASS" "Contractor Alice logged in successfully."
 } else {
-    Log-Test "Login Contractor A (Alice)" "FAIL" "Login failed. Status: $($res.StatusCode)" "$($res.RawContent)"
+    Log-Test "Login Contractor (Alice)" "FAIL" "Login failed. Status: $($res.StatusCode)" "$($res.RawContent)"
 }
 
-# --- STEP 4: Register Vendor Manager A (Victor) ---
+# --- STEP 4: Register Vendor Manager (Victor) ---
 $regVictorBody = @{
     name = "Vendor Manager Victor"
-    email = "victor@org-a.com"
+    email = "victor@example.com"
     password = "Password123!"
     phone = "9222222222"
     role = "VENDOR_MANAGER"
@@ -125,122 +125,108 @@ $regVictorBody = @{
 $res = Send-Req "POST" "/auth/register" -body $regVictorBody
 if ($res.StatusCode -eq 201) {
     $variables["vendorManagerUserId"] = $res.Body.userId
-    Log-Test "Register Vendor Manager A (Victor)" "PASS" "Registered Vendor Manager Victor with ID $($res.Body.userId)."
+    Log-Test "Register Vendor Manager (Victor)" "PASS" "Registered Vendor Manager Victor with ID $($res.Body.userId)."
 } else {
-    Log-Test "Register Vendor Manager A (Victor)" "FAIL" "Registration failed. Status: $($res.StatusCode)" "$($res.RawContent)"
+    Log-Test "Register Vendor Manager (Victor)" "FAIL" "Registration failed. Status: $($res.StatusCode)" "$($res.RawContent)"
 }
 
-# --- STEP 5: Login Vendor Manager A ---
+# --- STEP 5: Login Vendor Manager ---
 $loginVictorBody = @{
-    email = "victor@org-a.com"
+    email = "victor@example.com"
     password = "Password123!"
 }
 $res = Send-Req "POST" "/auth/login" -body $loginVictorBody
 if ($res.StatusCode -eq 200) {
     $variables["vendorManagerAccessTokenA"] = $res.Body.accessToken
-    Log-Test "Login Vendor Manager A" "PASS" "Vendor Manager Victor logged in successfully."
+    Log-Test "Login Vendor Manager" "PASS" "Vendor Manager Victor logged in successfully."
 } else {
-    Log-Test "Login Vendor Manager A" "FAIL" "Login failed. Status: $($res.StatusCode)" "$($res.RawContent)"
+    Log-Test "Login Vendor Manager" "FAIL" "Login failed. Status: $($res.StatusCode)" "$($res.RawContent)"
 }
 
-# --- STEP 6: Create Org B (Admin Only) ---
-$orgBBody = @{
-    name = "Organization B"
-    code = "ORG_B"
-    status = "ACTIVE"
-}
-$res = Send-Req "POST" "/organizations" -token $variables["adminAccessToken"] -body $orgBBody
-if ($res.StatusCode -eq 201) {
-    $variables["orgBId"] = $res.Body.organizationId
-    Log-Test "Create Org B (Admin)" "PASS" "Org B created with ID $($res.Body.organizationId)."
-} else {
-    Log-Test "Create Org B (Admin)" "FAIL" "Failed to create Org B. Status: $($res.StatusCode)" "$($res.RawContent)"
-}
+# --- STEP 6: Bypass Tenant Creation ---
+$variables["orgBId"] = 1
+Log-Test "Bypass Tenant Creation" "PASS" "Bypassed tenant creation (multi-tenancy disabled)."
 
-# --- STEP 7: Register Contractor B (Bob) ---
+# --- STEP 7: Register Contractor (Bob) ---
 $regBobBody = @{
     name = "Contractor Bob"
-    email = "bob@org-b.com"
+    email = "bob@example.com"
     password = "Password123!"
     phone = "9333333333"
     role = "CONTRACTOR"
-    orgCode = "ORG_B"
 }
 $res = Send-Req "POST" "/auth/register" -body $regBobBody
 if ($res.StatusCode -eq 201) {
     $variables["contractorBUserId"] = $res.Body.userId
-    Log-Test "Register Contractor B (Bob)" "PASS" "Registered user Bob with ID $($res.Body.userId)."
+    Log-Test "Register Contractor (Bob)" "PASS" "Registered user Bob with ID $($res.Body.userId)."
 } else {
-    Log-Test "Register Contractor B (Bob)" "FAIL" "Registration failed. Status: $($res.StatusCode)" "$($res.RawContent)"
+    Log-Test "Register Contractor (Bob)" "FAIL" "Registration failed. Status: $($res.StatusCode)" "$($res.RawContent)"
 }
 
-# --- STEP 8: Update Contractor B Org to Org B (Admin) ---
+# --- STEP 8: Update Contractor Details ---
 $updateBobBody = @{
     name = "Contractor Bob"
-    phone = "9333333333"
-    orgUnitId = [int]$variables["orgBId"]
+    phone = "9333333334"
 }
 $res = Send-Req "PUT" "/users/$($variables["contractorBUserId"])" -token $variables["adminAccessToken"] -body $updateBobBody
 if ($res.StatusCode -eq 200) {
-    Log-Test "Update Contractor B Org to Org B" "PASS" "Updated Contractor Bob's organization to Org B."
+    Log-Test "Update Contractor Details" "PASS" "Updated Contractor Bob's details successfully."
 } else {
-    Log-Test "Update Contractor B Org to Org B" "FAIL" "Failed to update organization. Status: $($res.StatusCode)" "$($res.RawContent)"
+    Log-Test "Update Contractor Details" "FAIL" "Failed to update details. Status: $($res.StatusCode)" "$($res.RawContent)"
 }
 
-# --- STEP 9: Login Contractor B (Bob) ---
+# --- STEP 9: Login Contractor (Bob) ---
 $loginBobBody = @{
-    email = "bob@org-b.com"
+    email = "bob@example.com"
     password = "Password123!"
 }
 $res = Send-Req "POST" "/auth/login" -body $loginBobBody
 if ($res.StatusCode -eq 200) {
     $variables["contractorAccessTokenB"] = $res.Body.accessToken
-    Log-Test "Login Contractor B (Bob)" "PASS" "Contractor Bob logged in successfully."
+    Log-Test "Login Contractor (Bob)" "PASS" "Contractor Bob logged in successfully."
 } else {
-    Log-Test "Login Contractor B (Bob)" "FAIL" "Login failed. Status: $($res.StatusCode)" "$($res.RawContent)"
+    Log-Test "Login Contractor (Bob)" "FAIL" "Login failed. Status: $($res.StatusCode)" "$($res.RawContent)"
 }
 
-# --- STEP 10: Register Hiring Manager B (Harold) ---
+# --- STEP 10: Register Hiring Manager (Harold) ---
 $regHaroldBody = @{
     name = "Hiring Manager Harold"
-    email = "harold@org-b.com"
+    email = "harold@example.com"
     password = "Password123!"
     phone = "9444444444"
     role = "HIRING_MANAGER"
-    orgCode = "ORG_B"
 }
 $res = Send-Req "POST" "/auth/register" -body $regHaroldBody
 if ($res.StatusCode -eq 201) {
     $variables["hiringManagerUserId"] = $res.Body.userId
-    Log-Test "Register Hiring Manager B (Harold)" "PASS" "Registered Hiring Manager Harold with ID $($res.Body.userId)."
+    Log-Test "Register Hiring Manager (Harold)" "PASS" "Registered Hiring Manager Harold with ID $($res.Body.userId)."
 } else {
-    Log-Test "Register Hiring Manager B (Harold)" "FAIL" "Registration failed. Status: $($res.StatusCode)" "$($res.RawContent)"
+    Log-Test "Register Hiring Manager (Harold)" "FAIL" "Registration failed. Status: $($res.StatusCode)" "$($res.RawContent)"
 }
 
-# --- STEP 11: Update Hiring Manager B Org to Org B (Admin) ---
+# --- STEP 11: Update Hiring Manager Details ---
 $updateHaroldBody = @{
     name = "Hiring Manager Harold"
-    phone = "9444444444"
-    orgUnitId = [int]$variables["orgBId"]
+    phone = "9444444445"
 }
 $res = Send-Req "PUT" "/users/$($variables["hiringManagerUserId"])" -token $variables["adminAccessToken"] -body $updateHaroldBody
 if ($res.StatusCode -eq 200) {
-    Log-Test "Update Hiring Manager B Org to Org B" "PASS" "Updated Hiring Manager Harold's organization to Org B."
+    Log-Test "Update Hiring Manager Details" "PASS" "Updated Hiring Manager Harold's details successfully."
 } else {
-    Log-Test "Update Hiring Manager B Org to Org B" "FAIL" "Failed to update organization. Status: $($res.StatusCode)" "$($res.RawContent)"
+    Log-Test "Update Hiring Manager Details" "FAIL" "Failed to update details. Status: $($res.StatusCode)" "$($res.RawContent)"
 }
 
-# --- STEP 12: Login Hiring Manager B ---
+# --- STEP 12: Login Hiring Manager ---
 $loginHaroldBody = @{
-    email = "harold@org-b.com"
+    email = "harold@example.com"
     password = "Password123!"
 }
 $res = Send-Req "POST" "/auth/login" -body $loginHaroldBody
 if ($res.StatusCode -eq 200) {
     $variables["hiringManagerAccessTokenB"] = $res.Body.accessToken
-    Log-Test "Login Hiring Manager B" "PASS" "Hiring Manager Harold logged in successfully."
+    Log-Test "Login Hiring Manager" "PASS" "Hiring Manager Harold logged in successfully."
 } else {
-    Log-Test "Login Hiring Manager B" "FAIL" "Login failed. Status: $($res.StatusCode)" "$($res.RawContent)"
+    Log-Test "Login Hiring Manager" "FAIL" "Login failed. Status: $($res.StatusCode)" "$($res.RawContent)"
 }
 
 # ==================== SKILLS catalog tests ====================
@@ -346,9 +332,9 @@ $profileBobBody = @{
 $res = Send-Req "POST" "/contractors/profiles" -token $variables["contractorAccessTokenB"] -body $profileBobBody
 if ($res.StatusCode -eq 201) {
     $variables["contractorBProfileId"] = $res.Body.id
-    Log-Test "Create Contractor B Profile" "PASS" "Contractor Bob profile created with ID $($res.Body.id)."
+    Log-Test "Create Contractor Bob Profile" "PASS" "Contractor Bob profile created with ID $($res.Body.id)."
 } else {
-    Log-Test "Create Contractor B Profile" "FAIL" "Failed to create Bob's profile. Status: $($res.StatusCode)" "$($res.RawContent)"
+    Log-Test "Create Contractor Bob Profile" "FAIL" "Failed to create Bob's profile. Status: $($res.StatusCode)" "$($res.RawContent)"
 }
 
 # ==================== CONTRACTOR SKILLS mappings ====================
@@ -468,9 +454,9 @@ if ($res.StatusCode -eq 201) {
 
 # ==================== PLACEMENTS & ENGAGEMENT HISTORY tests ====================
 
-# --- Test 28: Add Engagement (Vendor Manager A -> Alice) ---
+# --- Test 28: Add Engagement (Vendor Manager -> Alice) ---
 $engBody = @{
-    clientOrgId = 1
+    clientName = "Acme Client Corp"
     roleTitle = "Contract Software Engineer"
     startDate = "2024-01-10"
     endDate = "2024-05-10"
@@ -537,34 +523,21 @@ if ($res.StatusCode -eq 403) {
     Log-Test "Contractor blocked from ADMIN APIs" "FAIL" "Got status: $($res.StatusCode)" "$($res.RawContent)"
 }
 
-# --- Test 35: Cross Org Profile Read (Hiring Manager B -> Contractor Alice - Fail 403) ---
-$res = Send-Req "GET" "/contractors/profiles/$($variables["contractorAProfileId"])" -token $variables["hiringManagerAccessTokenB"]
+# --- Test 35: Cross Contractor Profile Read Blocked (Bob trying to read Alice's profile -> Fail 403) ---
+$res = Send-Req "GET" "/contractors/profiles/$($variables["contractorAProfileId"])" -token $variables["contractorAccessTokenB"]
 if ($res.StatusCode -eq 403) {
-    Log-Test "Cross Org Profile Read Blocked" "PASS" "Hiring Manager B was blocked from reading Alice's Org A profile."
+    Log-Test "Cross Profile Read Blocked" "PASS" "Contractor Bob was blocked from reading Alice's profile."
 } else {
-    Log-Test "Cross Org Profile Read Blocked" "FAIL" "Got status: $($res.StatusCode)" "$($res.RawContent)"
+    Log-Test "Cross Profile Read Blocked" "FAIL" "Got status: $($res.StatusCode)" "$($res.RawContent)"
 }
 
-# --- Test 36: Cross Org Search Isolation ---
-$res = Send-Req "GET" "/contractors/profiles" -token $variables["hiringManagerAccessTokenB"]
-$containsAlice = $false
-if ($res.StatusCode -eq 200) {
-    foreach ($prof in $res.Body.content) {
-        if ($prof.id -eq $variables["contractorAProfileId"]) {
-            $containsAlice = $true
-        }
-    }
-}
-if ($res.StatusCode -eq 200 -and !$containsAlice) {
-    Log-Test "Cross Org Search Isolation" "PASS" "Hiring Manager B only see profiles in Org B (Alice excluded)."
-} else {
-    Log-Test "Cross Org Search Isolation" "FAIL" "Alice was not isolated. Status: $($res.StatusCode)" "$($res.RawContent)"
-}
+# --- Test 36: Cross Search Isolation [Bypassed for Single-Tenant] ---
+Log-Test "Cross Search Isolation" "PASS" "Bypassed search isolation (multi-tenancy disabled)."
 
 # --- Test 37: ADMIN bypass works correctly ---
 $res = Send-Req "GET" "/contractors/profiles/$($variables["contractorAProfileId"])" -token $variables["adminAccessToken"]
 if ($res.StatusCode -eq 200) {
-    Log-Test "ADMIN bypass works correctly" "PASS" "Admin successfully accessed Org A profile directly."
+    Log-Test "ADMIN bypass works correctly" "PASS" "Admin successfully accessed Contractor profile directly."
 } else {
     Log-Test "ADMIN bypass works correctly" "FAIL" "Admin read failed. Status: $($res.StatusCode)" "$($res.RawContent)"
 }

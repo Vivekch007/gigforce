@@ -21,8 +21,7 @@ import java.time.LocalDate;
 @Table(
     name = "engagement_histories",
     indexes = {
-        @Index(name = "idx_engagement_profile_id", columnList = "contractor_profile_id"),
-        @Index(name = "idx_engagement_client_org_id", columnList = "client_org_id")
+        @Index(name = "idx_engagement_profile_id", columnList = "contractor_profile_id")
     }
 )
 @AttributeOverride(name = "id", column = @Column(name = "engagement_history_id"))
@@ -37,9 +36,8 @@ public class EngagementHistory extends BaseEntity {
     @JoinColumn(name = "contractor_profile_id", nullable = false)
     private ContractorProfile contractorProfile;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "client_org_id", nullable = false)
-    private Organization clientOrganization;
+    @Column(name = "client_name", nullable = false, length = 150)
+    private String clientName;
 
     @Column(name = "role_title", nullable = false, length = 150)
     private String roleTitle;

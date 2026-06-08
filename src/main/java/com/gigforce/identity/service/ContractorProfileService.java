@@ -10,7 +10,7 @@ public interface ContractorProfileService {
     ContractorProfileResponseDTO getProfileById(Long profileId);
     ContractorProfileResponseDTO getProfileByUserId(Long userId);
     ContractorProfileResponseDTO updateProfile(Long profileId, ContractorProfileRequestDTO request);
-    Page<ContractorProfileResponseDTO> searchProfiles(int page, int size, String skillName, Integer minExperience, String status, Long orgId);
+    Page<ContractorProfileResponseDTO> searchProfiles(int page, int size, String skillName, Integer minExperience, String status);
     ContractorProfileResponseDTO addSkill(Long profileId, ContractorSkillRequestDTO request);
     ContractorProfileResponseDTO updateSkill(Long profileId, Long skillId, ContractorSkillRequestDTO request);
     ContractorProfileResponseDTO removeSkill(Long profileId, Long skillId);

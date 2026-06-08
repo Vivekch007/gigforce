@@ -20,8 +20,6 @@ public class ContractorProfileResponseDTO {
     private Long userId;
     private String userName;
     private String userEmail;
-    private Long orgUnitId;
-    private String orgUnitName;
     private String title;
     private String bio;
     private BigDecimal hourlyRate;

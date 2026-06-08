@@ -98,7 +98,7 @@ public class ContractorProfileController {
     }
 
     @GetMapping
-    @Operation(summary = "Search contractor profiles", description = "Retrieves a paginated list of profiles. Non-admins automatically have search results filtered to their organization unit.")
+    @Operation(summary = "Search contractor profiles", description = "Retrieves a paginated list of profiles.")
     public ResponseEntity<Page<ContractorProfileResponseDTO>> searchProfiles(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -106,19 +106,8 @@ public class ContractorProfileController {
             @RequestParam(required = false) Integer minExperience,
             @RequestParam(required = false) String status
     ) {
-        boolean isAdmin = SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
-        
-        Long orgIdFilter = null;
-        if (!isAdmin) {
-            orgIdFilter = currentUserContext.getCurrentUserOrgId();
-            if (orgIdFilter == null) {
-                throw new AccessDeniedException("Access Denied: Caller does not belong to any organization unit.");
-            }
-        }
-
         Page<ContractorProfileResponseDTO> profiles = contractorProfileService.searchProfiles(
-                page, size, skill, minExperience, status, orgIdFilter
+                page, size, skill, minExperience, status
         );
         return ResponseEntity.ok(profiles);
     }
@@ -211,15 +200,14 @@ public class ContractorProfileController {
             @PathVariable Long id,
             @Valid @RequestBody EngagementHistoryRequestDTO request
     ) {
-        ContractorProfileResponseDTO profile = contractorProfileService.getProfileById(id);
-        currentUserContext.validateTenantAccess(profile.getOrgUnitId());
+        contractorProfileService.getProfileById(id);
 
         EngagementHistoryResponseDTO eng = engagementHistoryService.addEngagement(id, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(eng);
     }
 
     @GetMapping("/{id}/engagements")
-    @Operation(summary = "Get contractor engagement history", description = "Retrieves all engagements mapped to a profile. Subject to tenant isolation.")
+    @Operation(summary = "Get contractor engagement history", description = "Retrieves all engagements mapped to a profile.")
     public ResponseEntity<List<EngagementHistoryResponseDTO>> getEngagements(@PathVariable Long id) {
         ContractorProfileResponseDTO profile = contractorProfileService.getProfileById(id);
         validateAccess(profile);
@@ -235,8 +223,7 @@ public class ContractorProfileController {
             @PathVariable Long engagementId,
             @Valid @RequestBody EngagementHistoryRequestDTO request
     ) {
-        ContractorProfileResponseDTO profile = contractorProfileService.getProfileById(id);
-        currentUserContext.validateTenantAccess(profile.getOrgUnitId());
+        contractorProfileService.getProfileById(id);
 
         EngagementHistoryResponseDTO updated = engagementHistoryService.updateEngagement(id, engagementId, request);
         return ResponseEntity.ok(updated);
@@ -277,9 +264,6 @@ public class ContractorProfileController {
             if (currentUserId == null || !currentUserId.equals(profile.getUserId())) {
                 throw new AccessDeniedException("Access Denied: You are not authorized to view this contractor's profile.");
             }
-        } else {
-            // Clients and vendors are restricted by organization boundaries
-            currentUserContext.validateTenantAccess(profile.getOrgUnitId());
         }
     }
 }

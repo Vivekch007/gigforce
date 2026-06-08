@@ -20,7 +20,6 @@ public class UserResponseDTO {
     private String phone;
     private String role;
     private String status;
-    private OrganizationResponseDTO orgUnit;
     private LocalDateTime createdAt;
     private String createdBy;
     private LocalDateTime updatedAt;

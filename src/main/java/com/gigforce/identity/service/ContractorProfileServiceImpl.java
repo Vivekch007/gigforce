@@ -162,8 +162,7 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
             int size,
             String skillName,
             Integer minExperience,
-            String status,
-            Long orgId
+            String status
     ) {
         Pageable pageable = PageRequest.of(page, size);
         Specification<ContractorProfile> spec = Specification.where(null);
@@ -179,10 +178,6 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
 
         if (minExperience != null) {
             spec = spec.and((root, query, cb) -> cb.greaterThanOrEqualTo(root.get("experienceYears"), minExperience));
-        }
-
-        if (orgId != null) {
-            spec = spec.and((root, query, cb) -> cb.equal(root.get("user").get("orgUnit").get("id"), orgId));
         }
 
         if (skillName != null && !skillName.trim().isEmpty()) {
@@ -338,8 +333,6 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
                 .userId(profile.getUser().getId())
                 .userName(profile.getUser().getName())
                 .userEmail(profile.getUser().getEmail())
-                .orgUnitId(profile.getUser().getOrgUnit() != null ? profile.getUser().getOrgUnit().getId() : null)
-                .orgUnitName(profile.getUser().getOrgUnit() != null ? profile.getUser().getOrgUnit().getName() : null)
                 .title(profile.getTitle())
                 .bio(profile.getBio())
                 .hourlyRate(profile.getHourlyRate())

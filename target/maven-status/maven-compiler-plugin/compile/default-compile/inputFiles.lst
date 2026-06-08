@@ -15,7 +15,6 @@ C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\repository\Sk
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\audit\entity\AuditLog.java
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\service\RefreshTokenServiceImpl.java
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\service\ContractorCertificationServiceImpl.java
-C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\exception\OrganizationNotFoundException.java
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\repository\EngagementHistoryRepository.java
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\repository\UserRepository.java
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\dto\LoginResponseDTO.java
@@ -23,7 +22,6 @@ C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\service\Contr
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\enums\ContractorStatus.java
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\exception\ContractorProfileNotFoundException.java
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\entity\ContractorSkill.java
-C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\controller\OrganizationController.java
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\entity\RefreshToken.java
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\controller\UserController.java
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\common\entity\BaseEntity.java
@@ -33,7 +31,6 @@ C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\dto\Contracto
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\entity\ContractorProfile.java
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\dto\ContractorCertificationResponseDTO.java
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\audit\service\AuditServiceImpl.java
-C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\repository\OrganizationRepository.java
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\audit\controller\AuditController.java
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\enums\UserRole.java
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\controller\AuthController.java
@@ -42,7 +39,6 @@ C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\service\Contr
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\dto\EngagementHistoryRequestDTO.java
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\audit\service\AuditService.java
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\config\SwaggerConfig.java
-C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\dto\OrganizationRequestDTO.java
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\service\EngagementHistoryService.java
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\dto\ContractorCertificationRequestDTO.java
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\dto\UserResponseDTO.java
@@ -50,7 +46,6 @@ C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\exception\UserNotFound
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\service\SkillServiceImpl.java
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\enums\UserStatus.java
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\exception\ErrorResponse.java
-C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\dto\OrganizationResponseDTO.java
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\service\ContractorProfileServiceImpl.java
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\security\JwtAuthenticationFilter.java
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\dto\SkillRequestDTO.java
@@ -70,22 +65,18 @@ C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\GigForceApplication.ja
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\controller\SkillController.java
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\exception\DuplicateProfileException.java
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\exception\TokenRefreshException.java
-C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\service\OrganizationServiceImpl.java
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\audit\repository\AuditLogRepository.java
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\dto\SkillResponseDTO.java
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\dto\ContractorProfileRequestDTO.java
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\mapper\UserMapper.java
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\repository\ContractorCertificationRepository.java
-C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\service\OrganizationService.java
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\service\UserService.java
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\security\JwtAuthenticationEntryPoint.java
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\entity\Skill.java
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\dto\ContractorProfileResponseDTO.java
-C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\entity\Organization.java
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\entity\ContractorCertification.java
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\security\CustomUserDetailsService.java
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\exception\DuplicateSkillException.java
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\service\RefreshTokenService.java
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\dto\ContractorSkillResponseDTO.java
 C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\dto\LoginRequestDTO.java
-C:\Users\HP\Documents\gigforce\src\main\java\com\gigforce\identity\dto\OrganizationUpdateRequestDTO.java

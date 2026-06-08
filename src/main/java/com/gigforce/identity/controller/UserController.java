@@ -3,7 +3,6 @@ package com.gigforce.identity.controller;
 import com.gigforce.identity.dto.UserResponseDTO;
 import com.gigforce.identity.dto.UserUpdateRequestDTO;
 import com.gigforce.identity.service.UserService;
-import com.gigforce.security.CurrentUserContext;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.data.domain.Page;
@@ -25,11 +24,9 @@ import org.springframework.web.bind.annotation.RestController;
 public class UserController {
 
     private final UserService userService;
-    private final CurrentUserContext currentUserContext;
 
-    public UserController(UserService userService, CurrentUserContext currentUserContext) {
+    public UserController(UserService userService) {
         this.userService = userService;
-        this.currentUserContext = currentUserContext;
     }
 
     @GetMapping
@@ -41,7 +38,7 @@ public class UserController {
             @RequestParam(required = false) String role,
             @RequestParam(required = false) String status
     ) {
-        Page<UserResponseDTO> users = userService.getAllUsers(page, size, role, status, null);
+        Page<UserResponseDTO> users = userService.getAllUsers(page, size, role, status);
         return ResponseEntity.ok(users);
     }
 
@@ -66,11 +63,6 @@ public class UserController {
             throw new AccessDeniedException("Access Denied: You are not authorized to view this user's details.");
         }
 
-        // Apply organization isolation check
-        if (!isAdmin && user.getOrgUnit() != null) {
-            currentUserContext.validateTenantAccess(user.getOrgUnit().getOrganizationId());
-        }
-
         return ResponseEntity.ok(user);
     }
 
@@ -88,11 +80,6 @@ public class UserController {
 
         if (!isAdmin && !user.getEmail().equals(currentUsername)) {
             throw new AccessDeniedException("Access Denied: You are not authorized to update this user.");
-        }
-
-        // Apply organization isolation check
-        if (!isAdmin && user.getOrgUnit() != null) {
-            currentUserContext.validateTenantAccess(user.getOrgUnit().getOrganizationId());
         }
 
         UserResponseDTO updatedUser = userService.updateUser(id, request.getName(), request.getPhone());

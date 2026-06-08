@@ -20,8 +20,9 @@ import java.time.LocalDate;
 @Builder
 public class EngagementHistoryRequestDTO {
 
-    @NotNull(message = "Client organization ID is required")
-    private Long clientOrgId;
+    @NotBlank(message = "Client name is required")
+    @Size(max = 150, message = "Client name must be at most 150 characters")
+    private String clientName;
 
     @NotBlank(message = "Role title is required")
     @Size(max = 150, message = "Role title must be at most 150 characters")

@@ -3,18 +3,15 @@ package com.gigforce.identity.service;
 import com.gigforce.audit.service.AuditService;
 import com.gigforce.exception.DuplicateEmailException;
 import com.gigforce.exception.InvalidCredentialsException;
-import com.gigforce.exception.OrganizationNotFoundException;
 import com.gigforce.identity.dto.LoginRequestDTO;
 import com.gigforce.identity.dto.LoginResponseDTO;
 import com.gigforce.identity.dto.RegisterRequestDTO;
 import com.gigforce.identity.dto.TokenRefreshRequestDTO;
 import com.gigforce.identity.dto.UserResponseDTO;
-import com.gigforce.identity.entity.Organization;
 import com.gigforce.identity.entity.RefreshToken;
 import com.gigforce.identity.entity.User;
 import com.gigforce.identity.enums.UserStatus;
 import com.gigforce.identity.mapper.UserMapper;
-import com.gigforce.identity.repository.OrganizationRepository;
 import com.gigforce.identity.repository.UserRepository;
 import com.gigforce.security.JwtService;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -31,7 +28,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class AuthServiceImpl implements AuthService {
 
     private final UserRepository userRepository;
-    private final OrganizationRepository organizationRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
@@ -42,7 +38,6 @@ public class AuthServiceImpl implements AuthService {
 
     public AuthServiceImpl(
             UserRepository userRepository,
-            OrganizationRepository organizationRepository,
             PasswordEncoder passwordEncoder,
             AuthenticationManager authenticationManager,
             JwtService jwtService,
@@ -52,7 +47,6 @@ public class AuthServiceImpl implements AuthService {
             AuditService auditService
     ) {
         this.userRepository = userRepository;
-        this.organizationRepository = organizationRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
@@ -69,23 +63,11 @@ public class AuthServiceImpl implements AuthService {
             throw new DuplicateEmailException("Email address already registered: " + request.getEmail());
         }
 
-        // Resolve Organization
-        Organization org;
-        if (request.getOrgCode() != null && !request.getOrgCode().trim().isEmpty()) {
-            org = organizationRepository.findByCode(request.getOrgCode())
-                    .orElseThrow(() -> new OrganizationNotFoundException("Organization not found with code: " + request.getOrgCode()));
-        } else {
-            // Assign default org (seeded on startup)
-            org = organizationRepository.findByCode("GF_DEFAULT")
-                    .orElseThrow(() -> new OrganizationNotFoundException("Default organization not found. Database must be seeded first."));
-        }
-
         User user = User.builder()
                 .name(request.getName())
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .phone(request.getPhone())
-                .orgUnit(org)
                 .role(request.getRole())
                 .status(UserStatus.ACTIVE)
                 .build();

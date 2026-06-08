@@ -40,6 +40,4 @@ public class RegisterRequestDTO {
 
     @NotNull(message = "Role is required")
     private UserRole role;
-
-    private String orgCode; // Unique code of organization unit (optional)
 }

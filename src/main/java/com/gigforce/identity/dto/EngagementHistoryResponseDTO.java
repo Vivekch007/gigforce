@@ -17,8 +17,7 @@ import java.time.LocalDateTime;
 public class EngagementHistoryResponseDTO {
     private Long id;
     private Long contractorProfileId;
-    private Long clientOrgId;
-    private String clientOrgName;
+    private String clientName;
     private String roleTitle;
     private LocalDate startDate;
     private LocalDate endDate;

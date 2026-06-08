@@ -28,7 +28,7 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    @Operation(summary = "Register a new user", description = "Registers a new user (Contractor, Vendor, Finance, Admin etc.) under an organization unit.")
+    @Operation(summary = "Register a new user", description = "Registers a new user (Contractor, Vendor, Finance, Admin etc.).")
     public ResponseEntity<UserResponseDTO> register(@Valid @RequestBody RegisterRequestDTO request) {
         UserResponseDTO registeredUser = authService.register(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(registeredUser);

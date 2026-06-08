@@ -58,10 +58,6 @@ public class SecurityConfig {
                                 "/swagger-ui.html",
                                 "/error"
                         ).permitAll()
-                        // Protected Organization Endpoints
-                        .requestMatchers(HttpMethod.POST, "/api/v1/organizations/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/v1/organizations/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/v1/organizations/**").authenticated()
                         // All other APIs require authentication
                         .anyRequest().authenticated()
                 )

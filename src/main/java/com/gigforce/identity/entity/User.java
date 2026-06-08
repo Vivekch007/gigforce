@@ -8,10 +8,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.Index;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -47,10 +44,6 @@ public class User extends BaseEntity {
 
     @Column(length = 20)
     private String phone;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "org_unit_id")
-    private Organization orgUnit;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)

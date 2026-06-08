@@ -26,16 +26,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
     }
 
-    @ExceptionHandler(OrganizationNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleOrganizationNotFound(OrganizationNotFoundException ex) {
-        ErrorResponse response = ErrorResponse.builder()
-                .timestamp(LocalDateTime.now())
-                .status(HttpStatus.NOT_FOUND.value())
-                .error("Not Found")
-                .message(ex.getMessage())
-                .build();
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
-    }
+
 
     @ExceptionHandler(ContractorProfileNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleContractorProfileNotFound(ContractorProfileNotFoundException ex) {
