@@ -5,6 +5,9 @@ import com.gigforce.audit.entity.AuditLog;
 import java.util.List;
 
 public interface AuditService {
-    void logAction(Long userId, String action, String entityType, Long entityId, String description);
-    List<AuditLog> getAuditLogsForUser(Long userId);
+    void logAction(String userId, String action, String entityType, String entityId, String description);
+
+    List<AuditLog> getAuditLogsForUser(String userId);
+
+    List<AuditLog> getAllAuditLogs();
 }

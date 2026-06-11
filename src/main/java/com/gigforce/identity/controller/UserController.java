@@ -5,6 +5,7 @@ import com.gigforce.identity.dto.UserUpdateRequestDTO;
 import com.gigforce.identity.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -30,14 +31,13 @@ public class UserController {
     }
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') || hasRole('HIRING_MANAGER')")
     @Operation(summary = "Get all users (Paginated & Filtered)", description = "Retrieves a paginated list of users. Restricted to ADMIN users.")
     public ResponseEntity<Page<UserResponseDTO>> getAllUsers(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String role,
-            @RequestParam(required = false) String status
-    ) {
+            @RequestParam(required = false) String status) {
         Page<UserResponseDTO> users = userService.getAllUsers(page, size, role, status);
         return ResponseEntity.ok(users);
     }
@@ -52,7 +52,7 @@ public class UserController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Get user by ID", description = "Admins can view any user, other roles restricted to viewing only their own details.")
-    public ResponseEntity<UserResponseDTO> getUserById(@PathVariable Long id) {
+    public ResponseEntity<UserResponseDTO> getUserById(@PathVariable String id) {
         String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
         UserResponseDTO user = userService.getUserById(id);
 
@@ -69,9 +69,8 @@ public class UserController {
     @PutMapping("/{id}")
     @Operation(summary = "Update user details", description = "Updates name and/or phone. Admins can update any user, other roles restricted to updating self.")
     public ResponseEntity<UserResponseDTO> updateUser(
-            @PathVariable Long id,
-            @RequestBody UserUpdateRequestDTO request
-    ) {
+            @PathVariable String id,
+            @Valid @RequestBody UserUpdateRequestDTO request) {
         String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
         UserResponseDTO user = userService.getUserById(id);
 
@@ -89,7 +88,7 @@ public class UserController {
     @PutMapping("/{id}/suspend")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Suspend user account", description = "Restricted to ADMIN users.")
-    public ResponseEntity<UserResponseDTO> suspendUser(@PathVariable Long id) {
+    public ResponseEntity<UserResponseDTO> suspendUser(@PathVariable String id) {
         UserResponseDTO suspendedUser = userService.suspendUser(id);
         return ResponseEntity.ok(suspendedUser);
     }
@@ -97,7 +96,7 @@ public class UserController {
     @PutMapping("/{id}/deactivate")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Deactivate user account", description = "Restricted to ADMIN users.")
-    public ResponseEntity<UserResponseDTO> deactivateUser(@PathVariable Long id) {
+    public ResponseEntity<UserResponseDTO> deactivateUser(@PathVariable String id) {
         UserResponseDTO deactivatedUser = userService.deactivateUser(id);
         return ResponseEntity.ok(deactivatedUser);
     }
@@ -105,7 +104,7 @@ public class UserController {
     @PutMapping("/{id}/activate")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Activate user account", description = "Activates a suspended/inactive user. Restricted to ADMIN users.")
-    public ResponseEntity<UserResponseDTO> activateUser(@PathVariable Long id) {
+    public ResponseEntity<UserResponseDTO> activateUser(@PathVariable String id) {
         UserResponseDTO activatedUser = userService.activateUser(id);
         return ResponseEntity.ok(activatedUser);
     }

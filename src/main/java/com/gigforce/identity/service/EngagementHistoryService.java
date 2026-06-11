@@ -6,8 +6,12 @@ import com.gigforce.identity.dto.EngagementHistoryResponseDTO;
 import java.util.List;
 
 public interface EngagementHistoryService {
-    EngagementHistoryResponseDTO addEngagement(Long profileId, EngagementHistoryRequestDTO request);
-    List<EngagementHistoryResponseDTO> getEngagementsByProfileId(Long profileId);
-    EngagementHistoryResponseDTO updateEngagement(Long profileId, Long engagementId, EngagementHistoryRequestDTO request);
-    void deleteEngagement(Long profileId, Long engagementId);
+    EngagementHistoryResponseDTO addEngagement(String profileId, EngagementHistoryRequestDTO request);
+
+    List<EngagementHistoryResponseDTO> getEngagementsByProfileId(String profileId);
+
+    EngagementHistoryResponseDTO updateEngagement(String profileId, String engagementId,
+            EngagementHistoryRequestDTO request);
+
+    void deleteEngagement(String profileId, String engagementId);
 }

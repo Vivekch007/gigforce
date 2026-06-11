@@ -15,8 +15,8 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 public class EngagementHistoryResponseDTO {
-    private Long id;
-    private Long contractorProfileId;
+    private String id;
+    private String contractorProfileId;
     private String clientName;
     private String roleTitle;
     private LocalDate startDate;

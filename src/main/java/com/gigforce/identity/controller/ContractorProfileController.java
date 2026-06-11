@@ -45,8 +45,7 @@ public class ContractorProfileController {
             ContractorProfileService contractorProfileService,
             CurrentUserContext currentUserContext,
             ContractorCertificationService contractorCertificationService,
-            EngagementHistoryService engagementHistoryService
-    ) {
+            EngagementHistoryService engagementHistoryService) {
         this.contractorProfileService = contractorProfileService;
         this.currentUserContext = currentUserContext;
         this.contractorCertificationService = contractorCertificationService;
@@ -54,14 +53,14 @@ public class ContractorProfileController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('CONTRACTOR', 'ADMIN')")
-    @Operation(summary = "Create profile for current user", description = "Registers a profile for the authenticated contractor user.")
-    public ResponseEntity<ContractorProfileResponseDTO> createProfile(@Valid @RequestBody ContractorProfileRequestDTO request) {
-        Long userId = currentUserContext.getCurrentUserId();
-        if (userId == null) {
-            throw new AccessDeniedException("Access Denied: Unauthenticated user.");
+    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER')")
+    @Operation(summary = "Create profile for a contractor user", description = "Registers a profile for the contractor user specified by userId. Restricted to ADMIN or HIRING_MANAGER.")
+    public ResponseEntity<ContractorProfileResponseDTO> createProfile(
+            @Valid @RequestBody ContractorProfileRequestDTO request) {
+        if (request.getUserId() == null) {
+            throw new IllegalArgumentException("User ID is required to create a contractor profile.");
         }
-        ContractorProfileResponseDTO profile = contractorProfileService.createProfile(userId, request);
+        ContractorProfileResponseDTO profile = contractorProfileService.createProfile(request.getUserId(), request);
         return ResponseEntity.status(HttpStatus.CREATED).body(profile);
     }
 
@@ -69,7 +68,7 @@ public class ContractorProfileController {
     @PreAuthorize("hasRole('CONTRACTOR')")
     @Operation(summary = "Get current contractor's profile", description = "Retrieves profile details of the authenticated caller.")
     public ResponseEntity<ContractorProfileResponseDTO> getMyProfile() {
-        Long userId = currentUserContext.getCurrentUserId();
+        String userId = currentUserContext.getCurrentUserId();
         if (userId == null) {
             throw new AccessDeniedException("Access Denied: Unauthenticated user.");
         }
@@ -79,7 +78,7 @@ public class ContractorProfileController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Get contractor profile by ID", description = "Retrieves profile details by ID. Subject to owner or tenant isolation checks.")
-    public ResponseEntity<ContractorProfileResponseDTO> getProfileById(@PathVariable Long id) {
+    public ResponseEntity<ContractorProfileResponseDTO> getProfileById(@PathVariable String id) {
         ContractorProfileResponseDTO profile = contractorProfileService.getProfileById(id);
         validateAccess(profile);
         return ResponseEntity.ok(profile);
@@ -88,9 +87,8 @@ public class ContractorProfileController {
     @PutMapping("/{id}")
     @Operation(summary = "Update contractor profile", description = "Updates profile info and status. Restricted to profile owner or ADMIN.")
     public ResponseEntity<ContractorProfileResponseDTO> updateProfile(
-            @PathVariable Long id,
-            @Valid @RequestBody ContractorProfileRequestDTO request
-    ) {
+            @PathVariable String id,
+            @Valid @RequestBody ContractorProfileRequestDTO request) {
         ContractorProfileResponseDTO profile = contractorProfileService.getProfileById(id);
         validateOwnerOrAdmin(profile);
         ContractorProfileResponseDTO updated = contractorProfileService.updateProfile(id, request);
@@ -98,26 +96,24 @@ public class ContractorProfileController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER', 'VENDOR_MANAGER', 'VENDOR', 'FINANCE')")
     @Operation(summary = "Search contractor profiles", description = "Retrieves a paginated list of profiles.")
     public ResponseEntity<Page<ContractorProfileResponseDTO>> searchProfiles(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String skill,
             @RequestParam(required = false) Integer minExperience,
-            @RequestParam(required = false) String status
-    ) {
+            @RequestParam(required = false) String status) {
         Page<ContractorProfileResponseDTO> profiles = contractorProfileService.searchProfiles(
-                page, size, skill, minExperience, status
-        );
+                page, size, skill, minExperience, status);
         return ResponseEntity.ok(profiles);
     }
 
     @PostMapping("/{id}/skills")
     @Operation(summary = "Add skill to contractor profile", description = "Maps a skill to the profile. Restricted to profile owner or ADMIN.")
     public ResponseEntity<ContractorProfileResponseDTO> addSkill(
-            @PathVariable Long id,
-            @Valid @RequestBody ContractorSkillRequestDTO request
-    ) {
+            @PathVariable String id,
+            @Valid @RequestBody ContractorSkillRequestDTO request) {
         ContractorProfileResponseDTO profile = contractorProfileService.getProfileById(id);
         validateOwnerOrAdmin(profile);
         ContractorProfileResponseDTO updated = contractorProfileService.addSkill(id, request);
@@ -127,10 +123,9 @@ public class ContractorProfileController {
     @PutMapping("/{id}/skills/{skillId}")
     @Operation(summary = "Update contractor skill association", description = "Adjusts proficiency and experience of an associated skill. Restricted to owner or ADMIN.")
     public ResponseEntity<ContractorProfileResponseDTO> updateSkill(
-            @PathVariable Long id,
-            @PathVariable Long skillId,
-            @Valid @RequestBody ContractorSkillRequestDTO request
-    ) {
+            @PathVariable String id,
+            @PathVariable String skillId,
+            @Valid @RequestBody ContractorSkillRequestDTO request) {
         ContractorProfileResponseDTO profile = contractorProfileService.getProfileById(id);
         validateOwnerOrAdmin(profile);
         ContractorProfileResponseDTO updated = contractorProfileService.updateSkill(id, skillId, request);
@@ -139,7 +134,7 @@ public class ContractorProfileController {
 
     @DeleteMapping("/{id}/skills/{skillId}")
     @Operation(summary = "Remove skill from contractor profile", description = "Deletes skill association. Restricted to owner or ADMIN.")
-    public ResponseEntity<Void> removeSkill(@PathVariable Long id, @PathVariable Long skillId) {
+    public ResponseEntity<Void> removeSkill(@PathVariable String id, @PathVariable String skillId) {
         ContractorProfileResponseDTO profile = contractorProfileService.getProfileById(id);
         validateOwnerOrAdmin(profile);
         contractorProfileService.removeSkill(id, skillId);
@@ -151,9 +146,8 @@ public class ContractorProfileController {
     @PostMapping("/{id}/certifications")
     @Operation(summary = "Add certification to contractor profile", description = "Restricted to profile owner or ADMIN.")
     public ResponseEntity<ContractorCertificationResponseDTO> addCertification(
-            @PathVariable Long id,
-            @Valid @RequestBody ContractorCertificationRequestDTO request
-    ) {
+            @PathVariable String id,
+            @Valid @RequestBody ContractorCertificationRequestDTO request) {
         ContractorProfileResponseDTO profile = contractorProfileService.getProfileById(id);
         validateOwnerOrAdmin(profile);
         ContractorCertificationResponseDTO cert = contractorCertificationService.addCertification(id, request);
@@ -162,29 +156,30 @@ public class ContractorProfileController {
 
     @GetMapping("/{id}/certifications")
     @Operation(summary = "Get contractor certifications", description = "Retrieves all certifications mapped to a profile. Subject to tenant isolation.")
-    public ResponseEntity<List<ContractorCertificationResponseDTO>> getCertifications(@PathVariable Long id) {
+    public ResponseEntity<List<ContractorCertificationResponseDTO>> getCertifications(@PathVariable String id) {
         ContractorProfileResponseDTO profile = contractorProfileService.getProfileById(id);
         validateAccess(profile);
-        List<ContractorCertificationResponseDTO> certs = contractorCertificationService.getCertificationsByProfileId(id);
+        List<ContractorCertificationResponseDTO> certs = contractorCertificationService
+                .getCertificationsByProfileId(id);
         return ResponseEntity.ok(certs);
     }
 
     @PutMapping("/{id}/certifications/{certId}")
     @Operation(summary = "Update contractor certification", description = "Restricted to profile owner or ADMIN.")
     public ResponseEntity<ContractorCertificationResponseDTO> updateCertification(
-            @PathVariable Long id,
-            @PathVariable Long certId,
-            @Valid @RequestBody ContractorCertificationRequestDTO request
-    ) {
+            @PathVariable String id,
+            @PathVariable String certId,
+            @Valid @RequestBody ContractorCertificationRequestDTO request) {
         ContractorProfileResponseDTO profile = contractorProfileService.getProfileById(id);
         validateOwnerOrAdmin(profile);
-        ContractorCertificationResponseDTO updated = contractorCertificationService.updateCertification(id, certId, request);
+        ContractorCertificationResponseDTO updated = contractorCertificationService.updateCertification(id, certId,
+                request);
         return ResponseEntity.ok(updated);
     }
 
     @DeleteMapping("/{id}/certifications/{certId}")
     @Operation(summary = "Remove certification from contractor profile", description = "Restricted to profile owner or ADMIN.")
-    public ResponseEntity<Void> removeCertification(@PathVariable Long id, @PathVariable Long certId) {
+    public ResponseEntity<Void> removeCertification(@PathVariable String id, @PathVariable String certId) {
         ContractorProfileResponseDTO profile = contractorProfileService.getProfileById(id);
         validateOwnerOrAdmin(profile);
         contractorCertificationService.deleteCertification(id, certId);
@@ -197,9 +192,8 @@ public class ContractorProfileController {
     @PreAuthorize("hasAnyRole('ADMIN', 'VENDOR_MANAGER')")
     @Operation(summary = "Add engagement to contractor profile", description = "Restricted to ADMIN or VENDOR_MANAGER.")
     public ResponseEntity<EngagementHistoryResponseDTO> addEngagement(
-            @PathVariable Long id,
-            @Valid @RequestBody EngagementHistoryRequestDTO request
-    ) {
+            @PathVariable String id,
+            @Valid @RequestBody EngagementHistoryRequestDTO request) {
         contractorProfileService.getProfileById(id);
 
         EngagementHistoryResponseDTO eng = engagementHistoryService.addEngagement(id, request);
@@ -208,7 +202,7 @@ public class ContractorProfileController {
 
     @GetMapping("/{id}/engagements")
     @Operation(summary = "Get contractor engagement history", description = "Retrieves all engagements mapped to a profile.")
-    public ResponseEntity<List<EngagementHistoryResponseDTO>> getEngagements(@PathVariable Long id) {
+    public ResponseEntity<List<EngagementHistoryResponseDTO>> getEngagements(@PathVariable String id) {
         ContractorProfileResponseDTO profile = contractorProfileService.getProfileById(id);
         validateAccess(profile);
         List<EngagementHistoryResponseDTO> engs = engagementHistoryService.getEngagementsByProfileId(id);
@@ -219,10 +213,9 @@ public class ContractorProfileController {
     @PreAuthorize("hasAnyRole('ADMIN', 'VENDOR_MANAGER')")
     @Operation(summary = "Update contractor engagement", description = "Restricted to ADMIN or VENDOR_MANAGER.")
     public ResponseEntity<EngagementHistoryResponseDTO> updateEngagement(
-            @PathVariable Long id,
-            @PathVariable Long engagementId,
-            @Valid @RequestBody EngagementHistoryRequestDTO request
-    ) {
+            @PathVariable String id,
+            @PathVariable String engagementId,
+            @Valid @RequestBody EngagementHistoryRequestDTO request) {
         contractorProfileService.getProfileById(id);
 
         EngagementHistoryResponseDTO updated = engagementHistoryService.updateEngagement(id, engagementId, request);
@@ -232,7 +225,7 @@ public class ContractorProfileController {
     @DeleteMapping("/{id}/engagements/{engagementId}")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Remove engagement from contractor profile", description = "Restricted to ADMIN.")
-    public ResponseEntity<Void> removeEngagement(@PathVariable Long id, @PathVariable Long engagementId) {
+    public ResponseEntity<Void> removeEngagement(@PathVariable String id, @PathVariable String engagementId) {
         contractorProfileService.getProfileById(id);
         engagementHistoryService.deleteEngagement(id, engagementId);
         return ResponseEntity.noContent().build();
@@ -244,7 +237,7 @@ public class ContractorProfileController {
         if (isAdmin) {
             return;
         }
-        Long currentUserId = currentUserContext.getCurrentUserId();
+        String currentUserId = currentUserContext.getCurrentUserId();
         if (currentUserId == null || !currentUserId.equals(profile.getUserId())) {
             throw new AccessDeniedException("Access Denied: You do not have permission to modify this profile.");
         }
@@ -257,12 +250,13 @@ public class ContractorProfileController {
             return;
         }
 
-        Long currentUserId = currentUserContext.getCurrentUserId();
+        String currentUserId = currentUserContext.getCurrentUserId();
         String currentRole = currentUserContext.getCurrentUserRole();
 
         if ("CONTRACTOR".equals(currentRole)) {
             if (currentUserId == null || !currentUserId.equals(profile.getUserId())) {
-                throw new AccessDeniedException("Access Denied: You are not authorized to view this contractor's profile.");
+                throw new AccessDeniedException(
+                        "Access Denied: You are not authorized to view this contractor's profile.");
             }
         }
     }

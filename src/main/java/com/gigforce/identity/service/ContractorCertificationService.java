@@ -6,8 +6,12 @@ import com.gigforce.identity.dto.ContractorCertificationResponseDTO;
 import java.util.List;
 
 public interface ContractorCertificationService {
-    ContractorCertificationResponseDTO addCertification(Long profileId, ContractorCertificationRequestDTO request);
-    List<ContractorCertificationResponseDTO> getCertificationsByProfileId(Long profileId);
-    ContractorCertificationResponseDTO updateCertification(Long profileId, Long certId, ContractorCertificationRequestDTO request);
-    void deleteCertification(Long profileId, Long certId);
+    ContractorCertificationResponseDTO addCertification(String profileId, ContractorCertificationRequestDTO request);
+
+    List<ContractorCertificationResponseDTO> getCertificationsByProfileId(String profileId);
+
+    ContractorCertificationResponseDTO updateCertification(String profileId, String certId,
+            ContractorCertificationRequestDTO request);
+
+    void deleteCertification(String profileId, String certId);
 }

@@ -9,7 +9,9 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 
 @Repository
-public interface ContractorProfileRepository extends JpaRepository<ContractorProfile, Long>, JpaSpecificationExecutor<ContractorProfile> {
+public interface ContractorProfileRepository
+        extends JpaRepository<ContractorProfile, String>, JpaSpecificationExecutor<ContractorProfile> {
     Optional<ContractorProfile> findByUser(User user);
+
     boolean existsByUser(User user);
 }

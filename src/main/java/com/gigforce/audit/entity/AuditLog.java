@@ -35,7 +35,7 @@ import java.time.LocalDateTime;
 public class AuditLog extends BaseEntity {
 
     @Column(name = "user_id")
-    private Long userId;
+    private String userId;
 
     @Column(nullable = false, length = 100)
     private String action;
@@ -44,7 +44,7 @@ public class AuditLog extends BaseEntity {
     private String entityType;
 
     @Column(name = "entity_id")
-    private Long entityId;
+    private String entityId;
 
     @Column(length = 500)
     private String description;

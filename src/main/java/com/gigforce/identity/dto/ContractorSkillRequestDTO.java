@@ -17,7 +17,7 @@ import lombok.Setter;
 public class ContractorSkillRequestDTO {
 
     @NotNull(message = "Skill ID is required")
-    private Long skillId;
+    private String skillId;
 
     @NotBlank(message = "Proficiency level is required")
     private String proficiencyLevel; // BEGINNER, INTERMEDIATE, EXPERT

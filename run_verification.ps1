@@ -80,6 +80,8 @@ $adminLoginBody = @{
 $res = Send-Req "POST" "/auth/login" -body $adminLoginBody
 if ($res.StatusCode -eq 200) {
     $variables["adminAccessToken"] = $res.Body.accessToken
+    $meRes = Send-Req "GET" "/users/me" -token $variables["adminAccessToken"]
+    $variables["adminUserId"] = $meRes.Body.userId
     Log-Test "Login Admin" "PASS" "Admin logged in successfully and token captured."
 } else {
     Log-Test "Login Admin" "FAIL" "Failed to log in as admin. Status: $($res.StatusCode)" "$($res.RawContent)"
@@ -279,12 +281,13 @@ if ($res.StatusCode -eq 200) {
 
 # --- Test 17: Create Profile (Alice) ---
 $profileAliceBody = @{
+    userId = [int]$variables["contractorAUserId"]
     title = "Senior Java Developer"
     bio = "Experienced engineer specializing in Spring Boot microservices."
     hourlyRate = 45.00
     experienceYears = 6
 }
-$res = Send-Req "POST" "/contractors/profiles" -token $variables["contractorAccessTokenA"] -body $profileAliceBody
+$res = Send-Req "POST" "/contractors/profiles" -token $variables["adminAccessToken"] -body $profileAliceBody
 if ($res.StatusCode -eq 201) {
     $variables["contractorAProfileId"] = $res.Body.id
     Log-Test "Create Contractor Profile" "PASS" "Profile for Contractor Alice created with ID $($res.Body.id)."
@@ -292,8 +295,16 @@ if ($res.StatusCode -eq 201) {
     Log-Test "Create Contractor Profile" "FAIL" "Failed to create profile. Status: $($res.StatusCode)" "$($res.RawContent)"
 }
 
-# --- Test 18: Attempt duplicate Profile creation ---
+# --- Test 17b: Contractor attempts self-creation of profile (Fail 403) ---
 $res = Send-Req "POST" "/contractors/profiles" -token $variables["contractorAccessTokenA"] -body $profileAliceBody
+if ($res.StatusCode -eq 403) {
+    Log-Test "Contractor profile self-creation prohibited" "PASS" "Contractor self-creation correctly rejected with 403."
+} else {
+    Log-Test "Contractor profile self-creation prohibited" "FAIL" "Expected 403 but got: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# --- Test 18: Attempt duplicate Profile creation ---
+$res = Send-Req "POST" "/contractors/profiles" -token $variables["adminAccessToken"] -body $profileAliceBody
 if ($res.StatusCode -eq 400) {
     Log-Test "Attempt duplicate Profile creation" "PASS" "Duplicate profile creation rejected with 400."
 } else {
@@ -310,6 +321,7 @@ if ($res.StatusCode -eq 200 -and $res.Body.title -eq "Senior Java Developer") {
 
 # --- Test 20: Update Profile ---
 $updateAliceBody = @{
+    userId = [int]$variables["contractorAUserId"]
     title = "Lead Spring Boot Architect"
     bio = "Specializing in distributed systems and cloud solutions."
     hourlyRate = 55.00
@@ -324,12 +336,13 @@ if ($res.StatusCode -eq 200 -and $res.Body.title -eq "Lead Spring Boot Architect
 
 # --- Test 21: Create Profile (Bob) ---
 $profileBobBody = @{
+    userId = [int]$variables["contractorBUserId"]
     title = "Fullstack React Developer"
     bio = "Building beautiful frontends with React."
     hourlyRate = 40.00
     experienceYears = 4
 }
-$res = Send-Req "POST" "/contractors/profiles" -token $variables["contractorAccessTokenB"] -body $profileBobBody
+$res = Send-Req "POST" "/contractors/profiles" -token $variables["adminAccessToken"] -body $profileBobBody
 if ($res.StatusCode -eq 201) {
     $variables["contractorBProfileId"] = $res.Body.id
     Log-Test "Create Contractor Bob Profile" "PASS" "Contractor Bob profile created with ID $($res.Body.id)."
@@ -531,6 +544,14 @@ if ($res.StatusCode -eq 403) {
     Log-Test "Cross Profile Read Blocked" "FAIL" "Got status: $($res.StatusCode)" "$($res.RawContent)"
 }
 
+# --- Test 35b: Contractor blocked from searching profiles (Fail 403) ---
+$res = Send-Req "GET" "/contractors/profiles" -token $variables["contractorAccessTokenB"]
+if ($res.StatusCode -eq 403) {
+    Log-Test "Contractor blocked from searching profiles" "PASS" "Contractor Bob was blocked from searching profiles."
+} else {
+    Log-Test "Contractor blocked from searching profiles" "FAIL" "Expected 403 but got status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
 # --- Test 36: Cross Search Isolation [Bypassed for Single-Tenant] ---
 Log-Test "Cross Search Isolation" "PASS" "Bypassed search isolation (multi-tenancy disabled)."
 
@@ -546,12 +567,13 @@ if ($res.StatusCode -eq 200) {
 
 # --- Test 38: Create Profile - Negative Hourly Rate (Fail) ---
 $profileNegativeBody = @{
+    userId = [int]$variables["contractorBUserId"]
     title = "Architect"
     bio = "Negative hourly rate test"
     hourlyRate = -1.00
     experienceYears = 5
 }
-$res = Send-Req "POST" "/contractors/profiles" -token $variables["contractorAccessTokenB"] -body $profileNegativeBody
+$res = Send-Req "POST" "/contractors/profiles" -token $variables["adminAccessToken"] -body $profileNegativeBody
 if ($res.StatusCode -eq 400) {
     Log-Test "Validation: Negative Hourly Rate" "PASS" "Correctly rejected with 400 Bad Request."
 } else {
@@ -560,28 +582,163 @@ if ($res.StatusCode -eq 400) {
 
 # --- Test 39: Create Profile - Empty Title (Fail) ---
 $profileEmptyBody = @{
+    userId = [int]$variables["contractorBUserId"]
     title = ""
     bio = "Empty title test"
     hourlyRate = 10.00
     experienceYears = 5
 }
-$res = Send-Req "POST" "/contractors/profiles" -token $variables["contractorAccessTokenB"] -body $profileEmptyBody
+$res = Send-Req "POST" "/contractors/profiles" -token $variables["adminAccessToken"] -body $profileEmptyBody
 if ($res.StatusCode -eq 400) {
     Log-Test "Validation: Empty Title" "PASS" "Correctly rejected with 400."
 } else {
     Log-Test "Validation: Empty Title" "FAIL" "Got status: $($res.StatusCode)" "$($res.RawContent)"
 }
 
+# --- Test 39d: User Update Validation - Invalid Name (Fail 400) ---
+$updateInvalidNameBody = @{
+    name = "Ab"
+}
+$res = Send-Req "PUT" "/users/$($variables["contractorBUserId"])" -token $variables["adminAccessToken"] -body $updateInvalidNameBody
+if ($res.StatusCode -eq 400) {
+    Log-Test "Validation: User Update Short Name" "PASS" "User update with short name rejected with 400."
+} else {
+    Log-Test "Validation: User Update Short Name" "FAIL" "Expected 400 but got status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# --- Test 39e: User Update Validation - Invalid Phone (Fail 400) ---
+$updateInvalidPhoneBody = @{
+    phone = "123a56"
+}
+$res = Send-Req "PUT" "/users/$($variables["contractorBUserId"])" -token $variables["adminAccessToken"] -body $updateInvalidPhoneBody
+if ($res.StatusCode -eq 400) {
+    Log-Test "Validation: User Update Invalid Phone" "PASS" "User update with invalid phone pattern rejected with 400."
+} else {
+    Log-Test "Validation: User Update Invalid Phone" "FAIL" "Expected 400 but got status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# --- Test 39f: Certification Expiry Date validation (Fail 400) ---
+$certExpiryBody = @{
+    name = "Invalid Expiry Cert"
+    issuingAuthority = "Auth"
+    issueDate = "2024-05-15"
+    expiryDate = "2023-05-15"
+}
+$res = Send-Req "POST" "/contractors/profiles/$($variables["contractorAProfileId"])/certifications" -token $variables["contractorAccessTokenA"] -body $certExpiryBody
+if ($res.StatusCode -eq 400 -and $res.RawContent -like "*expiry date cannot be before issue date*") {
+    Log-Test "Validation: Certification Expiry Date" "PASS" "Certification with invalid expiry date rejected with 400."
+} else {
+    Log-Test "Validation: Certification Expiry Date" "FAIL" "Expected 400 but got status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# --- Test 39g: Engagement End Date validation (Fail 400) ---
+$engEndBody = @{
+    clientName = "Client"
+    roleTitle = "Developer"
+    startDate = "2024-01-10"
+    endDate = "2023-01-10"
+}
+$res = Send-Req "POST" "/contractors/profiles/$($variables["contractorAProfileId"])/engagements" -token $variables["vendorManagerAccessTokenA"] -body $engEndBody
+if ($res.StatusCode -eq 400 -and $res.RawContent -like "*end date cannot be before start date*") {
+    Log-Test "Validation: Engagement End Date" "PASS" "Placement engagement with invalid end date rejected with 400."
+} else {
+    Log-Test "Validation: Engagement End Date" "FAIL" "Expected 400 but got status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# --- Test 39h: Duplicate Certification Protection (Fail 400) ---
+$duplicateCertBody = @{
+    name = "Oracle Certified Professional: Java SE 17 Developer"
+    issuingAuthority = "Oracle University"
+    certificateNumber = "OCP-17-998822"
+    issueDate = "2024-05-15"
+    expiryDate = "2029-05-15"
+}
+$res = Send-Req "POST" "/contractors/profiles/$($variables["contractorAProfileId"])/certifications" -token $variables["contractorAccessTokenA"] -body $duplicateCertBody
+if ($res.StatusCode -eq 400 -and $res.RawContent -like "*already exists on this profile*") {
+    Log-Test "Validation: Duplicate Certification Protection" "PASS" "Duplicate certification rejected with 400."
+} else {
+    Log-Test "Validation: Duplicate Certification Protection" "FAIL" "Expected 400 but got status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# ==================== SECURITY & VALIDATION extension tests ====================
+
+# --- Test 39a: Register Admin through public endpoint (Fail 400) ---
+$regAdminBody = @{
+    name = "Malicious Admin"
+    email = "maliciousadmin@example.com"
+    password = "Password123!"
+    phone = "9999999999"
+    role = "ADMIN"
+}
+$res = Send-Req "POST" "/auth/register" -body $regAdminBody
+if ($res.StatusCode -eq 400 -and $res.RawContent -like "*Registration of ADMIN accounts is not allowed*") {
+    Log-Test "Security: Block Public ADMIN Registration" "PASS" "Admin registration rejected with 400 Bad Request."
+} else {
+    Log-Test "Security: Block Public ADMIN Registration" "FAIL" "Expected 400 with clear message, but got status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# --- Test 39b: Verify Suspended User JWT Invalidation (Fail 403) ---
+$res = Send-Req "PUT" "/users/$($variables["contractorAUserId"])/suspend" -token $variables["adminAccessToken"]
+if ($res.StatusCode -eq 200) {
+    Log-Test "Suspend Alice" "PASS" "Admin successfully suspended Alice."
+} else {
+    Log-Test "Suspend Alice" "FAIL" "Failed to suspend Alice. Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+$res = Send-Req "GET" "/contractors/profiles/me" -token $variables["contractorAccessTokenA"]
+if ($res.StatusCode -eq 403 -or $res.StatusCode -eq 401) {
+    Log-Test "Security: Suspended User JWT Invalidation" "PASS" "Suspended user blocked from accessing API with active JWT (Status: $($res.StatusCode))."
+} else {
+    Log-Test "Security: Suspended User JWT Invalidation" "FAIL" "Expected 401/403 but got status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+$res = Send-Req "PUT" "/users/$($variables["contractorAUserId"])/activate" -token $variables["adminAccessToken"]
+if ($res.StatusCode -eq 200) {
+    Log-Test "Re-activate Alice" "PASS" "Admin successfully re-activated Alice."
+} else {
+    Log-Test "Re-activate Alice" "FAIL" "Failed to re-activate Alice. Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# --- Test 39c: Verify Deactivated User JWT Invalidation (Fail 403) ---
+$res = Send-Req "PUT" "/users/$($variables["contractorBUserId"])/deactivate" -token $variables["adminAccessToken"]
+if ($res.StatusCode -eq 200) {
+    Log-Test "Deactivate Bob" "PASS" "Admin successfully deactivated Bob."
+} else {
+    Log-Test "Deactivate Bob" "FAIL" "Failed to deactivate Bob. Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+$res = Send-Req "GET" "/skills" -token $variables["contractorAccessTokenB"]
+if ($res.StatusCode -eq 403 -or $res.StatusCode -eq 401) {
+    Log-Test "Security: Deactivated User JWT Invalidation" "PASS" "Deactivated user blocked from accessing API with active JWT (Status: $($res.StatusCode))."
+} else {
+    Log-Test "Security: Deactivated User JWT Invalidation" "FAIL" "Expected 401/403 but got status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+$res = Send-Req "PUT" "/users/$($variables["contractorBUserId"])/activate" -token $variables["adminAccessToken"]
+if ($res.StatusCode -eq 200) {
+    Log-Test "Re-activate Bob" "PASS" "Admin successfully re-activated Bob."
+} else {
+    Log-Test "Re-activate Bob" "FAIL" "Failed to re-activate Bob. Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
 # ==================== AUDIT LOGS verification ====================
 
 # --- Test 40: Verify Audit Logs ---
-$res = Send-Req "GET" "/audit/user/$($variables["contractorAUserId"])" -token $variables["adminAccessToken"]
+$resActor = Send-Req "GET" "/audit/user/$($variables["adminUserId"])" -token $variables["adminAccessToken"]
+$resContractor = Send-Req "GET" "/audit/user/$($variables["contractorAUserId"])" -token $variables["adminAccessToken"]
+
 $actionsFound = @{}
-if ($res.StatusCode -eq 200) {
-    foreach ($log in $res.Body) {
+if ($resActor.StatusCode -eq 200) {
+    foreach ($log in $resActor.Body) {
         $actionsFound[$log.action] = $true
     }
 }
+if ($resContractor.StatusCode -eq 200) {
+    foreach ($log in $resContractor.Body) {
+        $actionsFound[$log.action] = $true
+    }
+}
+
 $missing = @()
 foreach ($act in @("CONTRACTOR_PROFILE_CREATED", "CONTRACTOR_PROFILE_UPDATED", "CONTRACTOR_SKILL_ADDED", "CONTRACTOR_SKILL_UPDATED", "CONTRACTOR_SKILL_REMOVED")) {
     if (!$actionsFound.ContainsKey($act)) {
@@ -589,11 +746,1031 @@ foreach ($act in @("CONTRACTOR_PROFILE_CREATED", "CONTRACTOR_PROFILE_UPDATED", "
     }
 }
 
-if ($res.StatusCode -eq 200 -and $missing.Count -eq 0) {
+if ($resContractor.StatusCode -eq 200 -and $missing.Count -eq 0) {
     Log-Test "Verify Audit Logs" "PASS" "All expected contractor actions logged (CREATED, UPDATED, SKILL_ADDED, SKILL_UPDATED, SKILL_REMOVED)."
 } else {
-    Log-Test "Verify Audit Logs" "FAIL" "Missing audit actions: $($missing -join ', '). Status: $($res.StatusCode)" "$($res.RawContent)"
+    Log-Test "Verify Audit Logs" "FAIL" "Missing audit actions: $($missing -join ', '). Status: $($resContractor.StatusCode)" "$($resContractor.RawContent)"
 }
+
+# ==================== MODULE 3: RESOURCE REQUISITION & VENDOR SOURCING ====================
+
+# --- Test 41: Create Requisition (DRAFT) ---
+$createReqBody = @{
+    title = "Senior Java Developer"
+    description = "Needs Java + Spring Boot"
+    requiredSkillId = 1
+    minExperienceYears = 3
+    maxHourlyRate = 50.00
+    quantity = 1
+}
+$res = Send-Req "POST" "/requisitions" -token $variables["hiringManagerAccessTokenB"] -body $createReqBody
+if ($res.StatusCode -eq 201 -and $res.Body.status -eq "DRAFT") {
+    $variables["reqId"] = $res.Body.id
+    Log-Test "Create Requisition (DRAFT)" "PASS" "Successfully created requisition in DRAFT status with ID $($res.Body.id)."
+} else {
+    Log-Test "Create Requisition (DRAFT)" "FAIL" "Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# --- Test 42: Update Requisition (DRAFT) ---
+$updateReqBody = @{
+    title = "Senior Java Expert"
+    description = "Needs Java + Spring Boot + Microservices"
+    requiredSkillId = 1
+    minExperienceYears = 4
+    maxHourlyRate = 55.00
+    quantity = 1
+}
+$res = Send-Req "PUT" "/requisitions/$($variables["reqId"])" -token $variables["hiringManagerAccessTokenB"] -body $updateReqBody
+if ($res.StatusCode -eq 200 -and $res.Body.maxHourlyRate -eq 55.00) {
+    Log-Test "Update Requisition (DRAFT)" "PASS" "Successfully updated draft requisition details."
+} else {
+    Log-Test "Update Requisition (DRAFT)" "FAIL" "Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# --- Test 43: Submit Contractor to Requisition in DRAFT (Fail 400) ---
+$submitDraftBody = @{
+    contractorProfileId = $variables["contractorAProfileId"]
+    proposedRate = 50.00
+    remarks = "Interested"
+}
+$res = Send-Req "POST" "/submissions/requisitions/$($variables["reqId"])/submit" -token $variables["contractorAccessTokenA"] -body $submitDraftBody
+if ($res.StatusCode -eq 400 -and $res.RawContent -like "*only allowed for OPEN requisitions*") {
+    Log-Test "Submit Contractor to DRAFT Req (Fail)" "PASS" "Rejected contractor submission to draft requisition correctly."
+} else {
+    Log-Test "Submit Contractor to DRAFT Req (Fail)" "FAIL" "Expected 400 but got status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# --- Test 44: Publish Requisition (DRAFT -> OPEN) ---
+$res = Send-Req "PUT" "/requisitions/$($variables["reqId"])/publish" -token $variables["hiringManagerAccessTokenB"]
+if ($res.StatusCode -eq 200 -and $res.Body.status -eq "OPEN") {
+    Log-Test "Publish Requisition" "PASS" "Successfully published requisition (status changed to OPEN)."
+} else {
+    Log-Test "Publish Requisition" "FAIL" "Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# --- Test 45: Submit Contractor (Alice) to OPEN Requisition ---
+$submitOpenBody = @{
+    contractorProfileId = $variables["contractorAProfileId"]
+    proposedRate = 52.00
+    remarks = "Alice is interested"
+}
+$res = Send-Req "POST" "/submissions/requisitions/$($variables["reqId"])/submit" -token $variables["vendorManagerAccessTokenA"] -body $submitOpenBody
+if ($res.StatusCode -eq 201 -and $res.Body.status -eq "SUBMITTED") {
+    $variables["subId"] = $res.Body.id
+    Log-Test "Submit Contractor (Alice)" "PASS" "Successfully submitted contractor Alice to requisition with submission ID $($res.Body.id)."
+} else {
+    Log-Test "Submit Contractor (Alice)" "FAIL" "Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# --- Test 46: Attempt Duplicate Submission (Fail 400) ---
+$res = Send-Req "POST" "/submissions/requisitions/$($variables["reqId"])/submit" -token $variables["vendorManagerAccessTokenA"] -body $submitOpenBody
+if ($res.StatusCode -eq 400 -and $res.RawContent -like "*already been submitted*") {
+    Log-Test "Attempt Duplicate Submission (Fail)" "PASS" "Rejected duplicate contractor submission to the same requisition correctly."
+} else {
+    Log-Test "Attempt Duplicate Submission (Fail)" "FAIL" "Expected 400 but got status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# --- Test 47: Submit Contractor by Contractor (Self-submission) ---
+$submitBobBody = @{
+    contractorProfileId = $variables["contractorBProfileId"]
+    proposedRate = 48.00
+    remarks = "Bob is interested"
+}
+$res = Send-Req "POST" "/submissions/requisitions/$($variables["reqId"])/submit" -token $variables["contractorAccessTokenB"] -body $submitBobBody
+if ($res.StatusCode -eq 201) {
+    $variables["bobSubId"] = $res.Body.id
+    Log-Test "Submit Contractor (Bob self-submission)" "PASS" "Contractor Bob successfully self-submitted his profile."
+} else {
+    Log-Test "Submit Contractor (Bob self-submission)" "FAIL" "Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# --- Test 48: Search Requisitions ---
+$res = Send-Req "GET" "/requisitions?status=OPEN&requiredSkillId=1" -token $variables["contractorAccessTokenA"]
+if ($res.StatusCode -eq 200 -and $res.Body.totalElements -gt 0) {
+    Log-Test "Search Requisitions" "PASS" "Successfully searched and filtered open requisitions by skill."
+} else {
+    Log-Test "Search Requisitions" "FAIL" "Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# --- Test 49: Transition Submission to REVIEWING ---
+$res = Send-Req "PUT" "/submissions/$($variables["subId"])/review" -token $variables["hiringManagerAccessTokenB"]
+if ($res.StatusCode -eq 200 -and $res.Body.status -eq "REVIEWING") {
+    Log-Test "Transition Submission to REVIEWING" "PASS" "Hiring Manager transitioned Alice's submission to REVIEWING."
+} else {
+    Log-Test "Transition Submission to REVIEWING" "FAIL" "Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# --- Test 50: Transition Submission to ACCEPTED (Auto-fill Requisition & Auto-Assignment) ---
+$res = Send-Req "PUT" "/submissions/$($variables["subId"])/accept?remarks=Alice+Accepted" -token $variables["hiringManagerAccessTokenB"]
+if ($res.StatusCode -eq 200 -and $res.Body.status -eq "ACCEPTED") {
+    # Verify side-effect 1: Requisition is FILLED (quantity was 1)
+    $reqRes = Send-Req "GET" "/requisitions/$($variables["reqId"])" -token $variables["adminAccessToken"]
+    # Verify side-effect 2: Contractor profile status is ASSIGNED
+    $profileRes = Send-Req "GET" "/contractors/profiles/$($variables["contractorAProfileId"])" -token $variables["adminAccessToken"]
+    # Verify side-effect 3: Engagement history deferred (should NOT exist yet)
+    $engRes = Send-Req "GET" "/contractors/profiles/$($variables["contractorAProfileId"])/engagements" -token $variables["adminAccessToken"]
+    $hasNewEng = $false
+    if ($engRes.StatusCode -eq 200) {
+        foreach ($eng in $engRes.Body) {
+            if ($eng.roleTitle -eq "Senior Java Expert") {
+                $hasNewEng = $true
+            }
+        }
+    }
+    
+    if ($reqRes.Body.status -eq "FILLED" -and $profileRes.Body.status -eq "ASSIGNED" -and !$hasNewEng) {
+        Log-Test "Transition Submission to ACCEPTED & Side-effects" "PASS" "Alice accepted. Requisition filled. Contractor status updated to ASSIGNED and Engagement deferred."
+    } else {
+        Log-Test "Transition Submission to ACCEPTED & Side-effects" "FAIL" "Validation failed. Req status: $($reqRes.Body.status), Profile status: $($profileRes.Body.status), Has Engagement: $hasNewEng"
+    }
+} else {
+    Log-Test "Transition Submission to ACCEPTED & Side-effects" "FAIL" "Transition failed. Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# --- Test 51: Submit ASSIGNED Contractor (Fail 400) ---
+$createReqBody2 = @{
+    title = "Another Java Job"
+    requiredSkillId = 1
+    minExperienceYears = 1
+    maxHourlyRate = 40.00
+    quantity = 1
+}
+$res = Send-Req "POST" "/requisitions" -token $variables["hiringManagerAccessTokenB"] -body $createReqBody2
+$variables["reqId2"] = $res.Body.id
+$res = Send-Req "PUT" "/requisitions/$($variables["reqId2"])/publish" -token $variables["hiringManagerAccessTokenB"]
+
+# Now try to submit Alice (who is ASSIGNED) to Req 2
+$res = Send-Req "POST" "/submissions/requisitions/$($variables["reqId2"])/submit" -token $variables["vendorManagerAccessTokenA"] -body $submitOpenBody
+if ($res.StatusCode -eq 400 -and $res.RawContent -like "*not available for submissions*") {
+    Log-Test "Submit ASSIGNED Contractor (Fail)" "PASS" "Rejected submission of assigned contractor profile correctly."
+} else {
+    Log-Test "Submit ASSIGNED Contractor (Fail)" "FAIL" "Expected 400 but got status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# --- Test 52: Verify Audit Logs for Module 3 ---
+$res = Send-Req "GET" "/audit/user/$($variables["hiringManagerUserId"])" -token $variables["adminAccessToken"]
+$actionsFound = @{}
+if ($res.StatusCode -eq 200) {
+    foreach ($log in $res.Body) {
+        $actionsFound[$log.action] = $true
+    }
+}
+$missing = @()
+foreach ($act in @("REQUISITION_CREATED", "REQUISITION_UPDATED", "REQUISITION_STATUS_CHANGED", "VENDOR_SUBMISSION_STATUS_CHANGED")) {
+    if (!$actionsFound.ContainsKey($act)) {
+        $missing += $act
+    }
+}
+if ($res.StatusCode -eq 200 -and $missing.Count -eq 0) {
+    Log-Test "Verify Module 3 Audit Logs" "PASS" "All expected Module 3 actions logged successfully."
+} else {
+    Log-Test "Verify Module 3 Audit Logs" "FAIL" "Missing audit actions: $($missing -join ', '). Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# ==================== MODULE 4: ASSIGNMENT & CONTRACT MANAGEMENT ====================
+
+# --- Test 53: Create Assignment from ACCEPTED submission ---
+$createAssignBody = @{
+    vendorSubmissionId = [int]$variables["subId"]
+    startDate = "2026-06-10"
+    endDate = "2026-12-10"
+    agreedRatePerDay = 50.00
+    engagementType = "TIME_AND_MATERIALS"
+    sowReference = "SOW-ALICE-101"
+}
+$res = Send-Req "POST" "/assignments" -token $variables["hiringManagerAccessTokenB"] -body $createAssignBody
+if ($res.StatusCode -eq 201) {
+    $variables["assignmentId"] = $res.Body.id
+    Log-Test "Create Assignment from ACCEPTED submission" "PASS" "Assignment created successfully with ID $($res.Body.id)."
+} else {
+    Log-Test "Create Assignment from ACCEPTED submission" "FAIL" "Failed to create assignment. Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# --- Test 54: Attempt Assignment from REJECTED submission ---
+# First, transition Bob's submission to REJECTED
+$res = Send-Req "PUT" "/submissions/$($variables["bobSubId"])/reject?remarks=Bob+Rejected" -token $variables["hiringManagerAccessTokenB"]
+$createAssignBobBody = @{
+    vendorSubmissionId = [int]$variables["bobSubId"]
+    startDate = "2026-06-10"
+    endDate = "2026-12-10"
+    agreedRatePerDay = 45.00
+    engagementType = "TIME_AND_MATERIALS"
+    sowReference = "SOW-BOB-101"
+}
+$res = Send-Req "POST" "/assignments" -token $variables["hiringManagerAccessTokenB"] -body $createAssignBobBody
+if ($res.StatusCode -eq 400 -and $res.RawContent -like "*Assignment can only be created from an ACCEPTED submission*") {
+    Log-Test "Attempt Assignment from REJECTED submission" "PASS" "Rejected assignment creation from REJECTED submission correctly."
+} else {
+    Log-Test "Attempt Assignment from REJECTED submission" "FAIL" "Expected 400 but got: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# --- Test 55: Attempt Assignment from REVIEWING submission ---
+# Create a new requisition and submission for Bob, publish it, transition it to REVIEWING
+$createReqBobBody = @{
+    title = "Bob Java Job"
+    requiredSkillId = 1
+    minExperienceYears = 1
+    maxHourlyRate = 50.00
+    quantity = 1
+}
+$res = Send-Req "POST" "/requisitions" -token $variables["hiringManagerAccessTokenB"] -body $createReqBobBody
+$variables["reqIdBob"] = $res.Body.id
+$res = Send-Req "PUT" "/requisitions/$($variables["reqIdBob"])/publish" -token $variables["hiringManagerAccessTokenB"]
+
+$submitBobBody2 = @{
+    contractorProfileId = $variables["contractorBProfileId"]
+    proposedRate = 48.00
+    remarks = "Bob submission 2"
+}
+$res = Send-Req "POST" "/submissions/requisitions/$($variables["reqIdBob"])/submit" -token $variables["contractorAccessTokenB"] -body $submitBobBody2
+$variables["bobSubId2"] = $res.Body.id
+
+# Transition Bob submission 2 to REVIEWING
+$res = Send-Req "PUT" "/submissions/$($variables["bobSubId2"])/review" -token $variables["hiringManagerAccessTokenB"]
+
+# Try to create assignment from Bob submission 2 (which is REVIEWING)
+$createAssignBobBody2 = @{
+    vendorSubmissionId = [int]$variables["bobSubId2"]
+    startDate = "2026-06-10"
+    endDate = "2026-12-10"
+    agreedRatePerDay = 45.00
+    engagementType = "TIME_AND_MATERIALS"
+    sowReference = "SOW-BOB-102"
+}
+$res = Send-Req "POST" "/assignments" -token $variables["hiringManagerAccessTokenB"] -body $createAssignBobBody2
+if ($res.StatusCode -eq 400 -and $res.RawContent -like "*Assignment can only be created from an ACCEPTED submission*") {
+    Log-Test "Attempt Assignment from REVIEWING submission" "PASS" "Rejected assignment creation from REVIEWING submission correctly."
+} else {
+    Log-Test "Attempt Assignment from REVIEWING submission" "FAIL" "Expected 400 but got: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# --- Test 56: Submit Extension Amendment ---
+$amendmentExtBody = @{
+    amendmentType = "EXTENSION"
+    effectiveDate = "2026-12-11"
+    newValue = "2027-03-11"
+    remarks = "Extend project by 3 months"
+}
+$res = Send-Req "POST" "/assignments/$($variables["assignmentId"])/amendments" -token $variables["hiringManagerAccessTokenB"] -body $amendmentExtBody
+if ($res.StatusCode -eq 201 -and $res.Body.status -eq "PENDING") {
+    $variables["amendExtId"] = $res.Body.id
+    Log-Test "Submit Extension Amendment" "PASS" "Extension amendment submitted with ID $($res.Body.id)."
+} else {
+    Log-Test "Submit Extension Amendment" "FAIL" "Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# --- Test 57: Submit Rate Revision Amendment ---
+$amendmentRateBody = @{
+    amendmentType = "RATE_REVISION"
+    effectiveDate = "2026-08-01"
+    newValue = "55.00"
+    remarks = "Performance rate increase"
+}
+$res = Send-Req "POST" "/assignments/$($variables["assignmentId"])/amendments" -token $variables["hiringManagerAccessTokenB"] -body $amendmentRateBody
+if ($res.StatusCode -eq 201 -and $res.Body.status -eq "PENDING") {
+    $variables["amendRateId"] = $res.Body.id
+    Log-Test "Submit Rate Revision Amendment" "PASS" "Rate revision amendment submitted."
+} else {
+    Log-Test "Submit Rate Revision Amendment" "FAIL" "Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# --- Test 58: Submit Scope Change Amendment ---
+$amendmentScopeBody = @{
+    amendmentType = "SCOPE_CHANGE"
+    effectiveDate = "2026-07-01"
+    newValue = "SOW-ALICE-101-REV1"
+    remarks = "Update SOW reference"
+}
+$res = Send-Req "POST" "/assignments/$($variables["assignmentId"])/amendments" -token $variables["hiringManagerAccessTokenB"] -body $amendmentScopeBody
+if ($res.StatusCode -eq 201 -and $res.Body.status -eq "PENDING") {
+    $variables["amendScopeId"] = $res.Body.id
+    Log-Test "Submit Scope Change Amendment" "PASS" "Scope change amendment submitted."
+} else {
+    Log-Test "Submit Scope Change Amendment" "FAIL" "Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# --- Test 59: Submit Early Termination Amendment ---
+$amendmentTermBody = @{
+    amendmentType = "EARLY_TERMINATION"
+    effectiveDate = "2026-09-01"
+    newValue = "2026-09-15"
+    remarks = "Terminating project early"
+}
+$res = Send-Req "POST" "/assignments/$($variables["assignmentId"])/amendments" -token $variables["hiringManagerAccessTokenB"] -body $amendmentTermBody
+if ($res.StatusCode -eq 201 -and $res.Body.status -eq "PENDING") {
+    $variables["amendTermId"] = $res.Body.id
+    Log-Test "Submit Early Termination Amendment" "PASS" "Early termination amendment submitted."
+} else {
+    Log-Test "Submit Early Termination Amendment" "FAIL" "Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# --- Test 60: Block Unauthorized Amendment Approval (Fail 403) ---
+$res = Send-Req "PUT" "/amendments/$($variables["amendRateId"])/approve" -token $variables["vendorManagerAccessTokenA"]
+if ($res.StatusCode -eq 403) {
+    Log-Test "Unauthorized Amendment Approval" "PASS" "Blocked unauthorized amendment approval correctly."
+} else {
+    Log-Test "Unauthorized Amendment Approval" "FAIL" "Expected 403 but got: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# --- Test 61: Approve Extension Amendment ---
+$res = Send-Req "PUT" "/amendments/$($variables["amendExtId"])/approve?remarks=Extension+Approved" -token $variables["hiringManagerAccessTokenB"]
+if ($res.StatusCode -eq 200 -and $res.Body.status -eq "APPROVED") {
+    # Verify assignment has new end date and EXTENDED status
+    $assignRes = Send-Req "GET" "/assignments/$($variables["assignmentId"])" -token $variables["hiringManagerAccessTokenB"]
+    if ($assignRes.Body.endDate -eq "2027-03-11" -and $assignRes.Body.status -eq "EXTENDED") {
+        Log-Test "Approve Extension Amendment" "PASS" "Extension amendment approved and assignment end date updated."
+    } else {
+        Log-Test "Approve Extension Amendment" "FAIL" "Assignment verify failed. EndDate: $($assignRes.Body.endDate), Status: $($assignRes.Body.status)"
+    }
+} else {
+    Log-Test "Approve Extension Amendment" "FAIL" "Approve failed. Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# --- Test 62: Approve Rate Revision and verify conflicting amendment auto-rejection ---
+# Submit conflicting rate revision
+$amendmentRateBodyConf = @{
+    amendmentType = "RATE_REVISION"
+    effectiveDate = "2026-08-01"
+    newValue = "60.00"
+    remarks = "Conflicting rate revision"
+}
+$res = Send-Req "POST" "/assignments/$($variables["assignmentId"])/amendments" -token $variables["hiringManagerAccessTokenB"] -body $amendmentRateBodyConf
+$variables["amendRateConfId"] = $res.Body.id
+
+# Approve first rate revision
+$res = Send-Req "PUT" "/amendments/$($variables["amendRateId"])/approve?remarks=First+Rate+Approved" -token $variables["hiringManagerAccessTokenB"]
+if ($res.StatusCode -eq 200) {
+    # Check if conflicting was rejected
+    $listRes = Send-Req "GET" "/assignments/$($variables["assignmentId"])/amendments" -token $variables["hiringManagerAccessTokenB"]
+    $rejectedConf = $false
+    foreach ($amend in $listRes.Body) {
+        if ($amend.id -eq $variables["amendRateConfId"] -and $amend.status -eq "REJECTED") {
+            $rejectedConf = $true
+        }
+    }
+    if ($rejectedConf) {
+        Log-Test "Approve Rate Revision & Auto-Reject Conflicting" "PASS" "First rate revision approved and conflicting request auto-rejected."
+    } else {
+        Log-Test "Approve Rate Revision & Auto-Reject Conflicting" "FAIL" "Conflicting amendment status was not changed to REJECTED."
+    }
+} else {
+    Log-Test "Approve Rate Revision & Auto-Reject Conflicting" "FAIL" "Approve failed. Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# --- Test 63: Contractor Assignment Visibility ---
+# Bob tries to view Alice's assignment
+$res = Send-Req "GET" "/assignments/$($variables["assignmentId"])" -token $variables["contractorAccessTokenB"]
+if ($res.StatusCode -eq 403) {
+    # Alice views her own assignment
+    $aliceRes = Send-Req "GET" "/assignments/$($variables["assignmentId"])" -token $variables["contractorAccessTokenA"]
+    if ($aliceRes.StatusCode -eq 200) {
+        Log-Test "Contractor Assignment Visibility" "PASS" "Alice can view her assignment, Bob is forbidden."
+    } else {
+        Log-Test "Contractor Assignment Visibility" "FAIL" "Alice got status: $($aliceRes.StatusCode)"
+    }
+} else {
+    Log-Test "Contractor Assignment Visibility" "FAIL" "Bob was not forbidden. Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# --- Test 64: Vendor Assignment Visibility ---
+$res = Send-Req "GET" "/assignments/$($variables["assignmentId"])" -token $variables["vendorManagerAccessTokenA"]
+if ($res.StatusCode -eq 200) {
+    Log-Test "Vendor Assignment Visibility" "PASS" "Vendor who sourced submission can view the active assignment."
+} else {
+    Log-Test "Vendor Assignment Visibility" "FAIL" "Vendor got status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# --- Test 65: Approve Early Termination ---
+$res = Send-Req "PUT" "/amendments/$($variables["amendTermId"])/approve?remarks=Approved+Termination" -token $variables["hiringManagerAccessTokenB"]
+if ($res.StatusCode -eq 200 -and $res.Body.status -eq "APPROVED") {
+    $assignRes = Send-Req "GET" "/assignments/$($variables["assignmentId"])" -token $variables["hiringManagerAccessTokenB"]
+    if ($assignRes.Body.status -eq "TERMINATED_EARLY" -and $assignRes.Body.endDate -eq "2026-09-15") {
+        Log-Test "Approve Early Termination" "PASS" "Assignment status changed to TERMINATED_EARLY and end date updated."
+    } else {
+        Log-Test "Approve Early Termination" "FAIL" "Assignment verification failed. Status: $($assignRes.Body.status), EndDate: $($assignRes.Body.endDate)"
+    }
+} else {
+    Log-Test "Approve Early Termination" "FAIL" "Approve failed. Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# --- Test 66: Verify Contractor Release and Engagement History Creation ---
+$profileRes = Send-Req "GET" "/contractors/profiles/$($variables["contractorAProfileId"])" -token $variables["adminAccessToken"]
+$engRes = Send-Req "GET" "/contractors/profiles/$($variables["contractorAProfileId"])/engagements" -token $variables["adminAccessToken"]
+$hasTerminatedEng = $false
+if ($engRes.StatusCode -eq 200) {
+    foreach ($eng in $engRes.Body) {
+        if ($eng.endDate -eq "2026-09-15") {
+            $hasTerminatedEng = $true
+        }
+    }
+}
+if ($profileRes.Body.status -eq "AVAILABLE" -and $hasTerminatedEng) {
+    Log-Test "Verify Contractor Release and Engagement History" "PASS" "Contractor Alice released to AVAILABLE and terminated engagement recorded."
+} else {
+    Log-Test "Verify Contractor Release and Engagement History" "FAIL" "Alice status: $($profileRes.Body.status), Has Engagement matching date: $hasTerminatedEng"
+}
+
+# --- Test 67: Verify Closed Assignment Cannot Be Modified (Fail 400) ---
+$res = Send-Req "POST" "/assignments/$($variables["assignmentId"])/amendments" -token $variables["hiringManagerAccessTokenB"] -body $amendmentRateBody
+if ($res.StatusCode -eq 400 -and $res.RawContent -like "*Cannot request amendments on completed or terminated assignments*") {
+    Log-Test "Verify Closed Assignment Cannot Be Modified" "PASS" "Amendment creation blocked on terminated assignment correctly."
+} else {
+    Log-Test "Verify Closed Assignment Cannot Be Modified" "FAIL" "Expected 400 but got: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# ==================== CONCURRENCY SAFETY & LOCKING TESTS ====================
+
+# Helper function to invoke parallel requests
+function Invoke-ConcurrentReqs {
+    param (
+        [string]$method1, [string]$path1, [string]$token1, [string]$body1,
+        [string]$method2, [string]$path2, [string]$token2, [string]$body2
+    )
+
+    $url1 = "$baseUrl$path1"
+    $url2 = "$baseUrl$path2"
+
+    $jobBlock = {
+        param($method, $url, $token, $bodyJson)
+        $headers = @{
+            "Content-Type" = "application/json"
+        }
+        if ($token) {
+            $headers["Authorization"] = "Bearer $token"
+        }
+        $params = @{
+            Method = $method
+            Uri = $url
+            Headers = $headers
+            UseBasicParsing = $true
+        }
+        if ($bodyJson) {
+            $params["Body"] = $bodyJson
+        }
+        try {
+            $resp = Invoke-WebRequest @params
+            return [PSCustomObject]@{
+                StatusCode = $resp.StatusCode
+                Content = $resp.Content
+            }
+        } catch {
+            $statusCode = $_.Exception.Response.StatusCode.value__
+            $stream = $_.Exception.Response.GetResponseStream()
+            $reader = New-Object System.IO.StreamReader($stream)
+            $rawErr = $reader.ReadToEnd()
+            return [PSCustomObject]@{
+                StatusCode = $statusCode
+                Content = $rawErr
+            }
+        }
+    }
+
+    $j1 = Start-Job -ScriptBlock $jobBlock -ArgumentList $method1, $url1, $token1, $body1
+    $j2 = Start-Job -ScriptBlock $jobBlock -ArgumentList $method2, $url2, $token2, $body2
+
+    $res1 = Receive-Job -Job $j1 -Wait -AutoRemoveJob
+    $res2 = Receive-Job -Job $j2 -Wait -AutoRemoveJob
+
+    return @($res1, $res2)
+}
+
+# --- Test Scenario 1: Concurrent Submission Acceptance ---
+# Register contractor Concur1
+$regConcur1Body = @{
+    name = "Contractor ConcurOne"
+    email = "concur1@example.com"
+    password = "Password123!"
+    phone = "9111111112"
+    role = "CONTRACTOR"
+}
+$res = Send-Req "POST" "/auth/register" -body $regConcur1Body
+$concur1UserId = $res.Body.userId
+
+$loginConcur1Body = @{
+    email = "concur1@example.com"
+    password = "Password123!"
+}
+$res = Send-Req "POST" "/auth/login" -body $loginConcur1Body
+$concur1Token = $res.Body.accessToken
+
+# Create Profile for Concur1
+$createConcur1ProfileBody = @{
+    userId = [int]$concur1UserId
+    title = "Java Concurrency Specialist"
+    bio = "Specialist in race conditions"
+    hourlyRate = 55.00
+    experienceYears = 5
+}
+$res = Send-Req "POST" "/contractors/profiles" -token $variables["adminAccessToken"] -body $createConcur1ProfileBody
+$concur1ProfileId = $res.Body.id
+
+# Add Java skill
+$addSkillBody = @{
+    skillId = 1
+    proficiencyLevel = "EXPERT"
+    yearsOfExperience = 5
+}
+$res = Send-Req "POST" "/contractors/profiles/$concur1ProfileId/skills" -token $variables["adminAccessToken"] -body $addSkillBody
+
+# Create Requisition
+$reqBody = @{
+    title = "Concurrency Req 1"
+    requiredSkillId = 1
+    minExperienceYears = 2
+    maxHourlyRate = 60.00
+    quantity = 1
+}
+$res = Send-Req "POST" "/requisitions" -token $variables["hiringManagerAccessTokenB"] -body $reqBody
+$concur1ReqId = $res.Body.id
+
+# Publish
+$res = Send-Req "PUT" "/requisitions/$concur1ReqId/publish" -token $variables["hiringManagerAccessTokenB"]
+
+# Submit
+$submitBody = @{
+    contractorProfileId = [int]$concur1ProfileId
+    proposedRate = 52.00
+    remarks = "Submitted for concurrency test"
+}
+$res = Send-Req "POST" "/submissions/requisitions/$concur1ReqId/submit" -token $variables["vendorManagerAccessTokenA"] -body $submitBody
+$concur1SubId = $res.Body.id
+
+# Transition to REVIEWING
+$res = Send-Req "PUT" "/submissions/$concur1SubId/review" -token $variables["hiringManagerAccessTokenB"]
+
+# Concurrent accept requests
+$concurRes1 = Invoke-ConcurrentReqs "PUT" "/submissions/$concur1SubId/accept?remarks=AcceptA" $variables["hiringManagerAccessTokenB"] $null `
+                                     "PUT" "/submissions/$concur1SubId/accept?remarks=AcceptB" $variables["hiringManagerAccessTokenB"] $null
+$statusCodes1 = $concurRes1 | ForEach-Object { $_.StatusCode }
+
+if ($statusCodes1 -contains 200 -and ($statusCodes1 -contains 409 -or $statusCodes1 -contains 400)) {
+    Log-Test "Scenario 1: Concurrent Submission Acceptance" "PASS" "One thread accepted, the other failed with 409 Conflict / 400 Bad Request."
+} else {
+    Log-Test "Scenario 1: Concurrent Submission Acceptance" "FAIL" "Expected one 200 and one 409/400, but got: $($statusCodes1 -join ', ')" "$($concurRes1 | ConvertTo-Json)"
+}
+
+
+# --- Test Scenario 2: Concurrent Assignment Creation ---
+# Register contractor Concur2
+$regConcur2Body = @{
+    name = "Contractor ConcurTwo"
+    email = "concur2@example.com"
+    password = "Password123!"
+    phone = "9111111113"
+    role = "CONTRACTOR"
+}
+$res = Send-Req "POST" "/auth/register" -body $regConcur2Body
+$concur2UserId = $res.Body.userId
+
+# Create Profile
+$createConcur2ProfileBody = @{
+    userId = [int]$concur2UserId
+    title = "React Concurrency Specialist"
+    bio = "Specialist in race conditions"
+    hourlyRate = 65.00
+    experienceYears = 6
+}
+$res = Send-Req "POST" "/contractors/profiles" -token $variables["adminAccessToken"] -body $createConcur2ProfileBody
+$concur2ProfileId = $res.Body.id
+
+# Add React skill
+$addSkillReactBody = @{
+    skillId = 2
+    proficiencyLevel = "EXPERT"
+    yearsOfExperience = 6
+}
+$res = Send-Req "POST" "/contractors/profiles/$concur2ProfileId/skills" -token $variables["adminAccessToken"] -body $addSkillReactBody
+
+# Create Requisition 2
+$reqBody2 = @{
+    title = "Concurrency Req 2"
+    requiredSkillId = 2
+    minExperienceYears = 2
+    maxHourlyRate = 70.00
+    quantity = 1
+}
+$res = Send-Req "POST" "/requisitions" -token $variables["hiringManagerAccessTokenB"] -body $reqBody2
+$concur2ReqId = $res.Body.id
+
+# Publish
+$res = Send-Req "PUT" "/requisitions/$concur2ReqId/publish" -token $variables["hiringManagerAccessTokenB"]
+
+# Submit
+$submitBody2 = @{
+    contractorProfileId = [int]$concur2ProfileId
+    proposedRate = 65.00
+    remarks = "Submitted for concur assignment"
+}
+$res = Send-Req "POST" "/submissions/requisitions/$concur2ReqId/submit" -token $variables["vendorManagerAccessTokenA"] -body $submitBody2
+$concur2SubId = $res.Body.id
+
+# Transition to REVIEWING
+$res = Send-Req "PUT" "/submissions/$concur2SubId/review" -token $variables["hiringManagerAccessTokenB"]
+
+# Transition to ACCEPTED
+$res = Send-Req "PUT" "/submissions/$concur2SubId/accept?remarks=Accept" -token $variables["hiringManagerAccessTokenB"]
+
+# Concurrent assignment creation body
+$createAssignBody = @{
+    vendorSubmissionId = [int]$concur2SubId
+    startDate = "2026-06-10"
+    endDate = "2026-12-10"
+    agreedRatePerDay = 65.00
+    engagementType = "TIME_AND_MATERIALS"
+    sowReference = "SOW-CONCUR2"
+}
+$bodyJson = $createAssignBody | ConvertTo-Json -Depth 10
+
+# Concurrent assignment creation requests
+$concurRes2 = Invoke-ConcurrentReqs "POST" "/assignments" $variables["hiringManagerAccessTokenB"] $bodyJson `
+                                     "POST" "/assignments" $variables["hiringManagerAccessTokenB"] $bodyJson
+$statusCodes2 = $concurRes2 | ForEach-Object { $_.StatusCode }
+
+if ($statusCodes2 -contains 201 -and ($statusCodes2 -contains 409 -or $statusCodes2 -contains 400 -or $statusCodes2 -contains 500)) {
+    Log-Test "Scenario 2: Concurrent Assignment Creation" "PASS" "One thread created assignment, the other failed with lock/constraint error (Status: $($statusCodes2 -join ', '))."
+} else {
+    Log-Test "Scenario 2: Concurrent Assignment Creation" "FAIL" "Expected one 201 and one error, but got: $($statusCodes2 -join ', ')" "$($concurRes2 | ConvertTo-Json)"
+}
+
+
+# --- Test Scenario 3: Concurrent Amendment Approval ---
+# Retrieve the assignment created in Scenario 2
+$assignList = Send-Req "GET" "/assignments?contractorProfileId=$concur2ProfileId" -token $variables["adminAccessToken"]
+$concur2AssignmentId = $assignList.Body.content[0].id
+
+# Create Amendment A (Extension)
+$amendExtBody = @{
+    amendmentType = "EXTENSION"
+    effectiveDate = "2026-12-11"
+    newValue = "2027-06-11"
+    remarks = "Extend project concur A"
+}
+$res = Send-Req "POST" "/assignments/$concur2AssignmentId/amendments" -token $variables["hiringManagerAccessTokenB"] -body $amendExtBody
+$amendIdA = $res.Body.id
+
+# Create Amendment B (Extension)
+$amendExtBodyB = @{
+    amendmentType = "EXTENSION"
+    effectiveDate = "2026-12-11"
+    newValue = "2027-09-11"
+    remarks = "Extend project concur B"
+}
+$res = Send-Req "POST" "/assignments/$concur2AssignmentId/amendments" -token $variables["hiringManagerAccessTokenB"] -body $amendExtBodyB
+$amendIdB = $res.Body.id
+
+# Concurrent approval requests
+$concurRes3 = Invoke-ConcurrentReqs "PUT" "/amendments/$amendIdA/approve?remarks=ApproveA" $variables["hiringManagerAccessTokenB"] $null `
+                                     "PUT" "/amendments/$amendIdB/approve?remarks=ApproveB" $variables["hiringManagerAccessTokenB"] $null
+$statusCodes3 = $concurRes3 | ForEach-Object { $_.StatusCode }
+
+if ($statusCodes3 -contains 200 -and ($statusCodes3 -contains 409 -or $statusCodes3 -contains 400)) {
+    Log-Test "Scenario 3: Concurrent Amendment Approval" "PASS" "One thread approved, the other failed with Conflict/Bad Request (Status: $($statusCodes3 -join ', '))."
+} else {
+    Log-Test "Scenario 3: Concurrent Amendment Approval" "FAIL" "Expected one 200 and one error, but got: $($statusCodes3 -join ', ')" "$($concurRes3 | ConvertTo-Json)"
+}
+
+
+# --- Test Scenario 4: Concurrent Contractor Allocation ---
+# Register contractor Alice2 (email alice2@example.com)
+$regAlice2Body = @{
+    name = "Contractor Alice2"
+    email = "alice2@example.com"
+    password = "Password123!"
+    phone = "9111111114"
+    role = "CONTRACTOR"
+}
+$res = Send-Req "POST" "/auth/register" -body $regAlice2Body
+$alice2UserId = $res.Body.userId
+
+# Create Profile for Alice2
+$createAlice2ProfileBody = @{
+    userId = [int]$alice2UserId
+    title = "Java developer"
+    bio = "Junior java dev"
+    hourlyRate = 30.00
+    experienceYears = 2
+}
+$res = Send-Req "POST" "/contractors/profiles" -token $variables["adminAccessToken"] -body $createAlice2ProfileBody
+$alice2ProfileId = $res.Body.id
+
+# Add Java skill
+$res = Send-Req "POST" "/contractors/profiles/$alice2ProfileId/skills" -token $variables["adminAccessToken"] -body $addSkillBody
+
+# Requisition A (Java, qty=1)
+$reqBodyA = @{
+    title = "Requisition Concur A"
+    requiredSkillId = 1
+    minExperienceYears = 1
+    maxHourlyRate = 40.00
+    quantity = 1
+}
+$res = Send-Req "POST" "/requisitions" -token $variables["hiringManagerAccessTokenB"] -body $reqBodyA
+$reqIdA = $res.Body.id
+$res = Send-Req "PUT" "/requisitions/$reqIdA/publish" -token $variables["hiringManagerAccessTokenB"]
+
+# Requisition B (Java, qty=1)
+$reqBodyB = @{
+    title = "Requisition Concur B"
+    requiredSkillId = 1
+    minExperienceYears = 1
+    maxHourlyRate = 40.00
+    quantity = 1
+}
+$res = Send-Req "POST" "/requisitions" -token $variables["hiringManagerAccessTokenB"] -body $reqBodyB
+$reqIdB = $res.Body.id
+$res = Send-Req "PUT" "/requisitions/$reqIdB/publish" -token $variables["hiringManagerAccessTokenB"]
+
+# Submit Alice2 to Requisition A
+$submitAlice2ABody = @{
+    contractorProfileId = [int]$alice2ProfileId
+    proposedRate = 35.00
+    remarks = "Submit A"
+}
+$res = Send-Req "POST" "/submissions/requisitions/$reqIdA/submit" -token $variables["vendorManagerAccessTokenA"] -body $submitAlice2ABody
+$subIdA = $res.Body.id
+$res = Send-Req "PUT" "/submissions/$subIdA/review" -token $variables["hiringManagerAccessTokenB"]
+
+# Submit Alice2 to Requisition B
+$submitAlice2BBody = @{
+    contractorProfileId = [int]$alice2ProfileId
+    proposedRate = 35.00
+    remarks = "Submit B"
+}
+$res = Send-Req "POST" "/submissions/requisitions/$reqIdB/submit" -token $variables["vendorManagerAccessTokenA"] -body $submitAlice2BBody
+$subIdB = $res.Body.id
+$res = Send-Req "PUT" "/submissions/$subIdB/review" -token $variables["hiringManagerAccessTokenB"]
+
+# Concurrently accept Alice2 on Requisition A and Requisition B
+$concurRes4 = Invoke-ConcurrentReqs "PUT" "/submissions/$subIdA/accept?remarks=AcceptA" $variables["hiringManagerAccessTokenB"] $null `
+                                     "PUT" "/submissions/$subIdB/accept?remarks=AcceptB" $variables["hiringManagerAccessTokenB"] $null
+$statusCodes4 = $concurRes4 | ForEach-Object { $_.StatusCode }
+
+if ($statusCodes4 -contains 200 -and ($statusCodes4 -contains 409 -or $statusCodes4 -contains 400)) {
+    Log-Test "Scenario 4: Concurrent Contractor Allocation" "PASS" "One thread allocated, the other failed with 409 Conflict / 400 Bad Request."
+} else {
+    Log-Test "Scenario 4: Concurrent Contractor Allocation" "FAIL" "Expected one 200 and one 409/400, but got: $($statusCodes4 -join ', ')" "$($concurRes4 | ConvertTo-Json)"
+}
+
+
+# ==================== MODULE 5: TIMESHEET & LEAVE MANAGEMENT ====================
+
+# Step 1: Register Finance User (under admin context)
+$regFinanceBody = @{
+    name = "Finance Auditor"
+    email = "finance@example.com"
+    password = "Password123!"
+    phone = "9111111121"
+    role = "FINANCE"
+}
+$res = Send-Req "POST" "/auth/register" -body $regFinanceBody
+if ($res.StatusCode -eq 201) {
+    Log-Test "M5: Register Finance User" "PASS" "Registered Finance User successfully."
+} else {
+    Log-Test "M5: Register Finance User" "FAIL" "Failed to register Finance User. Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# Step 2: Login Finance User
+$loginFinanceBody = @{
+    email = "finance@example.com"
+    password = "Password123!"
+}
+$res = Send-Req "POST" "/auth/login" -body $loginFinanceBody
+$variables["financeAccessToken"] = $res.Body.accessToken
+if ($res.StatusCode -eq 200) {
+    Log-Test "M5: Login Finance User" "PASS" "Finance user logged in successfully."
+} else {
+    Log-Test "M5: Login Finance User" "FAIL" "Finance login failed. Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# Step 3: Create a new requisition specifically for Module 5
+$m5ReqBody = @{
+    title = "M5 Java Developer Requisition"
+    requiredSkillId = 1
+    minExperienceYears = 3
+    maxHourlyRate = 80.00
+    quantity = 1
+}
+$res = Send-Req "POST" "/requisitions" -token $variables["hiringManagerAccessTokenB"] -body $m5ReqBody
+$m5ReqId = $res.Body.id
+# Publish it
+Send-Req "PUT" "/requisitions/$m5ReqId/publish" -token $variables["hiringManagerAccessTokenB"] | Out-Null
+
+# Step 4: Submit Alice to this Requisition
+$m5SubmitBody = @{
+    contractorProfileId = [int]$variables["contractorAProfileId"]
+    proposedRate = 75.00
+    remarks = "Interested in M5 gig"
+}
+$res = Send-Req "POST" "/submissions/requisitions/$m5ReqId/submit" -token $variables["vendorManagerAccessTokenA"] -body $m5SubmitBody
+$m5SubId = $res.Body.id
+
+# Review and Accept Submission
+Send-Req "PUT" "/submissions/$m5SubId/review" -token $variables["hiringManagerAccessTokenB"] | Out-Null
+Send-Req "PUT" "/submissions/$m5SubId/accept?remarks=M5+Accepted" -token $variables["hiringManagerAccessTokenB"] | Out-Null
+
+# Step 5: Create Assignment from this ACCEPTED submission
+$m5CreateAssignBody = @{
+    vendorSubmissionId = [int]$m5SubId
+    startDate = "2026-06-08"
+    endDate = "2026-12-08"
+    agreedRatePerDay = 400.00
+    engagementType = "TIME_AND_MATERIALS"
+    sowReference = "SOW-M5-ALICE"
+}
+$res = Send-Req "POST" "/assignments" -token $variables["hiringManagerAccessTokenB"] -body $m5CreateAssignBody
+$m5AssignmentId = $res.Body.id
+if ($res.StatusCode -eq 201) {
+    Log-Test "M5: Create Active Assignment for Alice" "PASS" "Assignment created with ID $m5AssignmentId."
+} else {
+    Log-Test "M5: Create Active Assignment for Alice" "FAIL" "Failed to create assignment. Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# Step 6: Create weekly timesheet draft (week start must be Monday, 2026-06-08)
+$m5Line = @{
+    workDate = "2026-06-08"
+    hoursWorked = 8.00
+    overtimeHours = 2.00
+    activityDesc = "Developing core timesheet features"
+}
+$m5TimesheetBody = @{
+    assignmentId = [int]$m5AssignmentId
+    weekStartDate = "2026-06-08"
+    lines = @($m5Line)
+}
+$res = Send-Req "POST" "/timesheets" -token $variables["contractorAccessTokenA"] -body $m5TimesheetBody
+$m5TimesheetId = $res.Body.id
+if ($res.StatusCode -eq 201) {
+    Log-Test "M5: Create Timesheet Draft (Alice)" "PASS" "Timesheet draft created with ID $m5TimesheetId, billable amount: $($res.Body.billableAmount) (expected 550.00)."
+} else {
+    Log-Test "M5: Create Timesheet Draft (Alice)" "FAIL" "Failed to create draft. Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# Step 7: Submit Timesheet Draft
+$res = Send-Req "POST" "/timesheets/$m5TimesheetId/submit" -token $variables["contractorAccessTokenA"]
+if ($res.StatusCode -eq 200 -and $res.Body.status -eq "SUBMITTED") {
+    Log-Test "M5: Submit Timesheet Draft" "PASS" "Timesheet submitted successfully. Status: SUBMITTED."
+} else {
+    Log-Test "M5: Submit Timesheet Draft" "FAIL" "Submission failed. Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# Step 8: Harold (Hiring Manager) L1 Approve Timesheet
+$approveBody = @{
+    remarks = "Looks good, L1 Approved"
+}
+$res = Send-Req "POST" "/timesheets/$m5TimesheetId/approve" -token $variables["hiringManagerAccessTokenB"] -body $approveBody
+if ($res.StatusCode -eq 200 -and $res.Body.status -eq "PENDING_FINANCE") {
+    Log-Test "M5: L1 Approve Timesheet (Harold)" "PASS" "Hiring Manager approved timesheet. Status: PENDING_FINANCE."
+} else {
+    Log-Test "M5: L1 Approve Timesheet (Harold)" "FAIL" "HM approval failed. Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# Step 9: Finance L2 Approve Timesheet
+$res = Send-Req "POST" "/timesheets/$m5TimesheetId/approve" -token $variables["financeAccessToken"] -body $approveBody
+if ($res.StatusCode -eq 200 -and $res.Body.status -eq "APPROVED") {
+    Log-Test "M5: L2 Approve Timesheet (Finance)" "PASS" "Finance approved timesheet. Status: APPROVED."
+} else {
+    Log-Test "M5: L2 Approve Timesheet (Finance)" "FAIL" "Finance approval failed. Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# Step 10: Alice requests a leave (SICK_LEAVE, start=2026-06-09, end=2026-06-09)
+$leaveBody = @{
+    assignmentId = [int]$m5AssignmentId
+    startDate = "2026-06-09"
+    endDate = "2026-06-09"
+    absenceType = "SICK_LEAVE"
+    duration = "FULL_DAY"
+    reason = "Dentist appointment"
+}
+$res = Send-Req "POST" "/absences" -token $variables["contractorAccessTokenA"] -body $leaveBody
+$m5LeaveId = $res.Body.id
+if ($res.StatusCode -eq 201) {
+    Log-Test "M5: Request Leave (Alice)" "PASS" "Leave requested with ID $m5LeaveId."
+} else {
+    Log-Test "M5: Request Leave (Alice)" "FAIL" "Leave request failed. Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# Harold approves the leave
+$res = Send-Req "POST" "/absences/$m5LeaveId/approve" -token $variables["hiringManagerAccessTokenB"]
+if ($res.StatusCode -eq 200 -and $res.Body.status -eq "APPROVED") {
+    Log-Test "M5: Approve Leave (Harold)" "PASS" "Hiring Manager approved Alice's leave."
+} else {
+    Log-Test "M5: Approve Leave (Harold)" "FAIL" "Leave approval failed. Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# Step 11: Alice attempts to create a timesheet containing non-zero billable hours on the leave day (fails 400)
+# Request a leave for a different week to verify leave block rule without duplicate week constraint
+$leaveBody2 = @{
+    assignmentId = [int]$m5AssignmentId
+    startDate = "2026-06-02"
+    endDate = "2026-06-02"
+    absenceType = "SICK_LEAVE"
+    duration = "FULL_DAY"
+    reason = "Doctor visit"
+}
+$res = Send-Req "POST" "/absences" -token $variables["contractorAccessTokenA"] -body $leaveBody2
+$m5LeaveId2 = $res.Body.id
+Send-Req "POST" "/absences/$m5LeaveId2/approve" -token $variables["hiringManagerAccessTokenB"] | Out-Null
+
+$invalidLine3 = @{
+    workDate = "2026-06-01"
+    hoursWorked = 8.00
+    overtimeHours = 0.00
+    activityDesc = "Work"
+}
+$invalidLine4 = @{
+    workDate = "2026-06-02" # Leave day
+    hoursWorked = 8.00 # Violates leave day hours rule
+    overtimeHours = 0.00
+    activityDesc = "Working on leave day"
+}
+$invalidTimesheetBody2 = @{
+    assignmentId = [int]$m5AssignmentId
+    weekStartDate = "2026-06-01"
+    lines = @($invalidLine3, $invalidLine4)
+}
+$res = Send-Req "POST" "/timesheets" -token $variables["contractorAccessTokenA"] -body $invalidTimesheetBody2
+if ($res.StatusCode -eq 400 -and $res.RawContent -like "*Leave days must contain 0 billable hours*") {
+    Log-Test "M5: Log hours on Leave day (Blocked)" "PASS" "Successfully blocked logging hours on an approved leave day."
+} else {
+    Log-Test "M5: Log hours on Leave day (Blocked)" "FAIL" "Expected 400 with leave day error, but got status $($res.StatusCode): $($res.RawContent)"
+}
+
+# Step 12: Half-Day Leave Verification ("Morning leave" fails if >4 hours regular work logged, succeeds if <=4 hours)
+# Alice requests a half-day leave for Wednesday 2026-06-03
+$leaveBody3 = @{
+    assignmentId = [int]$m5AssignmentId
+    startDate = "2026-06-03"
+    endDate = "2026-06-03"
+    absenceType = "CASUAL_LEAVE"
+    duration = "HALF_DAY"
+    reason = "Morning leave"
+}
+$res = Send-Req "POST" "/absences" -token $variables["contractorAccessTokenA"] -body $leaveBody3
+$m5LeaveId3 = $res.Body.id
+Send-Req "POST" "/absences/$m5LeaveId3/approve" -token $variables["hiringManagerAccessTokenB"] | Out-Null
+
+# Alice attempts to log 5.00 hours on the half-day leave day (should be blocked)
+$invalidLine5 = @{
+    workDate = "2026-06-01"
+    hoursWorked = 8.00
+    overtimeHours = 0.00
+    activityDesc = "Work"
+}
+$invalidLine6 = @{
+    workDate = "2026-06-02" # Full-day leave
+    hoursWorked = 0.00
+    overtimeHours = 0.00
+    activityDesc = "Leave"
+}
+$invalidLine7 = @{
+    workDate = "2026-06-03" # Half-day leave
+    hoursWorked = 5.00 # Exceeds 4.00 hours limit for half-day
+    overtimeHours = 0.00
+    activityDesc = "Work on half-day leave"
+}
+$invalidTimesheetBody3 = @{
+    assignmentId = [int]$m5AssignmentId
+    weekStartDate = "2026-06-01"
+    lines = @($invalidLine5, $invalidLine6, $invalidLine7)
+}
+$res = Send-Req "POST" "/timesheets" -token $variables["contractorAccessTokenA"] -body $invalidTimesheetBody3
+if ($res.StatusCode -eq 400 -and $res.RawContent -like "*Cannot log more than 4 hours worked on a half-day leave*") {
+    Log-Test "M5: Log >4 hours on Half-Day Leave (Blocked)" "PASS" "Successfully blocked logging >4 hours on a half-day leave."
+} else {
+    Log-Test "M5: Log >4 hours on Half-Day Leave (Blocked)" "FAIL" "Expected 400 with half-day error, but got status $($res.StatusCode): $($res.RawContent)"
+}
+
+# Alice logs 4.00 hours on the half-day leave day (should succeed)
+$validLine5 = @{
+    workDate = "2026-06-01"
+    hoursWorked = 8.00
+    overtimeHours = 0.00
+    activityDesc = "Work"
+}
+$validLine6 = @{
+    workDate = "2026-06-02"
+    hoursWorked = 0.00
+    overtimeHours = 0.00
+    activityDesc = "Leave"
+}
+$validLine7 = @{
+    workDate = "2026-06-03"
+    hoursWorked = 4.00 # Within 4.00 hours limit for half-day
+    overtimeHours = 0.00
+    activityDesc = "Work on half-day leave"
+}
+$validTimesheetBody3 = @{
+    assignmentId = [int]$m5AssignmentId
+    weekStartDate = "2026-06-01"
+    lines = @($validLine5, $validLine6, $validLine7)
+}
+$res = Send-Req "POST" "/timesheets" -token $variables["contractorAccessTokenA"] -body $validTimesheetBody3
+if ($res.StatusCode -eq 201) {
+    Log-Test "M5: Log <=4 hours on Half-Day Leave (Succeeds)" "PASS" "Successfully created timesheet draft with 4 hours on half-day leave."
+} else {
+    Log-Test "M5: Log <=4 hours on Half-Day Leave (Succeeds)" "FAIL" "Expected 201 but got status $($res.StatusCode): $($res.RawContent)"
+}
+
 
 # --- Output Report Summary ---
 Write-Host "`n==================================================" -ForegroundColor Cyan

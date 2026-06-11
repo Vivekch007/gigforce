@@ -16,14 +16,13 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 public class ContractorProfileResponseDTO {
-    private Long id;
-    private Long userId;
+    private String id;
+    private String userId;
     private String userName;
     private String userEmail;
-    private String title;
-    private String bio;
     private BigDecimal hourlyRate;
     private Integer experienceYears;
+    private String availabilityStatus;
     private String status;
     private List<ContractorSkillResponseDTO> skills;
     private LocalDateTime createdAt;

@@ -14,7 +14,8 @@ import com.gigforce.identity.entity.ContractorProfile;
 import com.gigforce.identity.entity.ContractorSkill;
 import com.gigforce.identity.entity.Skill;
 import com.gigforce.identity.entity.User;
-import com.gigforce.identity.enums.ContractorStatus;
+import com.gigforce.identity.enums.AvailabilityStatus;
+import com.gigforce.identity.enums.ProfileStatus;
 import com.gigforce.identity.enums.ProficiencyLevel;
 import com.gigforce.identity.enums.UserRole;
 import com.gigforce.identity.repository.ContractorProfileRepository;
@@ -47,8 +48,7 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
             UserRepository userRepository,
             SkillRepository skillRepository,
             ContractorSkillRepository contractorSkillRepository,
-            AuditService auditService
-    ) {
+            AuditService auditService) {
         this.contractorProfileRepository = contractorProfileRepository;
         this.userRepository = userRepository;
         this.skillRepository = skillRepository;
@@ -58,7 +58,7 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
 
     @Override
     @Transactional
-    public ContractorProfileResponseDTO createProfile(Long userId, ContractorProfileRequestDTO request) {
+    public ContractorProfileResponseDTO createProfile(String userId, ContractorProfileRequestDTO request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException("User not found with ID: " + userId));
 
@@ -66,73 +66,81 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
             throw new DuplicateProfileException("Contractor profile already exists for this user.");
         }
 
-        if (user.getRole() != UserRole.CONTRACTOR && user.getRole() != UserRole.ADMIN) {
-            throw new IllegalArgumentException("Only users with CONTRACTOR or ADMIN role can have a profile.");
+        if (user.getRole() != UserRole.CONTRACTOR) {
+            throw new IllegalArgumentException("Only users with CONTRACTOR role can have a profile.");
         }
 
         ContractorProfile profile = ContractorProfile.builder()
-                .user(user)
-                .title(request.getTitle().trim())
-                .bio(request.getBio() != null ? request.getBio().trim() : null)
-                .hourlyRate(request.getHourlyRate())
-                .experienceYears(request.getExperienceYears())
-                .status(ContractorStatus.ONBOARDING)
-                .build();
+            .user(user)
+            .hourlyRate(request.getHourlyRate())
+            .experienceYears(request.getExperienceYears())
+            .availabilityStatus(AvailabilityStatus.ON_STATUS)
+            .profileStatus(ProfileStatus.ACTIVE)
+            .build();
 
         ContractorProfile savedProfile = contractorProfileRepository.save(profile);
 
         // Fetch actor
         String actorEmail = SecurityContextHolder.getContext().getAuthentication().getName();
         User actor = userRepository.findByEmail(actorEmail).orElse(null);
-        Long actorId = (actor != null) ? actor.getId() : savedProfile.getUser().getId();
+        String actorId = (actor != null) ? actor.getId() : savedProfile.getUser().getId();
 
-        // Log audit event
+        // Log audit event (title removed from profile)
         auditService.logAction(
                 actorId,
                 "CONTRACTOR_PROFILE_CREATED",
                 "ContractorProfile",
                 savedProfile.getId(),
-                "Contractor profile created for user: " + savedProfile.getUser().getEmail() + " with title: " + savedProfile.getTitle()
-        );
+            "Contractor profile created for user: " + savedProfile.getUser().getEmail());
 
         return toDto(savedProfile, List.of());
     }
 
     @Override
-    public ContractorProfileResponseDTO getProfileById(Long profileId) {
+    public ContractorProfileResponseDTO getProfileById(String profileId) {
         ContractorProfile profile = contractorProfileRepository.findById(profileId)
-                .orElseThrow(() -> new ContractorProfileNotFoundException("Contractor profile not found with ID: " + profileId));
+                .orElseThrow(() -> new ContractorProfileNotFoundException(
+                        "Contractor profile not found with ID: " + profileId));
         List<ContractorSkill> skills = contractorSkillRepository.findByContractorProfile(profile);
         return toDto(profile, skills);
     }
 
     @Override
-    public ContractorProfileResponseDTO getProfileByUserId(Long userId) {
+    public ContractorProfileResponseDTO getProfileByUserId(String userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException("User not found with ID: " + userId));
         ContractorProfile profile = contractorProfileRepository.findByUser(user)
-                .orElseThrow(() -> new ContractorProfileNotFoundException("Contractor profile not found for user: " + user.getEmail()));
+                .orElseThrow(() -> new ContractorProfileNotFoundException(
+                        "Contractor profile not found for user: " + user.getEmail()));
         List<ContractorSkill> skills = contractorSkillRepository.findByContractorProfile(profile);
         return toDto(profile, skills);
     }
 
     @Override
     @Transactional
-    public ContractorProfileResponseDTO updateProfile(Long profileId, ContractorProfileRequestDTO request) {
+    public ContractorProfileResponseDTO updateProfile(String profileId, ContractorProfileRequestDTO request) {
         ContractorProfile profile = contractorProfileRepository.findById(profileId)
-                .orElseThrow(() -> new ContractorProfileNotFoundException("Contractor profile not found with ID: " + profileId));
+                .orElseThrow(() -> new ContractorProfileNotFoundException(
+                        "Contractor profile not found with ID: " + profileId));
 
-        profile.setTitle(request.getTitle().trim());
-        profile.setBio(request.getBio() != null ? request.getBio().trim() : null);
+        // title & bio removed per requirements
         profile.setHourlyRate(request.getHourlyRate());
         profile.setExperienceYears(request.getExperienceYears());
+        if (request.getAvailabilityStatus() != null && !request.getAvailabilityStatus().trim().isEmpty()) {
+            try {
+                AvailabilityStatus avail = AvailabilityStatus.valueOf(request.getAvailabilityStatus().toUpperCase().trim());
+                profile.setAvailabilityStatus(avail);
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("Invalid availabilityStatus: " + request.getAvailabilityStatus());
+            }
+        }
 
         if (request.getStatus() != null && !request.getStatus().trim().isEmpty()) {
             try {
-                ContractorStatus statusEnum = ContractorStatus.valueOf(request.getStatus().toUpperCase().trim());
-                profile.setStatus(statusEnum);
+                ProfileStatus pstatus = ProfileStatus.valueOf(request.getStatus().toUpperCase().trim());
+                profile.setProfileStatus(pstatus);
             } catch (IllegalArgumentException e) {
-                throw new IllegalArgumentException("Invalid status: " + request.getStatus());
+                throw new IllegalArgumentException("Invalid profile status: " + request.getStatus());
             }
         }
 
@@ -142,7 +150,7 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
         // Fetch actor
         String actorEmail = SecurityContextHolder.getContext().getAuthentication().getName();
         User actor = userRepository.findByEmail(actorEmail).orElse(null);
-        Long actorId = (actor != null) ? actor.getId() : updatedProfile.getUser().getId();
+        String actorId = (actor != null) ? actor.getId() : updatedProfile.getUser().getId();
 
         // Log audit
         auditService.logAction(
@@ -150,8 +158,7 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
                 "CONTRACTOR_PROFILE_UPDATED",
                 "ContractorProfile",
                 updatedProfile.getId(),
-                "Contractor profile updated for user: " + updatedProfile.getUser().getEmail()
-        );
+                "Contractor profile updated for user: " + updatedProfile.getUser().getEmail());
 
         return toDto(updatedProfile, skills);
     }
@@ -162,18 +169,25 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
             int size,
             String skillName,
             Integer minExperience,
-            String status
-    ) {
+            String status) {
         Pageable pageable = PageRequest.of(page, size);
         Specification<ContractorProfile> spec = Specification.where(null);
 
-        if (status != null && !status.trim().isEmpty()) {
-            try {
-                ContractorStatus statusEnum = ContractorStatus.valueOf(status.toUpperCase().trim());
-                spec = spec.and((root, query, cb) -> cb.equal(root.get("status"), statusEnum));
-            } catch (IllegalArgumentException e) {
-                // ignore invalid status filter
+        // Fetch join user to avoid N+1 queries when loading users
+        spec = spec.and((root, query, cb) -> {
+            if (query.getResultType() != Long.class && query.getResultType() != long.class) {
+                root.fetch("user", jakarta.persistence.criteria.JoinType.LEFT);
             }
+            return null;
+        });
+
+                if (status != null && !status.trim().isEmpty()) {
+                    try {
+                        ProfileStatus statusEnum = ProfileStatus.valueOf(status.toUpperCase().trim());
+                        spec = spec.and((root, query, cb) -> cb.equal(root.get("profileStatus"), statusEnum));
+                    } catch (IllegalArgumentException e) {
+                        // ignore invalid status filter
+                    }
         }
 
         if (minExperience != null) {
@@ -182,25 +196,37 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
 
         if (skillName != null && !skillName.trim().isEmpty()) {
             spec = spec.and((root, query, cb) -> {
-                jakarta.persistence.criteria.Subquery<Long> subquery = query.subquery(Long.class);
+                jakarta.persistence.criteria.Subquery<String> subquery = query.subquery(String.class);
                 jakarta.persistence.criteria.Root<ContractorSkill> csRoot = subquery.from(ContractorSkill.class);
                 subquery.select(csRoot.get("contractorProfile").get("id"))
-                        .where(cb.like(cb.lower(csRoot.get("skill").get("name")), "%" + skillName.trim().toLowerCase() + "%"));
+                        .where(cb.like(cb.lower(csRoot.get("skill").get("name")),
+                                "%" + skillName.trim().toLowerCase() + "%"));
                 return cb.in(root.get("id")).value(subquery);
             });
         }
 
-        return contractorProfileRepository.findAll(spec, pageable).map(p -> {
-            List<ContractorSkill> skills = contractorSkillRepository.findByContractorProfile(p);
+        Page<ContractorProfile> profilePage = contractorProfileRepository.findAll(spec, pageable);
+        List<ContractorProfile> profiles = profilePage.getContent();
+
+        List<ContractorSkill> allSkills = profiles.isEmpty()
+                ? java.util.Collections.emptyList()
+                : contractorSkillRepository.findByContractorProfileIn(profiles);
+
+        java.util.Map<String, List<ContractorSkill>> skillsByProfileId = allSkills.stream()
+                .collect(Collectors.groupingBy(cs -> cs.getContractorProfile().getId()));
+
+        return profilePage.map(p -> {
+            List<ContractorSkill> skills = skillsByProfileId.getOrDefault(p.getId(), java.util.Collections.emptyList());
             return toDto(p, skills);
         });
     }
 
     @Override
     @Transactional
-    public ContractorProfileResponseDTO addSkill(Long profileId, ContractorSkillRequestDTO request) {
+    public ContractorProfileResponseDTO addSkill(String profileId, ContractorSkillRequestDTO request) {
         ContractorProfile profile = contractorProfileRepository.findById(profileId)
-                .orElseThrow(() -> new ContractorProfileNotFoundException("Contractor profile not found with ID: " + profileId));
+                .orElseThrow(() -> new ContractorProfileNotFoundException(
+                        "Contractor profile not found with ID: " + profileId));
 
         Skill skill = skillRepository.findById(request.getSkillId())
                 .orElseThrow(() -> new SkillNotFoundException("Skill not found with ID: " + request.getSkillId()));
@@ -229,7 +255,7 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
         // Fetch actor
         String actorEmail = SecurityContextHolder.getContext().getAuthentication().getName();
         User actor = userRepository.findByEmail(actorEmail).orElse(null);
-        Long actorId = (actor != null) ? actor.getId() : profile.getUser().getId();
+        String actorId = (actor != null) ? actor.getId() : profile.getUser().getId();
 
         // Log audit
         auditService.logAction(
@@ -237,17 +263,18 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
                 "CONTRACTOR_SKILL_ADDED",
                 "ContractorProfile",
                 profile.getId(),
-                "Skill " + skill.getName() + " added to profile of user: " + profile.getUser().getEmail() + " with proficiency: " + level.name()
-        );
+                "Skill " + skill.getName() + " added to profile of user: " + profile.getUser().getEmail()
+                        + " with proficiency: " + level.name());
 
         return toDto(profile, skills);
     }
 
     @Override
     @Transactional
-    public ContractorProfileResponseDTO updateSkill(Long profileId, Long skillId, ContractorSkillRequestDTO request) {
+    public ContractorProfileResponseDTO updateSkill(String profileId, String skillId, ContractorSkillRequestDTO request) {
         ContractorProfile profile = contractorProfileRepository.findById(profileId)
-                .orElseThrow(() -> new ContractorProfileNotFoundException("Contractor profile not found with ID: " + profileId));
+                .orElseThrow(() -> new ContractorProfileNotFoundException(
+                        "Contractor profile not found with ID: " + profileId));
 
         Skill skill = skillRepository.findById(skillId)
                 .orElseThrow(() -> new SkillNotFoundException("Skill not found with ID: " + skillId));
@@ -271,7 +298,7 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
         // Fetch actor
         String actorEmail = SecurityContextHolder.getContext().getAuthentication().getName();
         User actor = userRepository.findByEmail(actorEmail).orElse(null);
-        Long actorId = (actor != null) ? actor.getId() : profile.getUser().getId();
+        String actorId = (actor != null) ? actor.getId() : profile.getUser().getId();
 
         // Log audit
         auditService.logAction(
@@ -279,17 +306,17 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
                 "CONTRACTOR_SKILL_UPDATED",
                 "ContractorProfile",
                 profile.getId(),
-                "Skill " + skill.getName() + " updated on profile of user: " + profile.getUser().getEmail()
-        );
+                "Skill " + skill.getName() + " updated on profile of user: " + profile.getUser().getEmail());
 
         return toDto(profile, skills);
     }
 
     @Override
     @Transactional
-    public ContractorProfileResponseDTO removeSkill(Long profileId, Long skillId) {
+    public ContractorProfileResponseDTO removeSkill(String profileId, String skillId) {
         ContractorProfile profile = contractorProfileRepository.findById(profileId)
-                .orElseThrow(() -> new ContractorProfileNotFoundException("Contractor profile not found with ID: " + profileId));
+                .orElseThrow(() -> new ContractorProfileNotFoundException(
+                        "Contractor profile not found with ID: " + profileId));
 
         Skill skill = skillRepository.findById(skillId)
                 .orElseThrow(() -> new SkillNotFoundException("Skill not found with ID: " + skillId));
@@ -303,7 +330,7 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
         // Fetch actor
         String actorEmail = SecurityContextHolder.getContext().getAuthentication().getName();
         User actor = userRepository.findByEmail(actorEmail).orElse(null);
-        Long actorId = (actor != null) ? actor.getId() : profile.getUser().getId();
+        String actorId = (actor != null) ? actor.getId() : profile.getUser().getId();
 
         // Log audit
         auditService.logAction(
@@ -311,8 +338,7 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
                 "CONTRACTOR_SKILL_REMOVED",
                 "ContractorProfile",
                 profile.getId(),
-                "Skill " + skill.getName() + " removed from profile of user: " + profile.getUser().getEmail()
-        );
+                "Skill " + skill.getName() + " removed from profile of user: " + profile.getUser().getEmail());
 
         return toDto(profile, skills);
     }
@@ -333,11 +359,10 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
                 .userId(profile.getUser().getId())
                 .userName(profile.getUser().getName())
                 .userEmail(profile.getUser().getEmail())
-                .title(profile.getTitle())
-                .bio(profile.getBio())
+                .availabilityStatus(profile.getAvailabilityStatus() != null ? profile.getAvailabilityStatus().name() : null)
+                .status(profile.getProfileStatus() != null ? profile.getProfileStatus().name() : null)
                 .hourlyRate(profile.getHourlyRate())
                 .experienceYears(profile.getExperienceYears())
-                .status(profile.getStatus().name())
                 .skills(skillDtos)
                 .createdAt(profile.getCreatedAt())
                 .updatedAt(profile.getUpdatedAt())

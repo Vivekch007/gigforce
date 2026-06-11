@@ -1,6 +1,7 @@
 package com.gigforce.security;
 
 import com.gigforce.identity.entity.User;
+import com.gigforce.identity.enums.UserStatus;
 import com.gigforce.identity.repository.UserRepository;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -24,9 +25,15 @@ public class CustomUserDetailsService implements UserDetailsService {
         User user = userRepository.findByEmail(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + username));
 
+        boolean isActive = user.getStatus() == UserStatus.ACTIVE;
+
         return new org.springframework.security.core.userdetails.User(
                 user.getEmail(),
                 user.getPassword(),
+                isActive, // enabled
+                true,     // accountNonExpired
+                true,     // credentialsNonExpired
+                isActive, // accountNonLocked
                 Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()))
         );
     }

@@ -31,7 +31,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public UserResponseDTO getUserById(Long id) {
+    public UserResponseDTO getUserById(String id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new UserNotFoundException("User not found with ID: " + id));
         return userMapper.toUserDto(user);
@@ -72,7 +72,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public UserResponseDTO updateUser(Long id, String name, String phone) {
+    public UserResponseDTO updateUser(String id, String name, String phone) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new UserNotFoundException("User not found with ID: " + id));
 
@@ -91,7 +91,7 @@ public class UserServiceImpl implements UserService {
         // Fetch current performing user email
         String actorEmail = SecurityContextHolder.getContext().getAuthentication().getName();
         User actor = userRepository.findByEmail(actorEmail).orElse(null);
-        Long actorId = (actor != null) ? actor.getId() : updatedUser.getId();
+        String actorId = (actor != null) ? actor.getId() : updatedUser.getId();
 
         auditService.logAction(
                 actorId,
@@ -99,15 +99,14 @@ public class UserServiceImpl implements UserService {
                 "USER",
                 updatedUser.getId(),
                 String.format("User details updated. Name: '%s'->'%s', Phone: '%s'->'%s'",
-                        oldName, updatedUser.getName(), oldPhone, updatedUser.getPhone())
-        );
+                        oldName, updatedUser.getName(), oldPhone, updatedUser.getPhone()));
 
         return userMapper.toUserDto(updatedUser);
     }
 
     @Override
     @Transactional
-    public UserResponseDTO suspendUser(Long id) {
+    public UserResponseDTO suspendUser(String id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new UserNotFoundException("User not found with ID: " + id));
 
@@ -117,22 +116,21 @@ public class UserServiceImpl implements UserService {
 
         String actorEmail = SecurityContextHolder.getContext().getAuthentication().getName();
         User actor = userRepository.findByEmail(actorEmail).orElse(null);
-        Long actorId = (actor != null) ? actor.getId() : updatedUser.getId();
+        String actorId = (actor != null) ? actor.getId() : updatedUser.getId();
 
         auditService.logAction(
                 actorId,
                 "USER_SUSPENDED",
                 "USER",
                 updatedUser.getId(),
-                String.format("User status changed from %s to SUSPENDED", oldStatus.name())
-        );
+                String.format("User status changed from %s to SUSPENDED", oldStatus.name()));
 
         return userMapper.toUserDto(updatedUser);
     }
 
     @Override
     @Transactional
-    public UserResponseDTO deactivateUser(Long id) {
+    public UserResponseDTO deactivateUser(String id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new UserNotFoundException("User not found with ID: " + id));
 
@@ -142,22 +140,21 @@ public class UserServiceImpl implements UserService {
 
         String actorEmail = SecurityContextHolder.getContext().getAuthentication().getName();
         User actor = userRepository.findByEmail(actorEmail).orElse(null);
-        Long actorId = (actor != null) ? actor.getId() : updatedUser.getId();
+        String actorId = (actor != null) ? actor.getId() : updatedUser.getId();
 
         auditService.logAction(
                 actorId,
                 "USER_DEACTIVATED",
                 "USER",
                 updatedUser.getId(),
-                String.format("User status changed from %s to INACTIVE", oldStatus.name())
-        );
+                String.format("User status changed from %s to INACTIVE", oldStatus.name()));
 
         return userMapper.toUserDto(updatedUser);
     }
 
     @Override
     @Transactional
-    public UserResponseDTO activateUser(Long id) {
+    public UserResponseDTO activateUser(String id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new UserNotFoundException("User not found with ID: " + id));
 
@@ -167,15 +164,14 @@ public class UserServiceImpl implements UserService {
 
         String actorEmail = SecurityContextHolder.getContext().getAuthentication().getName();
         User actor = userRepository.findByEmail(actorEmail).orElse(null);
-        Long actorId = (actor != null) ? actor.getId() : updatedUser.getId();
+        String actorId = (actor != null) ? actor.getId() : updatedUser.getId();
 
         auditService.logAction(
                 actorId,
                 "USER_ACTIVATED",
                 "USER",
                 updatedUser.getId(),
-                String.format("User status changed from %s to ACTIVE", oldStatus.name())
-        );
+                String.format("User status changed from %s to ACTIVE", oldStatus.name()));
 
         return userMapper.toUserDto(updatedUser);
     }

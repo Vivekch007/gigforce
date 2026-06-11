@@ -18,7 +18,7 @@
                 "exec": [
                   "if (pm.response.code === 200) {",
                   "    var jsonData = pm.response.json();",
-                  "    pm.collectionVariables.set(\"adminAccessToken\", jsonData.accessToken);",
+                  "    pm.environment.set(\"adminAccessToken\", jsonData.accessToken);",
                   "    console.log(\"Admin token successfully captured!\");",
                   "}"
                 ],
@@ -89,7 +89,7 @@
                 "exec": [
                   "if (pm.response.code === 200) {",
                   "    var jsonData = pm.response.json();",
-                  "    pm.collectionVariables.set(\"contractorAccessTokenA\", jsonData.accessToken);",
+                  "    pm.environment.set(\"contractorAccessTokenA\", jsonData.accessToken);",
                   "    console.log(\"Contractor Alice token successfully captured!\");",
                   "}"
                 ],
@@ -160,7 +160,7 @@
                 "exec": [
                   "if (pm.response.code === 200) {",
                   "    var jsonData = pm.response.json();",
-                  "    pm.collectionVariables.set(\"vendorManagerAccessTokenA\", jsonData.accessToken);",
+                  "    pm.environment.set(\"vendorManagerAccessTokenA\", jsonData.accessToken);",
                   "    console.log(\"Vendor Manager Victor token successfully captured!\");",
                   "}"
                 ],
@@ -203,7 +203,7 @@
                 "exec": [
                   "if (pm.response.code === 201) {",
                   "    var jsonData = pm.response.json();",
-                  "    pm.collectionVariables.set(\"orgBId\", jsonData.id);",
+                  "    pm.environment.set(\"orgBId\", jsonData.id);",
                   "    console.log(\"Org B successfully created with ID: \" + jsonData.id);",
                   "}"
                 ],
@@ -321,7 +321,7 @@
                 "exec": [
                   "if (pm.response.code === 200) {",
                   "    var jsonData = pm.response.json();",
-                  "    pm.collectionVariables.set(\"contractorAccessTokenB\", jsonData.accessToken);",
+                  "    pm.environment.set(\"contractorAccessTokenB\", jsonData.accessToken);",
                   "    console.log(\"Contractor Bob token successfully captured!\");",
                   "}"
                 ],
@@ -430,7 +430,7 @@
                 "exec": [
                   "if (pm.response.code === 200) {",
                   "    var jsonData = pm.response.json();",
-                  "    pm.collectionVariables.set(\"hiringManagerAccessTokenB\", jsonData.accessToken);",
+                  "    pm.environment.set(\"hiringManagerAccessTokenB\", jsonData.accessToken);",
                   "    console.log(\"Hiring Manager Harold token captured!\");",
                   "}"
                 ],
@@ -480,7 +480,7 @@
                   "    pm.response.to.have.status(201);",
                   "});",
                   "var jsonData = pm.response.json();",
-                  "pm.collectionVariables.set(\"skillJavaId\", jsonData.id);"
+                  "pm.environment.set(\"skillJavaId\", jsonData.id);"
                 ],
                 "type": "text/javascript"
               }
@@ -532,7 +532,7 @@
                   "    pm.response.to.have.status(201);",
                   "});",
                   "var jsonData = pm.response.json();",
-                  "pm.collectionVariables.set(\"skillReactId\", jsonData.id);"
+                  "pm.environment.set(\"skillReactId\", jsonData.id);"
                 ],
                 "type": "text/javascript"
               }
@@ -685,7 +685,7 @@
                   "    pm.response.to.have.status(201);",
                   "});",
                   "var jsonData = pm.response.json();",
-                  "pm.collectionVariables.set(\"contractorAProfileId\", jsonData.id);"
+                  "pm.environment.set(\"contractorAProfileId\", jsonData.id);"
                 ],
                 "type": "text/javascript"
               }
@@ -883,7 +883,7 @@
                   "    pm.response.to.have.status(201);",
                   "});",
                   "var jsonData = pm.response.json();",
-                  "pm.collectionVariables.set(\"contractorBProfileId\", jsonData.id);"
+                  "pm.environment.set(\"contractorBProfileId\", jsonData.id);"
                 ],
                 "type": "text/javascript"
               }
@@ -1212,7 +1212,7 @@
                   "    pm.response.to.have.status(201);",
                   "});",
                   "var jsonData = pm.response.json();",
-                  "pm.collectionVariables.set(\"certificationId\", jsonData.id);"
+                  "pm.environment.set(\"certificationId\", jsonData.id);"
                 ],
                 "type": "text/javascript"
               }
@@ -1369,7 +1369,7 @@
                   "    pm.response.to.have.status(201);",
                   "});",
                   "var jsonData = pm.response.json();",
-                  "pm.collectionVariables.set(\"engagementId\", jsonData.id);"
+                  "pm.environment.set(\"engagementId\", jsonData.id);"
                 ],
                 "type": "text/javascript"
               }
@@ -1528,7 +1528,7 @@
                   "var jsonData = pm.response.json();",
                   "pm.test(\"Alice from Org A is not returned to Hiring Manager B\", function () {",
                   "    var containsAlice = jsonData.content.some(function(prof) {",
-                  "        return prof.id === pm.collectionVariables.get(\"contractorAProfileId\");",
+                  "        return prof.id === pm.environment.get(\"contractorAProfileId\");",
                   "    });",
                   "    pm.expect(containsAlice).to.be.false;",
                   "});"

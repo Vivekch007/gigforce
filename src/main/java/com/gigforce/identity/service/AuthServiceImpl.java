@@ -6,10 +6,9 @@ import com.gigforce.exception.InvalidCredentialsException;
 import com.gigforce.identity.dto.LoginRequestDTO;
 import com.gigforce.identity.dto.LoginResponseDTO;
 import com.gigforce.identity.dto.RegisterRequestDTO;
-import com.gigforce.identity.dto.TokenRefreshRequestDTO;
 import com.gigforce.identity.dto.UserResponseDTO;
-import com.gigforce.identity.entity.RefreshToken;
 import com.gigforce.identity.entity.User;
+import com.gigforce.identity.enums.UserRole;
 import com.gigforce.identity.enums.UserStatus;
 import com.gigforce.identity.mapper.UserMapper;
 import com.gigforce.identity.repository.UserRepository;
@@ -31,7 +30,6 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
-    private final RefreshTokenService refreshTokenService;
     private final UserDetailsService userDetailsService;
     private final UserMapper userMapper;
     private final AuditService auditService;
@@ -41,16 +39,13 @@ public class AuthServiceImpl implements AuthService {
             PasswordEncoder passwordEncoder,
             AuthenticationManager authenticationManager,
             JwtService jwtService,
-            RefreshTokenService refreshTokenService,
             UserDetailsService userDetailsService,
             UserMapper userMapper,
-            AuditService auditService
-    ) {
+            AuditService auditService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
-        this.refreshTokenService = refreshTokenService;
         this.userDetailsService = userDetailsService;
         this.userMapper = userMapper;
         this.auditService = auditService;
@@ -59,6 +54,11 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public UserResponseDTO register(RegisterRequestDTO request) {
+        if (request.getRole() == UserRole.ADMIN) {
+            throw new IllegalArgumentException(
+                    "Registration of ADMIN accounts is not allowed through the public endpoint.");
+        }
+
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new DuplicateEmailException("Email address already registered: " + request.getEmail());
         }
@@ -80,8 +80,8 @@ public class AuthServiceImpl implements AuthService {
                 "USER_REGISTRATION",
                 "USER",
                 savedUser.getId(),
-                String.format("User %s registered successfully with role %s", savedUser.getEmail(), savedUser.getRole().name())
-        );
+                String.format("User %s registered successfully with role %s", savedUser.getEmail(),
+                        savedUser.getRole().name()));
 
         return userMapper.toUserDto(savedUser);
     }
@@ -93,12 +93,11 @@ public class AuthServiceImpl implements AuthService {
 
         if (user == null) {
             auditService.logAction(
-                    0L,
+                    "",
                     "LOGIN_FAILURE",
                     "USER",
-                    0L,
-                    "Failed login attempt: Email not registered: " + request.getEmail()
-            );
+                    "",
+                    "Failed login attempt: Email not registered: " + request.getEmail());
             throw new InvalidCredentialsException("Invalid email or password");
         }
 
@@ -108,29 +107,25 @@ public class AuthServiceImpl implements AuthService {
                     "LOGIN_FAILURE",
                     "USER",
                     user.getId(),
-                    "Failed login attempt: User status is " + user.getStatus().name()
-            );
+                    "Failed login attempt: User status is " + user.getStatus().name());
             throw new InvalidCredentialsException("Authentication failed: User account is " + user.getStatus().name());
         }
 
         try {
             authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
-            );
+                    new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
         } catch (AuthenticationException e) {
             auditService.logAction(
                     user.getId(),
                     "LOGIN_FAILURE",
                     "USER",
                     user.getId(),
-                    "Failed login attempt: Invalid password for email: " + request.getEmail()
-            );
+                    "Failed login attempt: Invalid password for email: " + request.getEmail());
             throw new InvalidCredentialsException("Invalid email or password");
         }
 
         UserDetails userDetails = userDetailsService.loadUserByUsername(request.getEmail());
         String accessToken = jwtService.generateToken(userDetails, user.getRole().name());
-        RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getId());
 
         // Audit Logging
         auditService.logAction(
@@ -138,50 +133,13 @@ public class AuthServiceImpl implements AuthService {
                 "USER_LOGIN",
                 "USER",
                 user.getId(),
-                String.format("User %s logged in successfully", user.getEmail())
-        );
+                String.format("User %s logged in successfully", user.getEmail()));
 
         return LoginResponseDTO.builder()
                 .accessToken(accessToken)
-                .refreshToken(refreshToken.getToken())
                 .email(user.getEmail())
                 .role(user.getRole().name())
                 .build();
     }
 
-    @Override
-    @Transactional
-    public LoginResponseDTO refresh(TokenRefreshRequestDTO request) {
-        String requestRefreshToken = request.getRefreshToken();
-
-        return refreshTokenService.findByToken(requestRefreshToken)
-                .map(refreshTokenService::verifyExpiration)
-                .map(RefreshToken::getUser)
-                .map(user -> {
-                    if (user.getStatus() != UserStatus.ACTIVE) {
-                        throw new InvalidCredentialsException("User account is " + user.getStatus().name());
-                    }
-                    UserDetails userDetails = userDetailsService.loadUserByUsername(user.getEmail());
-                    String accessToken = jwtService.generateToken(userDetails, user.getRole().name());
-                    // Rotate refresh token
-                    RefreshToken newRefreshToken = refreshTokenService.createRefreshToken(user.getId());
-
-                    // Audit Logging
-                    auditService.logAction(
-                            user.getId(),
-                            "REFRESH_TOKEN_GENERATED",
-                            "USER",
-                            user.getId(),
-                            String.format("User %s rotated refresh token", user.getEmail())
-                    );
-
-                    return LoginResponseDTO.builder()
-                            .accessToken(accessToken)
-                            .refreshToken(newRefreshToken.getToken())
-                            .email(user.getEmail())
-                            .role(user.getRole().name())
-                            .build();
-                })
-                .orElseThrow(() -> new InvalidCredentialsException("Refresh token is invalid or expired"));
-    }
 }

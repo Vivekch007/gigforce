@@ -22,7 +22,7 @@ public class CurrentUserContext {
         return userRepository.findByEmail(email).orElse(null);
     }
 
-    public Long getCurrentUserId() {
+    public String getCurrentUserId() {
         User user = getCurrentUser();
         return user != null ? user.getId() : null;
     }

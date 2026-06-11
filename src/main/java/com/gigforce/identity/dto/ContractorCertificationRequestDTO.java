@@ -2,6 +2,7 @@ package com.gigforce.identity.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -33,4 +34,6 @@ public class ContractorCertificationRequestDTO {
     private LocalDate issueDate;
 
     private LocalDate expiryDate; // Optional
+    @Pattern(regexp = "(?i)^(valid|expired|revoked)$", message = "certStatus must be one of: valid, expired, revoked")
+    private String certStatus; // optional: valid, expired, revoked
 }

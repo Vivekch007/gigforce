@@ -22,147 +22,161 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class EngagementHistoryServiceImpl implements EngagementHistoryService {
 
-    private final EngagementHistoryRepository engagementHistoryRepository;
-    private final ContractorProfileRepository contractorProfileRepository;
-    private final UserRepository userRepository;
-    private final AuditService auditService;
+        private final EngagementHistoryRepository engagementHistoryRepository;
+        private final ContractorProfileRepository contractorProfileRepository;
+        private final UserRepository userRepository;
+        private final AuditService auditService;
 
-    public EngagementHistoryServiceImpl(
-            EngagementHistoryRepository engagementHistoryRepository,
-            ContractorProfileRepository contractorProfileRepository,
-            UserRepository userRepository,
-            AuditService auditService
-    ) {
-        this.engagementHistoryRepository = engagementHistoryRepository;
-        this.contractorProfileRepository = contractorProfileRepository;
-        this.userRepository = userRepository;
-        this.auditService = auditService;
-    }
-
-    @Override
-    @Transactional
-    public EngagementHistoryResponseDTO addEngagement(Long profileId, EngagementHistoryRequestDTO request) {
-        ContractorProfile profile = contractorProfileRepository.findById(profileId)
-                .orElseThrow(() -> new ContractorProfileNotFoundException("Contractor profile not found with ID: " + profileId));
-
-        EngagementHistory engagement = EngagementHistory.builder()
-                .contractorProfile(profile)
-                .clientName(request.getClientName().trim())
-                .roleTitle(request.getRoleTitle().trim())
-                .startDate(request.getStartDate())
-                .endDate(request.getEndDate())
-                .feedback(request.getFeedback() != null ? request.getFeedback().trim() : null)
-                .rating(request.getRating())
-                .build();
-
-        EngagementHistory saved = engagementHistoryRepository.save(engagement);
-
-        // Audit Logging
-        String actorEmail = SecurityContextHolder.getContext().getAuthentication().getName();
-        User actor = userRepository.findByEmail(actorEmail).orElse(null);
-        Long actorId = (actor != null) ? actor.getId() : profile.getUser().getId();
-
-        auditService.logAction(
-                actorId,
-                "CONTRACTOR_ENGAGEMENT_CREATED",
-                "ContractorProfile",
-                profile.getId(),
-                "Engagement added at client '" + request.getClientName().trim() + "' for contractor: " + profile.getUser().getEmail()
-        );
-
-        return toDto(saved);
-    }
-
-    @Override
-    public List<EngagementHistoryResponseDTO> getEngagementsByProfileId(Long profileId) {
-        ContractorProfile profile = contractorProfileRepository.findById(profileId)
-                .orElseThrow(() -> new ContractorProfileNotFoundException("Contractor profile not found with ID: " + profileId));
-
-        return engagementHistoryRepository.findByContractorProfile(profile)
-                .stream()
-                .map(this::toDto)
-                .collect(Collectors.toList());
-    }
-
-    @Override
-    @Transactional
-    public EngagementHistoryResponseDTO updateEngagement(Long profileId, Long engagementId, EngagementHistoryRequestDTO request) {
-        ContractorProfile profile = contractorProfileRepository.findById(profileId)
-                .orElseThrow(() -> new ContractorProfileNotFoundException("Contractor profile not found with ID: " + profileId));
-
-        EngagementHistory engagement = engagementHistoryRepository.findById(engagementId)
-                .orElseThrow(() -> new EngagementNotFoundException("Engagement history not found with ID: " + engagementId));
-
-        if (!engagement.getContractorProfile().getId().equals(profile.getId())) {
-            throw new IllegalArgumentException("Engagement does not belong to the specified profile.");
+        public EngagementHistoryServiceImpl(
+                        EngagementHistoryRepository engagementHistoryRepository,
+                        ContractorProfileRepository contractorProfileRepository,
+                        UserRepository userRepository,
+                        AuditService auditService) {
+                this.engagementHistoryRepository = engagementHistoryRepository;
+                this.contractorProfileRepository = contractorProfileRepository;
+                this.userRepository = userRepository;
+                this.auditService = auditService;
         }
 
-        engagement.setClientName(request.getClientName().trim());
-        engagement.setRoleTitle(request.getRoleTitle().trim());
-        engagement.setStartDate(request.getStartDate());
-        engagement.setEndDate(request.getEndDate());
-        engagement.setFeedback(request.getFeedback() != null ? request.getFeedback().trim() : null);
-        engagement.setRating(request.getRating());
+        @Override
+        @Transactional
+        public EngagementHistoryResponseDTO addEngagement(String profileId, EngagementHistoryRequestDTO request) {
+                ContractorProfile profile = contractorProfileRepository.findById(profileId)
+                                .orElseThrow(() -> new ContractorProfileNotFoundException(
+                                                "Contractor profile not found with ID: " + profileId));
 
-        EngagementHistory updated = engagementHistoryRepository.save(engagement);
+                if (request.getEndDate() != null && request.getEndDate().isBefore(request.getStartDate())) {
+                        throw new IllegalArgumentException("Engagement end date cannot be before start date.");
+                }
 
-        // Audit Logging
-        String actorEmail = SecurityContextHolder.getContext().getAuthentication().getName();
-        User actor = userRepository.findByEmail(actorEmail).orElse(null);
-        Long actorId = (actor != null) ? actor.getId() : profile.getUser().getId();
+                EngagementHistory engagement = EngagementHistory.builder()
+                                .contractorProfile(profile)
+                                .clientName(request.getClientName().trim())
+                                .roleTitle(request.getRoleTitle().trim())
+                                .startDate(request.getStartDate())
+                                .endDate(request.getEndDate())
+                                .feedback(request.getFeedback() != null ? request.getFeedback().trim() : null)
+                                .rating(request.getRating())
+                                .build();
 
-        auditService.logAction(
-                actorId,
-                "CONTRACTOR_ENGAGEMENT_UPDATED",
-                "ContractorProfile",
-                profile.getId(),
-                "Engagement updated for client '" + request.getClientName().trim() + "' for contractor: " + profile.getUser().getEmail()
-        );
+                EngagementHistory saved = engagementHistoryRepository.save(engagement);
 
-        return toDto(updated);
-    }
+                // Audit Logging
+                String actorEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+                User actor = userRepository.findByEmail(actorEmail).orElse(null);
+                String actorId = (actor != null) ? actor.getId() : profile.getUser().getId();
 
-    @Override
-    @Transactional
-    public void deleteEngagement(Long profileId, Long engagementId) {
-        ContractorProfile profile = contractorProfileRepository.findById(profileId)
-                .orElseThrow(() -> new ContractorProfileNotFoundException("Contractor profile not found with ID: " + profileId));
+                auditService.logAction(
+                                actorId,
+                                "CONTRACTOR_ENGAGEMENT_CREATED",
+                                "ContractorProfile",
+                                profile.getId(),
+                                "Engagement added at client '" + request.getClientName().trim() + "' for contractor: "
+                                                + profile.getUser().getEmail());
 
-        EngagementHistory engagement = engagementHistoryRepository.findById(engagementId)
-                .orElseThrow(() -> new EngagementNotFoundException("Engagement history not found with ID: " + engagementId));
-
-        if (!engagement.getContractorProfile().getId().equals(profile.getId())) {
-            throw new IllegalArgumentException("Engagement does not belong to the specified profile.");
+                return toDto(saved);
         }
 
-        engagementHistoryRepository.delete(engagement);
+        @Override
+        public List<EngagementHistoryResponseDTO> getEngagementsByProfileId(String profileId) {
+                ContractorProfile profile = contractorProfileRepository.findById(profileId)
+                                .orElseThrow(() -> new ContractorProfileNotFoundException(
+                                                "Contractor profile not found with ID: " + profileId));
 
-        // Audit Logging
-        String actorEmail = SecurityContextHolder.getContext().getAuthentication().getName();
-        User actor = userRepository.findByEmail(actorEmail).orElse(null);
-        Long actorId = (actor != null) ? actor.getId() : profile.getUser().getId();
+                return engagementHistoryRepository.findByContractorProfile(profile)
+                                .stream()
+                                .map(this::toDto)
+                                .collect(Collectors.toList());
+        }
 
-        auditService.logAction(
-                actorId,
-                "CONTRACTOR_ENGAGEMENT_DELETED",
-                "ContractorProfile",
-                profile.getId(),
-                "Engagement deleted for client '" + engagement.getClientName() + "' for contractor: " + profile.getUser().getEmail()
-        );
-    }
+        @Override
+        @Transactional
+        public EngagementHistoryResponseDTO updateEngagement(String profileId, String engagementId,
+                        EngagementHistoryRequestDTO request) {
+                ContractorProfile profile = contractorProfileRepository.findById(profileId)
+                                .orElseThrow(() -> new ContractorProfileNotFoundException(
+                                                "Contractor profile not found with ID: " + profileId));
 
-    private EngagementHistoryResponseDTO toDto(EngagementHistory eng) {
-        return EngagementHistoryResponseDTO.builder()
-                .id(eng.getId())
-                .contractorProfileId(eng.getContractorProfile().getId())
-                .clientName(eng.getClientName())
-                .roleTitle(eng.getRoleTitle())
-                .startDate(eng.getStartDate())
-                .endDate(eng.getEndDate())
-                .feedback(eng.getFeedback())
-                .rating(eng.getRating())
-                .createdAt(eng.getCreatedAt())
-                .updatedAt(eng.getUpdatedAt())
-                .build();
-    }
+                EngagementHistory engagement = engagementHistoryRepository.findById(engagementId)
+                                .orElseThrow(() -> new EngagementNotFoundException(
+                                                "Engagement history not found with ID: " + engagementId));
+
+                if (request.getEndDate() != null && request.getEndDate().isBefore(request.getStartDate())) {
+                        throw new IllegalArgumentException("Engagement end date cannot be before start date.");
+                }
+
+                if (!engagement.getContractorProfile().getId().equals(profile.getId())) {
+                        throw new IllegalArgumentException("Engagement does not belong to the specified profile.");
+                }
+
+                engagement.setClientName(request.getClientName().trim());
+                engagement.setRoleTitle(request.getRoleTitle().trim());
+                engagement.setStartDate(request.getStartDate());
+                engagement.setEndDate(request.getEndDate());
+                engagement.setFeedback(request.getFeedback() != null ? request.getFeedback().trim() : null);
+                engagement.setRating(request.getRating());
+
+                EngagementHistory updated = engagementHistoryRepository.save(engagement);
+
+                // Audit Logging
+                String actorEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+                User actor = userRepository.findByEmail(actorEmail).orElse(null);
+                String actorId = (actor != null) ? actor.getId() : profile.getUser().getId();
+
+                auditService.logAction(
+                                actorId,
+                                "CONTRACTOR_ENGAGEMENT_UPDATED",
+                                "ContractorProfile",
+                                profile.getId(),
+                                "Engagement updated for client '" + request.getClientName().trim()
+                                                + "' for contractor: " + profile.getUser().getEmail());
+
+                return toDto(updated);
+        }
+
+        @Override
+        @Transactional
+        public void deleteEngagement(String profileId, String engagementId) {
+                ContractorProfile profile = contractorProfileRepository.findById(profileId)
+                                .orElseThrow(() -> new ContractorProfileNotFoundException(
+                                                "Contractor profile not found with ID: " + profileId));
+
+                EngagementHistory engagement = engagementHistoryRepository.findById(engagementId)
+                                .orElseThrow(() -> new EngagementNotFoundException(
+                                                "Engagement history not found with ID: " + engagementId));
+
+                if (!engagement.getContractorProfile().getId().equals(profile.getId())) {
+                        throw new IllegalArgumentException("Engagement does not belong to the specified profile.");
+                }
+
+                engagementHistoryRepository.delete(engagement);
+
+                // Audit Logging
+                String actorEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+                User actor = userRepository.findByEmail(actorEmail).orElse(null);
+                String actorId = (actor != null) ? actor.getId() : profile.getUser().getId();
+
+                auditService.logAction(
+                                actorId,
+                                "CONTRACTOR_ENGAGEMENT_DELETED",
+                                "ContractorProfile",
+                                profile.getId(),
+                                "Engagement deleted for client '" + engagement.getClientName() + "' for contractor: "
+                                                + profile.getUser().getEmail());
+        }
+
+        private EngagementHistoryResponseDTO toDto(EngagementHistory eng) {
+                return EngagementHistoryResponseDTO.builder()
+                                .id(eng.getId())
+                                .contractorProfileId(eng.getContractorProfile().getId())
+                                .clientName(eng.getClientName())
+                                .roleTitle(eng.getRoleTitle())
+                                .startDate(eng.getStartDate())
+                                .endDate(eng.getEndDate())
+                                .feedback(eng.getFeedback())
+                                .rating(eng.getRating())
+                                .createdAt(eng.getCreatedAt())
+                                .updatedAt(eng.getUpdatedAt())
+                                .build();
+        }
 }

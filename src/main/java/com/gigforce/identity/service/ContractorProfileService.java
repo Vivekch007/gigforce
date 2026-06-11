@@ -6,12 +6,12 @@ import com.gigforce.identity.dto.ContractorSkillRequestDTO;
 import org.springframework.data.domain.Page;
 
 public interface ContractorProfileService {
-    ContractorProfileResponseDTO createProfile(Long userId, ContractorProfileRequestDTO request);
-    ContractorProfileResponseDTO getProfileById(Long profileId);
-    ContractorProfileResponseDTO getProfileByUserId(Long userId);
-    ContractorProfileResponseDTO updateProfile(Long profileId, ContractorProfileRequestDTO request);
+    ContractorProfileResponseDTO createProfile(String userId, ContractorProfileRequestDTO request);
+    ContractorProfileResponseDTO getProfileById(String profileId);
+    ContractorProfileResponseDTO getProfileByUserId(String userId);
+    ContractorProfileResponseDTO updateProfile(String profileId, ContractorProfileRequestDTO request);
     Page<ContractorProfileResponseDTO> searchProfiles(int page, int size, String skillName, Integer minExperience, String status);
-    ContractorProfileResponseDTO addSkill(Long profileId, ContractorSkillRequestDTO request);
-    ContractorProfileResponseDTO updateSkill(Long profileId, Long skillId, ContractorSkillRequestDTO request);
-    ContractorProfileResponseDTO removeSkill(Long profileId, Long skillId);
+    ContractorProfileResponseDTO addSkill(String profileId, ContractorSkillRequestDTO request);
+    ContractorProfileResponseDTO updateSkill(String profileId, String skillId, ContractorSkillRequestDTO request);
+    ContractorProfileResponseDTO removeSkill(String profileId, String skillId);
 }

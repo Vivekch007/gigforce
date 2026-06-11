@@ -47,7 +47,7 @@ public class SkillServiceImpl implements SkillService {
         // Fetch current actor email
         String actorEmail = SecurityContextHolder.getContext().getAuthentication().getName();
         User actor = userRepository.findByEmail(actorEmail).orElse(null);
-        Long actorId = (actor != null) ? actor.getId() : null;
+        String actorId = (actor != null) ? actor.getId() : null;
 
         // Log audit event
         auditService.logAction(
@@ -55,8 +55,7 @@ public class SkillServiceImpl implements SkillService {
                 "SKILL_CREATED",
                 "Skill",
                 savedSkill.getId(),
-                "Master skill created: " + savedSkill.getName() + " under category: " + savedSkill.getCategory()
-        );
+                "Master skill created: " + savedSkill.getName() + " under category: " + savedSkill.getCategory());
 
         return toDto(savedSkill);
     }
@@ -64,10 +63,12 @@ public class SkillServiceImpl implements SkillService {
     @Override
     public List<SkillResponseDTO> getAllSkills(String category, String name) {
         List<Skill> skills = skillRepository.findAll();
-        
+
         return skills.stream()
-                .filter(s -> category == null || category.trim().isEmpty() || s.getCategory().equalsIgnoreCase(category.trim()))
-                .filter(s -> name == null || name.trim().isEmpty() || s.getName().toLowerCase().contains(name.trim().toLowerCase()))
+                .filter(s -> category == null || category.trim().isEmpty()
+                        || s.getCategory().equalsIgnoreCase(category.trim()))
+                .filter(s -> name == null || name.trim().isEmpty()
+                        || s.getName().toLowerCase().contains(name.trim().toLowerCase()))
                 .map(this::toDto)
                 .collect(Collectors.toList());
     }

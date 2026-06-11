@@ -8,6 +8,6 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface ContractorCertificationRepository extends JpaRepository<ContractorCertification, Long> {
+public interface ContractorCertificationRepository extends JpaRepository<ContractorCertification, String> {
     List<ContractorCertification> findByContractorProfile(ContractorProfile profile);
 }

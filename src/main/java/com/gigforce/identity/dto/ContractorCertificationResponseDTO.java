@@ -15,8 +15,8 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 public class ContractorCertificationResponseDTO {
-    private Long id;
-    private Long contractorProfileId;
+    private String id;
+    private String contractorProfileId;
     private String name;
     private String issuingAuthority;
     private String certificateNumber;
@@ -24,4 +24,5 @@ public class ContractorCertificationResponseDTO {
     private LocalDate expiryDate;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private String certStatus;
 }

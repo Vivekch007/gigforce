@@ -1,7 +1,8 @@
 package com.gigforce.identity.entity;
 
 import com.gigforce.common.entity.BaseEntity;
-import com.gigforce.identity.enums.ContractorStatus;
+import com.gigforce.identity.enums.AvailabilityStatus;
+import com.gigforce.identity.enums.ProfileStatus;
 import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -40,11 +41,7 @@ public class ContractorProfile extends BaseEntity {
     @JoinColumn(name = "user_id", unique = true, nullable = false)
     private User user;
 
-    @Column(nullable = false, length = 150)
-    private String title;
-
-    @Column(columnDefinition = "TEXT")
-    private String bio;
+    // Title & bio removed per new requirements
 
     @Column(name = "hourly_rate", nullable = false, precision = 10, scale = 2)
     private BigDecimal hourlyRate;
@@ -53,6 +50,12 @@ public class ContractorProfile extends BaseEntity {
     private Integer experienceYears;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 30)
-    private ContractorStatus status;
+    @Column(name = "availability_status", nullable = false, length = 30)
+    private AvailabilityStatus availabilityStatus;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "profile_status", nullable = false, length = 30)
+    private ProfileStatus profileStatus;
+
+    
 }

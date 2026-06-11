@@ -19,7 +19,7 @@ public class AuditServiceImpl implements AuditService {
 
     @Override
     @Transactional
-    public void logAction(Long userId, String action, String entityType, Long entityId, String description) {
+    public void logAction(String userId, String action, String entityType, String entityId, String description) {
         AuditLog log = AuditLog.builder()
                 .userId(userId)
                 .action(action)
@@ -31,7 +31,12 @@ public class AuditServiceImpl implements AuditService {
     }
 
     @Override
-    public List<AuditLog> getAuditLogsForUser(Long userId) {
+    public List<AuditLog> getAuditLogsForUser(String userId) {
         return auditLogRepository.findByUserIdOrderByCreatedAtDesc(userId);
+    }
+
+    @Override
+    public List<AuditLog> getAllAuditLogs() {
+        return auditLogRepository.findAllByOrderByCreatedAtDesc();
     }
 }

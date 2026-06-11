@@ -18,9 +18,16 @@
                 "exec": [
                   "if (pm.response.code === 200) {",
                   "    var jsonData = pm.response.json();",
-                  "    pm.collectionVariables.set(\"adminToken\", jsonData.accessToken);",
-                  "    pm.collectionVariables.set(\"adminRefreshToken\", jsonData.refreshToken);",
-                  "    console.log(\"Admin tokens captured!\");",
+                    "    var token = jsonData.accessToken || jsonData.access_token || (jsonData.data && (jsonData.data.accessToken || jsonData.data.access_token));",
+                    "    var refresh = jsonData.refreshToken || jsonData.refresh_token || (jsonData.data && (jsonData.data.refreshToken || jsonData.data.refresh_token));",
+                    "    if (token) {",
+                    "        pm.environment.set(\"adminToken\", token);",
+                    "        if (refresh) pm.environment.set(\"adminRefreshToken\", refresh);",
+                    "        console.log(\"Admin tokens captured to environment\");",
+                    "    } else {",
+                    "        console.error(\"No access token in login response:\", jsonData);",
+                    "        pm.test(\"Login returned access token\", function(){ pm.expect(token).to.not.be.undefined; });",
+                    "    }",
                   "}"
                 ],
                 "type": "text/javascript"

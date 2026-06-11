@@ -12,7 +12,7 @@ import lombok.Setter;
 @AllArgsConstructor
 @Builder
 public class SkillResponseDTO {
-    private Long id;
+    private String id;
     private String name;
     private String category;
     private String description;
