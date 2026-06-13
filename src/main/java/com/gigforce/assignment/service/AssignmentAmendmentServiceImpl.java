@@ -117,6 +117,17 @@ public class AssignmentAmendmentServiceImpl implements AssignmentAmendmentServic
         User currentUser = userRepository.findByEmail(currentUsername)
                 .orElseThrow(() -> new UserNotFoundException("User not found with email: " + currentUsername));
 
+        String role = currentUser.getRole().name();
+        boolean isAdmin = role.equals("ADMIN");
+        boolean isHiringManager = role.equals("HIRING_MANAGER")
+                && assignment.getHiringManager().getId().equals(currentUser.getId());
+        boolean isVendor = (role.equals("VENDOR") || role.equals("VENDOR_MANAGER")) && assignment.getVendor() != null
+                && assignment.getVendor().getId().equals(currentUser.getId());
+
+        if (!isAdmin && !isHiringManager && !isVendor) {
+            throw new AccessDeniedException("Access Denied: You are not authorized to request amendments for this assignment.");
+        }
+
         AssignmentAmendment amendment = AssignmentAmendment.builder()
                 .assignment(assignment)
                 .amendmentType(request.getAmendmentType())

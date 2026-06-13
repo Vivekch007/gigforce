@@ -1,5 +1,6 @@
 package com.gigforce.identity.service;
 
+import com.gigforce.identity.dto.EngagementFeedbackRequestDTO;
 import com.gigforce.identity.dto.EngagementHistoryRequestDTO;
 import com.gigforce.identity.dto.EngagementHistoryResponseDTO;
 
@@ -12,6 +13,8 @@ public interface EngagementHistoryService {
 
     EngagementHistoryResponseDTO updateEngagement(String profileId, String engagementId,
             EngagementHistoryRequestDTO request);
+
+    EngagementHistoryResponseDTO submitFeedback(String profileId, String engagementId, EngagementFeedbackRequestDTO request);
 
     void deleteEngagement(String profileId, String engagementId);
 }

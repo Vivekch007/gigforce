@@ -27,6 +27,10 @@ public class ResourceRequisitionResponseDTO {
     private RequisitionStatus status;
     private String creatorId;
     private String creatorEmail;
+    private com.gigforce.requisition.enums.EngagementType engagementType;
+    private com.gigforce.requisition.enums.ExperienceLevel experienceLevel;
+    private java.time.LocalDate startDate;
+    private String duration;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

@@ -65,5 +65,6 @@ public class VendorSubmission extends BaseEntity {
     @Column(length = 255)
     private String remarks;
 
-    
+    @Column(name = "submission_date", nullable = false)
+    private java.time.LocalDate submissionDate;
 }

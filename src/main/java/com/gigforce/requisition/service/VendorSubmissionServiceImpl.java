@@ -91,11 +91,9 @@ public class VendorSubmissionServiceImpl implements VendorSubmissionService {
         User currentUser = userRepository.findByEmail(currentUsername)
                 .orElseThrow(() -> new UserNotFoundException("User not found with email: " + currentUsername));
 
-        // RBAC validation: Contractor can only submit self
+        // RBAC validation: Contractor is not allowed to submit
         if (currentUser.getRole().name().equals("CONTRACTOR")) {
-            if (!profile.getUser().getId().equals(currentUser.getId())) {
-                throw new AccessDeniedException("Access Denied: Contractors can only submit their own profile.");
-            }
+            throw new AccessDeniedException("Access Denied: Contractors are not authorized to create submissions.");
         }
 
         VendorSubmission submission = VendorSubmission.builder()
@@ -105,6 +103,7 @@ public class VendorSubmissionServiceImpl implements VendorSubmissionService {
                 .status(SubmissionStatus.SUBMITTED)
                 .proposedRate(request.getProposedRate())
                 .remarks(request.getRemarks() != null ? request.getRemarks().trim() : null)
+                .submissionDate(LocalDate.now())
                 .build();
 
         VendorSubmission saved = submissionRepository.save(submission);
@@ -142,21 +141,21 @@ public class VendorSubmissionServiceImpl implements VendorSubmissionService {
         SubmissionStatus oldStatus = submission.getStatus();
 
         // Validate state transitions
-        if (oldStatus == SubmissionStatus.ACCEPTED || oldStatus == SubmissionStatus.REJECTED) {
+        if (oldStatus == SubmissionStatus.SELECTED || oldStatus == SubmissionStatus.REJECTED) {
             throw new IllegalArgumentException(
                     "Cannot transition status. Submission is already in " + oldStatus + " status.");
         }
 
-        if (targetStatus == SubmissionStatus.ACCEPTED) {
+        if (targetStatus == SubmissionStatus.SELECTED) {
             ContractorProfile profile = submission.getContractorProfile();
-                if (profile.getAvailabilityStatus() != AvailabilityStatus.AVAILABLE
+            if (profile.getAvailabilityStatus() != AvailabilityStatus.AVAILABLE
                     && profile.getAvailabilityStatus() != AvailabilityStatus.ON_STATUS) {
                 throw new IllegalArgumentException(
                     "Contractor is no longer available (AvailabilityStatus: " + profile.getAvailabilityStatus() + ").");
             }
 
             // Transition contractor profile status
-                profile.setAvailabilityStatus(AvailabilityStatus.ON_ASSIGNMENT);
+            profile.setAvailabilityStatus(AvailabilityStatus.ON_ASSIGNMENT);
             contractorProfileRepository.save(profile);
 
             auditService.logAction(
@@ -167,8 +166,8 @@ public class VendorSubmissionServiceImpl implements VendorSubmissionService {
                     String.format("Contractor status changed to ASSIGNED on submission acceptance by %s",
                             currentUser.getEmail()));
 
-            // Transition submission status to ACCEPTED
-            submission.setStatus(SubmissionStatus.ACCEPTED);
+            // Transition submission status to SELECTED
+            submission.setStatus(SubmissionStatus.SELECTED);
             if (remarks != null) {
                 submission.setRemarks(remarks.trim());
             }
@@ -176,7 +175,7 @@ public class VendorSubmissionServiceImpl implements VendorSubmissionService {
 
             // Requisition auto-fill logic
             long acceptedCount = submissionRepository.countByRequisitionIdAndStatus(requisition.getId(),
-                    SubmissionStatus.ACCEPTED);
+                    SubmissionStatus.SELECTED);
             if (acceptedCount >= requisition.getQuantity()) {
                 requisition.setStatus(RequisitionStatus.FILLED);
                 requisitionRepository.save(requisition);
@@ -186,7 +185,7 @@ public class VendorSubmissionServiceImpl implements VendorSubmissionService {
                         "REQUISITION_STATUS_CHANGED",
                         "ResourceRequisition",
                         requisition.getId(),
-                        String.format("Requisition '%s' marked as FILLED automatically. Accepted submissions count: %d",
+                        String.format("Requisition '%s' marked as FILLED automatically. Selected submissions count: %d",
                                 requisition.getTitle(), acceptedCount));
             }
         } else if (targetStatus == SubmissionStatus.REJECTED) {
@@ -195,8 +194,17 @@ public class VendorSubmissionServiceImpl implements VendorSubmissionService {
                 submission.setRemarks(remarks.trim());
             }
             submissionRepository.save(submission);
-        } else if (targetStatus == SubmissionStatus.REVIEWING) {
-            submission.setStatus(SubmissionStatus.REVIEWING);
+        } else if (targetStatus == SubmissionStatus.SHORTLISTED) {
+            submission.setStatus(SubmissionStatus.SHORTLISTED);
+            if (remarks != null) {
+                submission.setRemarks(remarks.trim());
+            }
+            submissionRepository.save(submission);
+        } else if (targetStatus == SubmissionStatus.INTERVIEW_SCHEDULED) {
+            submission.setStatus(SubmissionStatus.INTERVIEW_SCHEDULED);
+            if (remarks != null) {
+                submission.setRemarks(remarks.trim());
+            }
             submissionRepository.save(submission);
         } else {
             throw new IllegalArgumentException("Invalid target status for transition.");
@@ -225,9 +233,8 @@ public class VendorSubmissionServiceImpl implements VendorSubmissionService {
         boolean isAdmin = currentUser.getRole().name().equals("ADMIN");
         boolean isCreator = submission.getRequisition().getCreator().getId().equals(currentUser.getId());
         boolean isSubmitter = submission.getSubmittedBy().getId().equals(currentUser.getId());
-        boolean isContractorOwner = submission.getContractorProfile().getUser().getId().equals(currentUser.getId());
 
-        if (!isAdmin && !isCreator && !isSubmitter && !isContractorOwner) {
+        if (!isAdmin && !isCreator && !isSubmitter) {
             throw new AccessDeniedException("Access Denied: You are not authorized to view this submission.");
         }
 
@@ -255,11 +262,6 @@ public class VendorSubmissionServiceImpl implements VendorSubmissionService {
                 // Vendors can only see their own submissions
                 submissions = submissions.stream()
                         .filter(s -> s.getSubmittedBy().getId().equals(currentUser.getId()))
-                        .collect(Collectors.toList());
-            } else if (currentUser.getRole().name().equals("CONTRACTOR")) {
-                // Contractors can only see their own submissions
-                submissions = submissions.stream()
-                        .filter(s -> s.getContractorProfile().getUser().getId().equals(currentUser.getId()))
                         .collect(Collectors.toList());
             } else {
                 throw new AccessDeniedException(
@@ -293,11 +295,6 @@ public class VendorSubmissionServiceImpl implements VendorSubmissionService {
                     .searchSubmissionsBySubmittedBy(currentUser.getId(), requisitionId, status, contractorProfileId,
                             pageable)
                     .map(this::toDto);
-        } else if (currentUser.getRole().name().equals("CONTRACTOR")) {
-            // Contractors can only search submissions matching their own profile user ID
-            return submissionRepository
-                    .searchSubmissionsByContractorUser(currentUser.getId(), requisitionId, status, pageable)
-                    .map(this::toDto);
         } else {
             throw new AccessDeniedException("Access Denied: You do not have permissions to search submissions.");
         }
@@ -315,6 +312,7 @@ public class VendorSubmissionServiceImpl implements VendorSubmissionService {
                 .status(submission.getStatus())
                 .proposedRate(submission.getProposedRate())
                 .remarks(submission.getRemarks())
+                .submissionDate(submission.getSubmissionDate())
                 .createdAt(submission.getCreatedAt())
                 .updatedAt(submission.getUpdatedAt())
                 .build();

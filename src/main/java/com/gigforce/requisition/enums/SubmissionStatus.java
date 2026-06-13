@@ -2,7 +2,8 @@ package com.gigforce.requisition.enums;
 
 public enum SubmissionStatus {
     SUBMITTED,
-    REVIEWING,
-    ACCEPTED,
+    SHORTLISTED,
+    INTERVIEW_SCHEDULED,
+    SELECTED,
     REJECTED
 }

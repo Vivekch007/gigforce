@@ -1,5 +1,7 @@
 package com.gigforce.identity.dto;
 
+import com.gigforce.identity.enums.AvailabilityStatus;
+import com.gigforce.identity.enums.ProfileStatus;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -32,6 +34,8 @@ public class ContractorProfileRequestDTO {
     private Integer experienceYears;
 
     // Optional fields to update availability/profile status
-    private String availabilityStatus; // e.g. AVAILABLE, ON_ASSIGNMENT, ON_STATUS
-    private String status; // profile status: ACTIVE, INACTIVE, BLACKLISTED
+//    private AvailabilityStatus availabilityStatus; // e.g. AVAILABLE, ON_ASSIGNMENT, ON_STATUS
+//    private ProfileStatus status; // profile status: ACTIVE, INACTIVE, BLACKLISTED
+    private String availabilityStatus;
+    private String status;
 }

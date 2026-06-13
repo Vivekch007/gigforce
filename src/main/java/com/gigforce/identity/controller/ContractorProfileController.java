@@ -5,6 +5,7 @@ import com.gigforce.identity.dto.ContractorCertificationResponseDTO;
 import com.gigforce.identity.dto.ContractorProfileRequestDTO;
 import com.gigforce.identity.dto.ContractorProfileResponseDTO;
 import com.gigforce.identity.dto.ContractorSkillRequestDTO;
+import com.gigforce.identity.dto.EngagementFeedbackRequestDTO;
 import com.gigforce.identity.dto.EngagementHistoryRequestDTO;
 import com.gigforce.identity.dto.EngagementHistoryResponseDTO;
 import com.gigforce.identity.service.ContractorCertificationService;
@@ -189,8 +190,8 @@ public class ContractorProfileController {
     // --- Engagement History Endpoints ---
 
     @PostMapping("/{id}/engagements")
-    @PreAuthorize("hasAnyRole('ADMIN', 'VENDOR_MANAGER')")
-    @Operation(summary = "Add engagement to contractor profile", description = "Restricted to ADMIN or VENDOR_MANAGER.")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER')")
+    @Operation(summary = "Add engagement to contractor profile", description = "Restricted to ADMIN or HIRING_MANAGER.")
     public ResponseEntity<EngagementHistoryResponseDTO> addEngagement(
             @PathVariable String id,
             @Valid @RequestBody EngagementHistoryRequestDTO request) {
@@ -201,7 +202,8 @@ public class ContractorProfileController {
     }
 
     @GetMapping("/{id}/engagements")
-    @Operation(summary = "Get contractor engagement history", description = "Retrieves all engagements mapped to a profile.")
+    @PreAuthorize("!hasRole('CONTRACTOR')")
+    @Operation(summary = "Get contractor engagement history", description = "Retrieves all engagements mapped to a profile. Restricted to non-contractors.")
     public ResponseEntity<List<EngagementHistoryResponseDTO>> getEngagements(@PathVariable String id) {
         ContractorProfileResponseDTO profile = contractorProfileService.getProfileById(id);
         validateAccess(profile);
@@ -210,8 +212,8 @@ public class ContractorProfileController {
     }
 
     @PutMapping("/{id}/engagements/{engagementId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'VENDOR_MANAGER')")
-    @Operation(summary = "Update contractor engagement", description = "Restricted to ADMIN or VENDOR_MANAGER.")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER')")
+    @Operation(summary = "Update contractor engagement", description = "Restricted to ADMIN or HIRING_MANAGER.")
     public ResponseEntity<EngagementHistoryResponseDTO> updateEngagement(
             @PathVariable String id,
             @PathVariable String engagementId,
@@ -222,9 +224,21 @@ public class ContractorProfileController {
         return ResponseEntity.ok(updated);
     }
 
+    @PutMapping("/{id}/engagements/{engagementId}/feedback")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER')")
+    @Operation(summary = "Submit feedback and rating for a completed engagement", description = "Restricted to ADMIN or HIRING_MANAGER.")
+    public ResponseEntity<EngagementHistoryResponseDTO> submitFeedback(
+            @PathVariable String id,
+            @PathVariable String engagementId,
+            @Valid @RequestBody EngagementFeedbackRequestDTO request) {
+        contractorProfileService.getProfileById(id);
+        EngagementHistoryResponseDTO updated = engagementHistoryService.submitFeedback(id, engagementId, request);
+        return ResponseEntity.ok(updated);
+    }
+
     @DeleteMapping("/{id}/engagements/{engagementId}")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Remove engagement from contractor profile", description = "Restricted to ADMIN.")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER')")
+    @Operation(summary = "Remove engagement from contractor profile", description = "Restricted to ADMIN or HIRING_MANAGER.")
     public ResponseEntity<Void> removeEngagement(@PathVariable String id, @PathVariable String engagementId) {
         contractorProfileService.getProfileById(id);
         engagementHistoryService.deleteEngagement(id, engagementId);
@@ -250,14 +264,11 @@ public class ContractorProfileController {
             return;
         }
 
-        String currentUserId = currentUserContext.getCurrentUserId();
         String currentRole = currentUserContext.getCurrentUserRole();
 
         if ("CONTRACTOR".equals(currentRole)) {
-            if (currentUserId == null || !currentUserId.equals(profile.getUserId())) {
-                throw new AccessDeniedException(
-                        "Access Denied: You are not authorized to view this contractor's profile.");
-            }
+            throw new AccessDeniedException(
+                    "Access Denied: Contractors are not authorized to access contractor profiles by ID.");
         }
     }
 }

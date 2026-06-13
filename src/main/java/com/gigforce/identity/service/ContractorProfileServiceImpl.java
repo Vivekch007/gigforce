@@ -74,9 +74,10 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
             .user(user)
             .hourlyRate(request.getHourlyRate())
             .experienceYears(request.getExperienceYears())
-            .availabilityStatus(AvailabilityStatus.ON_STATUS)
-            .profileStatus(ProfileStatus.ACTIVE)
-            .build();
+//                .availabilityStatus(AvailabilityStatus.AVAILABLE)
+                .availabilityStatus(AvailabilityStatus.valueOf(request.getAvailabilityStatus()))
+                .profileStatus(ProfileStatus.valueOf(request.getStatus()))
+                .build();
 
         ContractorProfile savedProfile = contractorProfileRepository.save(profile);
 
@@ -360,7 +361,9 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
                 .userName(profile.getUser().getName())
                 .userEmail(profile.getUser().getEmail())
                 .availabilityStatus(profile.getAvailabilityStatus() != null ? profile.getAvailabilityStatus().name() : null)
-                .status(profile.getProfileStatus() != null ? profile.getProfileStatus().name() : null)
+                .status(profile.getProfileStatus() == ProfileStatus.INACTIVE ? "INACTIVE" :
+                        (profile.getProfileStatus() == ProfileStatus.ACTIVE ? "ACTIVE" :
+                         (profile.getProfileStatus() == ProfileStatus.BLACKLISTED ? "BLACKLISTED" : null)))
                 .hourlyRate(profile.getHourlyRate())
                 .experienceYears(profile.getExperienceYears())
                 .skills(skillDtos)

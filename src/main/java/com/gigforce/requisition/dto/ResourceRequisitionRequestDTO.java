@@ -41,4 +41,13 @@ public class ResourceRequisitionRequestDTO {
     @NotNull(message = "Quantity is required")
     @Min(value = 1, message = "Quantity must be at least 1")
     private Integer quantity;
+
+    private com.gigforce.requisition.enums.EngagementType engagementType;
+
+    private com.gigforce.requisition.enums.ExperienceLevel experienceLevel;
+
+    private java.time.LocalDate startDate;
+
+    @Size(max = 50, message = "Duration must be at most 50 characters")
+    private String duration;
 }

@@ -59,7 +59,7 @@
             "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{contractorToken}}", "type": "string" }] },
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"assignmentId\": 1,\n  \"weekStartDate\": \"2026-06-07\",\n  \"lines\": [\n    {\n      \"workDate\": \"2026-06-09\",\n      \"hoursWorked\": 8.0,\n      \"overtimeHours\": 0.0,\n      \"activityDesc\": \"Development work\"\n    }\n  ]\n}" },
+            "body": { "mode": "raw", "raw": "{\n  \"assignmentId\": 1,\n  \"weekStartDate\": \"2026-06-07\",\n  \"lines\": [\n    {\n      \"workDate\": \"2026-06-09\",\n      \"hoursWorked\": 8.0,\n      \"activityDesc\": \"Development work\"\n    }\n  ]\n}" },
             "url": { "raw": "{{baseUrl}}/timesheets", "host": ["{{baseUrl}}"], "path": ["timesheets"] }
           }
         },

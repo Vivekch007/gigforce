@@ -22,6 +22,10 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 
+import com.gigforce.requisition.enums.EngagementType;
+import com.gigforce.requisition.enums.ExperienceLevel;
+import java.time.LocalDate;
+
 @Entity
 @Table(
     name = "resource_requisitions",
@@ -66,5 +70,17 @@ public class ResourceRequisition extends BaseEntity {
     @JoinColumn(name = "created_by_user_id", nullable = false)
     private User creator;
 
-    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "engagement_type", nullable = false, length = 20)
+    private EngagementType engagementType;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "experience_level", nullable = false, length = 20)
+    private ExperienceLevel experienceLevel;
+
+    @Column(name = "start_date", nullable = false)
+    private LocalDate startDate;
+
+    @Column(nullable = false, length = 50)
+    private String duration;
 }

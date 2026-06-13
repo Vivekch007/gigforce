@@ -12,6 +12,8 @@ import com.gigforce.requisition.dto.ResourceRequisitionRequestDTO;
 import com.gigforce.requisition.dto.ResourceRequisitionResponseDTO;
 import com.gigforce.requisition.entity.ResourceRequisition;
 import com.gigforce.requisition.enums.RequisitionStatus;
+import com.gigforce.requisition.enums.EngagementType;
+import com.gigforce.requisition.enums.ExperienceLevel;
 import com.gigforce.requisition.repository.ResourceRequisitionRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -65,6 +67,10 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
                 .quantity(request.getQuantity())
                 .status(RequisitionStatus.DRAFT)
                 .creator(currentUser)
+                .engagementType(request.getEngagementType() != null ? request.getEngagementType() : EngagementType.HYBRID)
+                .experienceLevel(request.getExperienceLevel() != null ? request.getExperienceLevel() : ExperienceLevel.MID)
+                .startDate(request.getStartDate() != null ? request.getStartDate() : java.time.LocalDate.now())
+                .duration(request.getDuration() != null ? request.getDuration().trim() : "6 months")
                 .build();
 
         ResourceRequisition saved = requisitionRepository.save(requisition);
@@ -111,6 +117,10 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
         requisition.setMinExperienceYears(request.getMinExperienceYears());
         requisition.setMaxHourlyRate(request.getMaxHourlyRate());
         requisition.setQuantity(request.getQuantity());
+        requisition.setEngagementType(request.getEngagementType() != null ? request.getEngagementType() : EngagementType.HYBRID);
+        requisition.setExperienceLevel(request.getExperienceLevel() != null ? request.getExperienceLevel() : ExperienceLevel.MID);
+        requisition.setStartDate(request.getStartDate() != null ? request.getStartDate() : java.time.LocalDate.now());
+        requisition.setDuration(request.getDuration() != null ? request.getDuration().trim() : "6 months");
 
         ResourceRequisition updated = requisitionRepository.save(requisition);
 
@@ -218,6 +228,9 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
         if (request.getMaxHourlyRate() != null && request.getMaxHourlyRate().compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Maximum hourly rate must be positive.");
         }
+        if (request.getStartDate() != null && request.getStartDate().isBefore(java.time.LocalDate.now())) {
+            throw new IllegalArgumentException("Start date cannot be in the past.");
+        }
     }
 
     private ResourceRequisitionResponseDTO toDto(ResourceRequisition requisition) {
@@ -233,6 +246,10 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
                 .status(requisition.getStatus())
                 .creatorId(requisition.getCreator().getId())
                 .creatorEmail(requisition.getCreator().getEmail())
+                .engagementType(requisition.getEngagementType())
+                .experienceLevel(requisition.getExperienceLevel())
+                .startDate(requisition.getStartDate())
+                .duration(requisition.getDuration())
                 .createdAt(requisition.getCreatedAt())
                 .updatedAt(requisition.getUpdatedAt())
                 .build();

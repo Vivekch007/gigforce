@@ -15,21 +15,31 @@ import com.gigforce.assignment.service.AssignmentService;
 import com.gigforce.assignment.service.AssignmentAmendmentService;
 import com.gigforce.identity.dto.ContractorProfileRequestDTO;
 import com.gigforce.identity.dto.ContractorProfileResponseDTO;
+import com.gigforce.identity.dto.EngagementHistoryResponseDTO;
 import com.gigforce.identity.entity.ContractorProfile;
 import com.gigforce.identity.entity.User;
 import com.gigforce.identity.enums.ContractorStatus;
+import com.gigforce.identity.enums.AvailabilityStatus;
+import com.gigforce.identity.enums.ProfileStatus;
 import com.gigforce.identity.enums.UserStatus;
 import com.gigforce.identity.enums.UserRole;
 import com.gigforce.identity.repository.ContractorProfileRepository;
 import com.gigforce.identity.repository.UserRepository;
 import com.gigforce.identity.repository.EngagementHistoryRepository;
+import com.gigforce.identity.repository.ContractorCertificationRepository;
+import com.gigforce.identity.entity.ContractorCertification;
+import com.gigforce.identity.enums.CertificationStatus;
 import com.gigforce.identity.service.ContractorProfileService;
+import com.gigforce.requisition.dto.ResourceRequisitionRequestDTO;
+import com.gigforce.requisition.dto.ResourceRequisitionResponseDTO;
 import com.gigforce.requisition.dto.VendorSubmissionRequestDTO;
 import com.gigforce.requisition.dto.VendorSubmissionResponseDTO;
 import com.gigforce.requisition.entity.ResourceRequisition;
 import com.gigforce.requisition.entity.VendorSubmission;
 import com.gigforce.requisition.enums.RequisitionStatus;
 import com.gigforce.requisition.enums.SubmissionStatus;
+import com.gigforce.requisition.enums.EngagementType;
+import com.gigforce.requisition.enums.ExperienceLevel;
 import com.gigforce.requisition.repository.ResourceRequisitionRepository;
 import com.gigforce.requisition.repository.VendorSubmissionRepository;
 import com.gigforce.requisition.service.VendorSubmissionService;
@@ -97,6 +107,9 @@ public class GigForceApplicationTests {
         private EngagementHistoryRepository engagementHistoryRepository;
 
         @Autowired
+        private ContractorCertificationRepository contractorCertificationRepository;
+
+        @Autowired
         private ContractorProfileService contractorProfileService;
 
         @Autowired
@@ -144,9 +157,20 @@ public class GigForceApplicationTests {
 
         @BeforeEach
         public void setUp() {
+                // Clear child tables via JDBC to prevent foreign key constraint violations
+                try {
+                        jdbcTemplate.execute("DELETE FROM timesheet_approvals");
+                        jdbcTemplate.execute("DELETE FROM timesheet_comments");
+                        jdbcTemplate.execute("DELETE FROM timesheet_lines");
+                } catch (Exception e) {
+                        // Tables might not exist during startup
+                }
+
                 // Clear repositories to isolate test context
-                contractorAbsenceRepository.deleteAll();
+                engagementHistoryRepository.deleteAll();
+                contractorCertificationRepository.deleteAll();
                 timesheetRepository.deleteAll();
+                contractorAbsenceRepository.deleteAll();
                 amendmentRepository.deleteAll();
                 assignmentRepository.deleteAll();
                 submissionRepository.deleteAll();
@@ -155,7 +179,11 @@ public class GigForceApplicationTests {
                 contractorProfileRepository.deleteAll();
                 skillRepository.deleteAll();
                 // Delete refresh_tokens first due to foreign key constraint on users
-                jdbcTemplate.execute("DELETE FROM refresh_tokens");
+                try {
+                        jdbcTemplate.execute("DELETE FROM refresh_tokens");
+                } catch (Exception e) {
+                        // Table might not exist yet during the very first run
+                }
                 userRepository.deleteAll();
                 userRepository.flush();
 
@@ -223,11 +251,10 @@ public class GigForceApplicationTests {
                 // Seed contractor profile
                 contractorProfile = ContractorProfile.builder()
                                 .user(contractorUser)
-                                .title("Java Developer")
-                                .bio("Spring expert")
                                 .hourlyRate(new BigDecimal("50.00"))
                                 .experienceYears(5)
-                                .status(ContractorStatus.AVAILABLE)
+                                .availabilityStatus(AvailabilityStatus.AVAILABLE)
+                                .profileStatus(ProfileStatus.ACTIVE)
                                 .build();
                 contractorProfile = contractorProfileRepository.save(contractorProfile);
 
@@ -241,6 +268,10 @@ public class GigForceApplicationTests {
                                 .status(RequisitionStatus.OPEN)
                                 .requiredSkill(skill)
                                 .creator(manager)
+                                .engagementType(EngagementType.REMOTE)
+                                .experienceLevel(ExperienceLevel.SENIOR)
+                                .startDate(LocalDate.now())
+                                .duration("6 months")
                                 .build();
                 requisition = requisitionRepository.save(requisition);
 
@@ -249,13 +280,30 @@ public class GigForceApplicationTests {
                                 .requisition(requisition)
                                 .contractorProfile(contractorProfile)
                                 .submittedBy(vendor)
-                                .status(SubmissionStatus.SUBMITTED)
+                                .status(SubmissionStatus.SUBMITTED).submissionDate(LocalDate.now())
                                 .proposedRate(new BigDecimal("50.00"))
                                 .build();
                 submission = submissionRepository.save(submission);
         }
 
         // ==================== MODULE 1: AUTH & STATUS ====================
+
+        @Test
+        @WithMockUser(username = "alice@example.com", roles = "CONTRACTOR")
+        public void testContractorCertificationIdPrefix() {
+                ContractorCertification cert = ContractorCertification.builder()
+                                .contractorProfile(contractorProfile)
+                                .name("AWS Cloud Practitioner")
+                                .issuingAuthority("Amazon Web Services")
+                                .certificateNumber("AWS-12345")
+                                .issueDate(LocalDate.now().minusMonths(6))
+                                .expiryDate(LocalDate.now().plusYears(2))
+                                .certStatus(CertificationStatus.VALID)
+                                .build();
+                cert = contractorCertificationRepository.save(cert);
+                assertNotNull(cert.getId());
+                assertTrue(cert.getId().startsWith("cert"), "Generated ID should start with 'cert' prefix but was: " + cert.getId());
+        }
 
         @Test
         public void testUserSuspensionState() {
@@ -284,8 +332,6 @@ public class GigForceApplicationTests {
 
                 ContractorProfileRequestDTO request = ContractorProfileRequestDTO.builder()
                                 .userId(anotherContractor.getId())
-                                .title("Architect")
-                                .bio("Senior Lead")
                                 .hourlyRate(new BigDecimal("100.00"))
                                 .experienceYears(12)
                                 .build();
@@ -293,7 +339,7 @@ public class GigForceApplicationTests {
                 ContractorProfileResponseDTO response = contractorProfileService
                                 .createProfile(anotherContractor.getId(), request);
                 assertNotNull(response);
-                assertEquals("Architect", response.getTitle());
+                assertEquals(12, response.getExperienceYears());
         }
 
         // ==================== MODULE 3: SUBMISSIONS & WORKFLOW ====================
@@ -302,18 +348,18 @@ public class GigForceApplicationTests {
         @WithMockUser(username = "harold@example.com", roles = "HIRING_MANAGER")
         public void testSubmissionAcceptanceTransitionsContractorToAssigned() {
                 // Transition to REVIEWING
-                submissionService.transitionStatus(submission.getId(), SubmissionStatus.REVIEWING, "Reviewing");
+                submissionService.transitionStatus(submission.getId(), SubmissionStatus.SHORTLISTED, "Reviewing");
 
                 // Transition to ACCEPTED
                 VendorSubmissionResponseDTO response = submissionService.transitionStatus(
-                                submission.getId(), SubmissionStatus.ACCEPTED, "Accepted placement");
+                                submission.getId(), SubmissionStatus.SELECTED, "Accepted placement");
 
-                assertEquals(SubmissionStatus.ACCEPTED, response.getStatus());
+                assertEquals(SubmissionStatus.SELECTED, response.getStatus());
 
                 ContractorProfile profile = contractorProfileRepository.findById(contractorProfile.getId())
                                 .orElse(null);
                 assertNotNull(profile);
-                assertEquals(ContractorStatus.ASSIGNED, profile.getStatus());
+                assertEquals(AvailabilityStatus.ON_ASSIGNMENT, profile.getAvailabilityStatus());
         }
 
         @Test
@@ -329,13 +375,66 @@ public class GigForceApplicationTests {
                 });
         }
 
+        @Test
+        @WithMockUser(username = "victor@example.com", roles = "VENDOR_MANAGER")
+        public void testSubmissionCreationSetsSubmissionDate() {
+                User tempContractorUser = User.builder()
+                                .name("Temp Contractor")
+                                .email("temp_contractor@example.com")
+                                .password("Password123!")
+                                .phone("9111111155")
+                                .role(UserRole.CONTRACTOR)
+                                .status(UserStatus.ACTIVE)
+                                .build();
+                tempContractorUser = userRepository.save(tempContractorUser);
+
+                ContractorProfile tempProfile = ContractorProfile.builder()
+                                .user(tempContractorUser)
+                                .hourlyRate(new BigDecimal("45.00"))
+                                .experienceYears(4)
+                                .availabilityStatus(AvailabilityStatus.AVAILABLE)
+                                .profileStatus(ProfileStatus.ACTIVE)
+                                .build();
+                tempProfile = contractorProfileRepository.save(tempProfile);
+
+                VendorSubmissionRequestDTO request = VendorSubmissionRequestDTO.builder()
+                                .contractorProfileId(tempProfile.getId())
+                                .proposedRate(new BigDecimal("48.00"))
+                                .remarks("Experienced Java developer")
+                                .build();
+
+                VendorSubmissionResponseDTO response = submissionService.submitContractor(requisition.getId(), request);
+
+                assertNotNull(response);
+                assertEquals(SubmissionStatus.SUBMITTED, response.getStatus());
+                assertEquals(LocalDate.now(), response.getSubmissionDate());
+        }
+
+        @Test
+        @WithMockUser(username = "harold@example.com", roles = "HIRING_MANAGER")
+        public void testSubmissionFullStatusTransitionPipeline() {
+                assertEquals(SubmissionStatus.SUBMITTED, submission.getStatus());
+
+                VendorSubmissionResponseDTO resShortlist = submissionService.transitionStatus(submission.getId(), SubmissionStatus.SHORTLISTED, "Shortlisted for interview");
+                assertEquals(SubmissionStatus.SHORTLISTED, resShortlist.getStatus());
+                assertEquals("Shortlisted for interview", resShortlist.getRemarks());
+
+                VendorSubmissionResponseDTO resInterview = submissionService.transitionStatus(submission.getId(), SubmissionStatus.INTERVIEW_SCHEDULED, "Interview scheduled for Monday");
+                assertEquals(SubmissionStatus.INTERVIEW_SCHEDULED, resInterview.getStatus());
+                assertEquals("Interview scheduled for Monday", resInterview.getRemarks());
+
+                VendorSubmissionResponseDTO resSelected = submissionService.transitionStatus(submission.getId(), SubmissionStatus.SELECTED, "Selected for the job");
+                assertEquals(SubmissionStatus.SELECTED, resSelected.getStatus());
+                assertEquals("Selected for the job", resSelected.getRemarks());
+        }
+
         // ==================== MODULE 4: ASSIGNMENTS & AMENDMENTS ====================
 
         @Test
         @WithMockUser(username = "harold@example.com", roles = "HIRING_MANAGER")
         public void testAssignmentCreationFromAcceptedSubmission() {
                 // Transition submission to ACCEPTED first
-                submission.setStatus(SubmissionStatus.ACCEPTED);
+                submission.setStatus(SubmissionStatus.SELECTED);
                 submissionRepository.save(submission);
 
                 AssignmentRequestDTO request = AssignmentRequestDTO.builder()
@@ -356,7 +455,7 @@ public class GigForceApplicationTests {
         @Test
         @WithMockUser(username = "harold@example.com", roles = "HIRING_MANAGER")
         public void testDuplicateAssignmentPreventionOnSameSubmission() {
-                submission.setStatus(SubmissionStatus.ACCEPTED);
+                submission.setStatus(SubmissionStatus.SELECTED);
                 submissionRepository.save(submission);
 
                 AssignmentRequestDTO request = AssignmentRequestDTO.builder()
@@ -379,7 +478,7 @@ public class GigForceApplicationTests {
         @Test
         @WithMockUser(username = "harold@example.com", roles = "HIRING_MANAGER")
         public void testAmendmentAutoRejectionConflictingPending() {
-                submission.setStatus(SubmissionStatus.ACCEPTED);
+                submission.setStatus(SubmissionStatus.SELECTED);
                 submissionRepository.save(submission);
 
                 Assignment assignment = Assignment.builder()
@@ -428,7 +527,7 @@ public class GigForceApplicationTests {
         @Test
         @WithMockUser(username = "harold@example.com", roles = "HIRING_MANAGER")
         public void testEarlyTerminationReleasesContractor() {
-                submission.setStatus(SubmissionStatus.ACCEPTED);
+                submission.setStatus(SubmissionStatus.SELECTED);
                 submissionRepository.save(submission);
 
                 Assignment assignment = Assignment.builder()
@@ -465,7 +564,7 @@ public class GigForceApplicationTests {
                 ContractorProfile profile = contractorProfileRepository.findById(contractorProfile.getId())
                                 .orElse(null);
                 assertNotNull(profile);
-                assertEquals(ContractorStatus.AVAILABLE, profile.getStatus());
+                assertEquals(AvailabilityStatus.AVAILABLE, profile.getAvailabilityStatus());
 
                 // Verify placement recorded in engagement history
                 long count = engagementHistoryRepository.count();
@@ -489,7 +588,7 @@ public class GigForceApplicationTests {
                                 .orElseThrow();
                 // Optimistic locking removed from entities in this branch; ensure update
                 // succeeds instead
-                profile.setStatus(ContractorStatus.INACTIVE);
+                profile.setProfileStatus(ProfileStatus.INACTIVE);
                 assertDoesNotThrow(() -> contractorProfileRepository.saveAndFlush(profile));
         }
 
@@ -528,7 +627,7 @@ public class GigForceApplicationTests {
         @Test
         @WithMockUser(username = "alice@example.com", roles = "CONTRACTOR")
         public void testTimesheetCreationDraft() {
-                submission.setStatus(SubmissionStatus.ACCEPTED);
+                submission.setStatus(SubmissionStatus.SELECTED);
                 submissionRepository.save(submission);
                 Assignment assignment = Assignment.builder()
                                 .requisition(requisition)
@@ -548,7 +647,6 @@ public class GigForceApplicationTests {
                 TimesheetLineRequestDTO lineDto = TimesheetLineRequestDTO.builder()
                                 .workDate(weekStart)
                                 .hoursWorked(new BigDecimal("8.00"))
-                                .overtimeHours(BigDecimal.ZERO)
                                 .activityDesc("Coding")
                                 .build();
 
@@ -568,7 +666,7 @@ public class GigForceApplicationTests {
         @Test
         @WithMockUser(username = "alice@example.com", roles = "CONTRACTOR")
         public void testUpdateTimesheetDraft() {
-                submission.setStatus(SubmissionStatus.ACCEPTED);
+                submission.setStatus(SubmissionStatus.SELECTED);
                 submissionRepository.save(submission);
                 Assignment assignment = Assignment.builder()
                                 .requisition(requisition)
@@ -588,7 +686,6 @@ public class GigForceApplicationTests {
                 TimesheetLineRequestDTO lineDto = TimesheetLineRequestDTO.builder()
                                 .workDate(weekStart)
                                 .hoursWorked(new BigDecimal("8.00"))
-                                .overtimeHours(BigDecimal.ZERO)
                                 .activityDesc("Coding")
                                 .build();
 
@@ -603,8 +700,7 @@ public class GigForceApplicationTests {
                 // Update lines
                 TimesheetLineRequestDTO updatedLine = TimesheetLineRequestDTO.builder()
                                 .workDate(weekStart)
-                                .hoursWorked(new BigDecimal("8.00"))
-                                .overtimeHours(new BigDecimal("2.00")) // Add overtime
+                                .hoursWorked(new BigDecimal("10.00"))
                                 .activityDesc("Deployment")
                                 .build();
 
@@ -623,7 +719,7 @@ public class GigForceApplicationTests {
         @Test
         @WithMockUser(username = "alice@example.com", roles = "CONTRACTOR")
         public void testSubmitTimesheet() {
-                submission.setStatus(SubmissionStatus.ACCEPTED);
+                submission.setStatus(SubmissionStatus.SELECTED);
                 submissionRepository.save(submission);
                 Assignment assignment = Assignment.builder()
                                 .requisition(requisition)
@@ -643,7 +739,6 @@ public class GigForceApplicationTests {
                 TimesheetLineRequestDTO lineDto = TimesheetLineRequestDTO.builder()
                                 .workDate(weekStart)
                                 .hoursWorked(new BigDecimal("8.00"))
-                                .overtimeHours(BigDecimal.ZERO)
                                 .activityDesc("Coding")
                                 .build();
 
@@ -662,7 +757,7 @@ public class GigForceApplicationTests {
         @Test
         @WithMockUser(username = "harold@example.com", roles = "HIRING_MANAGER")
         public void testL1ApproveTimesheet() {
-                submission.setStatus(SubmissionStatus.ACCEPTED);
+                submission.setStatus(SubmissionStatus.SELECTED);
                 submissionRepository.save(submission);
                 Assignment assignment = Assignment.builder()
                                 .requisition(requisition)
@@ -696,7 +791,7 @@ public class GigForceApplicationTests {
         @Test
         @WithMockUser(username = "admin@gigforce.com", roles = "ADMIN")
         public void testL2ApproveTimesheet() {
-                submission.setStatus(SubmissionStatus.ACCEPTED);
+                submission.setStatus(SubmissionStatus.SELECTED);
                 submissionRepository.save(submission);
                 Assignment assignment = Assignment.builder()
                                 .requisition(requisition)
@@ -732,7 +827,7 @@ public class GigForceApplicationTests {
         @Test
         @WithMockUser(username = "harold@example.com", roles = "HIRING_MANAGER")
         public void testRejectTimesheet() {
-                submission.setStatus(SubmissionStatus.ACCEPTED);
+                submission.setStatus(SubmissionStatus.SELECTED);
                 submissionRepository.save(submission);
                 Assignment assignment = Assignment.builder()
                                 .requisition(requisition)
@@ -766,7 +861,7 @@ public class GigForceApplicationTests {
         @Test
         @WithMockUser(username = "alice@example.com", roles = "CONTRACTOR")
         public void testAddCommentToTimesheet() {
-                submission.setStatus(SubmissionStatus.ACCEPTED);
+                submission.setStatus(SubmissionStatus.SELECTED);
                 submissionRepository.save(submission);
                 Assignment assignment = Assignment.builder()
                                 .requisition(requisition)
@@ -798,7 +893,7 @@ public class GigForceApplicationTests {
         @Test
         @WithMockUser(username = "alice@example.com", roles = "CONTRACTOR")
         public void testRequestLeave() {
-                submission.setStatus(SubmissionStatus.ACCEPTED);
+                submission.setStatus(SubmissionStatus.SELECTED);
                 submissionRepository.save(submission);
                 Assignment assignment = Assignment.builder()
                                 .requisition(requisition)
@@ -831,7 +926,7 @@ public class GigForceApplicationTests {
         @Test
         @WithMockUser(username = "harold@example.com", roles = "HIRING_MANAGER")
         public void testApproveLeave() {
-                submission.setStatus(SubmissionStatus.ACCEPTED);
+                submission.setStatus(SubmissionStatus.SELECTED);
                 submissionRepository.save(submission);
                 Assignment assignment = Assignment.builder()
                                 .requisition(requisition)
@@ -865,7 +960,7 @@ public class GigForceApplicationTests {
         @Test
         @WithMockUser(username = "harold@example.com", roles = "HIRING_MANAGER")
         public void testRejectLeave() {
-                submission.setStatus(SubmissionStatus.ACCEPTED);
+                submission.setStatus(SubmissionStatus.SELECTED);
                 submissionRepository.save(submission);
                 Assignment assignment = Assignment.builder()
                                 .requisition(requisition)
@@ -900,7 +995,7 @@ public class GigForceApplicationTests {
         @Test
         @WithMockUser(username = "alice@example.com", roles = "CONTRACTOR")
         public void testGetLeaveDetails() {
-                submission.setStatus(SubmissionStatus.ACCEPTED);
+                submission.setStatus(SubmissionStatus.SELECTED);
                 submissionRepository.save(submission);
                 Assignment assignment = Assignment.builder()
                                 .requisition(requisition)
@@ -934,7 +1029,7 @@ public class GigForceApplicationTests {
         @Test
         @WithMockUser(username = "alice@example.com", roles = "CONTRACTOR")
         public void testGetLeavesByProfile() {
-                submission.setStatus(SubmissionStatus.ACCEPTED);
+                submission.setStatus(SubmissionStatus.SELECTED);
                 submissionRepository.save(submission);
                 Assignment assignment = Assignment.builder()
                                 .requisition(requisition)
@@ -968,7 +1063,7 @@ public class GigForceApplicationTests {
         @Test
         @WithMockUser(username = "admin@gigforce.com", roles = "ADMIN")
         public void testGetPayrollReadyTimesheets() {
-                submission.setStatus(SubmissionStatus.ACCEPTED);
+                submission.setStatus(SubmissionStatus.SELECTED);
                 submissionRepository.save(submission);
                 Assignment assignment = Assignment.builder()
                                 .requisition(requisition)
@@ -1009,7 +1104,7 @@ public class GigForceApplicationTests {
         @Test
         @WithMockUser(username = "alice@example.com", roles = "CONTRACTOR")
         public void testDailyHoursLimitExceeded() {
-                submission.setStatus(SubmissionStatus.ACCEPTED);
+                submission.setStatus(SubmissionStatus.SELECTED);
                 submissionRepository.save(submission);
                 Assignment assignment = Assignment.builder()
                                 .requisition(requisition)
@@ -1027,8 +1122,7 @@ public class GigForceApplicationTests {
                 LocalDate weekStart = LocalDate.now().minusDays(LocalDate.now().getDayOfWeek().getValue() - 1);
                 TimesheetLineRequestDTO invalidLine = TimesheetLineRequestDTO.builder()
                                 .workDate(weekStart)
-                                .hoursWorked(new BigDecimal("20.00"))
-                                .overtimeHours(new BigDecimal("5.00"))
+                                .hoursWorked(new BigDecimal("25.00"))
                                 .activityDesc("Coding")
                                 .build();
 
@@ -1043,11 +1137,11 @@ public class GigForceApplicationTests {
                 });
         }
 
-        // 104. Error: Standard daily hours capping exceeded (> 8 hours standard)
+        // 104. Standard daily hours auto splitting (total daily hours > 8 splits into regular and overtime)
         @Test
         @WithMockUser(username = "alice@example.com", roles = "CONTRACTOR")
-        public void testStandardDailyHoursCappingExceeded() {
-                submission.setStatus(SubmissionStatus.ACCEPTED);
+        public void testStandardDailyHoursAutoSplitting() {
+                submission.setStatus(SubmissionStatus.SELECTED);
                 submissionRepository.save(submission);
                 Assignment assignment = Assignment.builder()
                                 .requisition(requisition)
@@ -1063,29 +1157,30 @@ public class GigForceApplicationTests {
                 assignment = assignmentRepository.save(assignment);
 
                 LocalDate weekStart = LocalDate.now().minusDays(LocalDate.now().getDayOfWeek().getValue() - 1);
-                TimesheetLineRequestDTO invalidLine = TimesheetLineRequestDTO.builder()
+                TimesheetLineRequestDTO splitLine = TimesheetLineRequestDTO.builder()
                                 .workDate(weekStart)
-                                .hoursWorked(new BigDecimal("9.00"))
-                                .overtimeHours(BigDecimal.ZERO)
+                                .hoursWorked(new BigDecimal("10.00"))
                                 .activityDesc("Coding")
                                 .build();
 
                 TimesheetRequestDTO request = TimesheetRequestDTO.builder()
                                 .assignmentId(assignment.getId())
                                 .weekStartDate(weekStart)
-                                .lines(List.of(invalidLine))
+                                .lines(List.of(splitLine))
                                 .build();
 
-                assertThrows(IllegalArgumentException.class, () -> {
-                        timesheetService.createTimesheet(request);
-                });
+                TimesheetResponseDTO response = timesheetService.createTimesheet(request);
+                assertNotNull(response);
+                assertEquals(new BigDecimal("8.00"), response.getHoursLogged());
+                assertEquals(new BigDecimal("2.00"), response.getOvertimeLogged());
+                assertEquals(new BigDecimal("550.00"), response.getBillableAmount());
         }
 
         // 105. Error: Weekly regular hours capping exceeded (> 40 hours)
         @Test
         @WithMockUser(username = "alice@example.com", roles = "CONTRACTOR")
         public void testWeeklyRegularHoursCappingExceeded() {
-                submission.setStatus(SubmissionStatus.ACCEPTED);
+                submission.setStatus(SubmissionStatus.SELECTED);
                 submissionRepository.save(submission);
                 Assignment assignment = Assignment.builder()
                                 .requisition(requisition)
@@ -1106,7 +1201,6 @@ public class GigForceApplicationTests {
                         lines.add(TimesheetLineRequestDTO.builder()
                                         .workDate(weekStart.plusDays(i))
                                         .hoursWorked(new BigDecimal("8.00"))
-                                        .overtimeHours(BigDecimal.ZERO)
                                         .activityDesc("Coding")
                                         .build());
                 }
@@ -1126,7 +1220,7 @@ public class GigForceApplicationTests {
         @Test
         @WithMockUser(username = "alice@example.com", roles = "CONTRACTOR")
         public void testDuplicateWeeklyTimesheetBlocked() {
-                submission.setStatus(SubmissionStatus.ACCEPTED);
+                submission.setStatus(SubmissionStatus.SELECTED);
                 submissionRepository.save(submission);
                 Assignment assignment = Assignment.builder()
                                 .requisition(requisition)
@@ -1145,7 +1239,6 @@ public class GigForceApplicationTests {
                 TimesheetLineRequestDTO line = TimesheetLineRequestDTO.builder()
                                 .workDate(weekStart)
                                 .hoursWorked(new BigDecimal("8.00"))
-                                .overtimeHours(BigDecimal.ZERO)
                                 .activityDesc("Coding")
                                 .build();
 
@@ -1166,7 +1259,7 @@ public class GigForceApplicationTests {
         @Test
         @WithMockUser(username = "alice@example.com", roles = "CONTRACTOR")
         public void testOverlappingLeaveRequestBlocked() {
-                submission.setStatus(SubmissionStatus.ACCEPTED);
+                submission.setStatus(SubmissionStatus.SELECTED);
                 submissionRepository.save(submission);
                 Assignment assignment = Assignment.builder()
                                 .requisition(requisition)
@@ -1209,7 +1302,7 @@ public class GigForceApplicationTests {
         @Test
         @WithMockUser(username = "finance@example.com", roles = "FINANCE")
         public void testFinanceApprovalBeforeHMApprovalBlocked() throws Exception {
-                submission.setStatus(SubmissionStatus.ACCEPTED);
+                submission.setStatus(SubmissionStatus.SELECTED);
                 submissionRepository.save(submission);
                 Assignment assignment = Assignment.builder()
                                 .requisition(requisition)
@@ -1242,7 +1335,7 @@ public class GigForceApplicationTests {
         @Test
         @WithMockUser(username = "alice@example.com", roles = "CONTRACTOR")
         public void testContractorCannotEditApprovedTimesheet() {
-                submission.setStatus(SubmissionStatus.ACCEPTED);
+                submission.setStatus(SubmissionStatus.SELECTED);
                 submissionRepository.save(submission);
                 Assignment assignment = Assignment.builder()
                                 .requisition(requisition)
@@ -1273,7 +1366,6 @@ public class GigForceApplicationTests {
                                 .lines(List.of(TimesheetLineRequestDTO.builder()
                                                 .workDate(weekStart)
                                                 .hoursWorked(new BigDecimal("8.00"))
-                                                .overtimeHours(BigDecimal.ZERO)
                                                 .activityDesc("Coding")
                                                 .build()))
                                 .build();
@@ -1288,7 +1380,7 @@ public class GigForceApplicationTests {
         @Test
         @WithMockUser(username = "alice@example.com", roles = "CONTRACTOR")
         public void testHoursLoggedDuringApprovedLeaveBlocked() {
-                submission.setStatus(SubmissionStatus.ACCEPTED);
+                submission.setStatus(SubmissionStatus.SELECTED);
                 submissionRepository.save(submission);
                 Assignment assignment = Assignment.builder()
                                 .requisition(requisition)
@@ -1319,7 +1411,6 @@ public class GigForceApplicationTests {
                 TimesheetLineRequestDTO line = TimesheetLineRequestDTO.builder()
                                 .workDate(weekStart)
                                 .hoursWorked(new BigDecimal("8.00"))
-                                .overtimeHours(BigDecimal.ZERO)
                                 .activityDesc("Coding")
                                 .build();
 
@@ -1352,7 +1443,7 @@ public class GigForceApplicationTests {
         @Test
         @WithMockUser(username = "alice@example.com", roles = "CONTRACTOR")
         public void testCompletedAssignmentCannotAcceptTimesheet() {
-                submission.setStatus(SubmissionStatus.ACCEPTED);
+                submission.setStatus(SubmissionStatus.SELECTED);
                 submissionRepository.save(submission);
                 Assignment assignment = Assignment.builder()
                                 .requisition(requisition)
@@ -1371,7 +1462,6 @@ public class GigForceApplicationTests {
                 TimesheetLineRequestDTO line = TimesheetLineRequestDTO.builder()
                                 .workDate(weekStart)
                                 .hoursWorked(new BigDecimal("8.00"))
-                                .overtimeHours(BigDecimal.ZERO)
                                 .activityDesc("Coding")
                                 .build();
 
@@ -1400,7 +1490,7 @@ public class GigForceApplicationTests {
                                 .build();
                 userRepository.save(bobUser);
 
-                submission.setStatus(SubmissionStatus.ACCEPTED);
+                submission.setStatus(SubmissionStatus.SELECTED);
                 submissionRepository.save(submission);
                 Assignment assignment = Assignment.builder()
                                 .requisition(requisition)
@@ -1441,7 +1531,7 @@ public class GigForceApplicationTests {
         @Test
         @WithMockUser(username = "alice@example.com", roles = "CONTRACTOR")
         public void testHalfDayLeaveValidation() {
-                submission.setStatus(SubmissionStatus.ACCEPTED);
+                submission.setStatus(SubmissionStatus.SELECTED);
                 submissionRepository.save(submission);
                 Assignment assignment = Assignment.builder()
                                 .requisition(requisition)
@@ -1489,7 +1579,6 @@ public class GigForceApplicationTests {
                 TimesheetLineRequestDTO line = TimesheetLineRequestDTO.builder()
                                 .workDate(weekStart1.plusDays(2))
                                 .hoursWorked(new BigDecimal("5.00"))
-                                .overtimeHours(BigDecimal.ZERO)
                                 .activityDesc("Coding")
                                 .build();
 
@@ -1507,7 +1596,6 @@ public class GigForceApplicationTests {
                 TimesheetLineRequestDTO lineValid = TimesheetLineRequestDTO.builder()
                                 .workDate(weekStart2.plusDays(2))
                                 .hoursWorked(new BigDecimal("4.00"))
-                                .overtimeHours(BigDecimal.ZERO)
                                 .activityDesc("Coding")
                                 .build();
 
@@ -1519,5 +1607,254 @@ public class GigForceApplicationTests {
 
                 TimesheetResponseDTO response = timesheetService.createTimesheet(requestValid);
                 assertNotNull(response);
+        }
+
+        @Test
+        @WithMockUser(username = "harold@example.com", roles = "HIRING_MANAGER")
+        public void testHiringManagerEngagementFlow() throws Exception {
+                // 1. Create engagement on contractor profile without feedback/rating fields
+                String profileId = contractorProfile.getId();
+                String requestJson = "{\n" +
+                                "  \"clientName\": \"Acme Corp\",\n" +
+                                "  \"roleTitle\": \"Backend Developer\",\n" +
+                                "  \"startDate\": \"" + LocalDate.now().minusMonths(6) + "\",\n" +
+                                "  \"endDate\": \"" + LocalDate.now().minusMonths(1) + "\",\n" +
+                                "  \"feedback\": \"Ignore me\",\n" +
+                                "  \"rating\": 5\n" +
+                                "}";
+
+                String responseStr = mockMvc.perform(post("/api/v1/contractors/profiles/" + profileId + "/engagements")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(requestJson))
+                                .andExpect(status().isCreated())
+                                .andExpect(jsonPath("$.feedback").value((Object)null))
+                                .andExpect(jsonPath("$.rating").value((Object)null))
+                                .andReturn().getResponse().getContentAsString();
+
+                EngagementHistoryResponseDTO created = objectMapper.readValue(responseStr, EngagementHistoryResponseDTO.class);
+                String engagementId = created.getId();
+                assertNotNull(engagementId);
+
+                // 2. Try to update engagement history, passing feedback/rating should also be ignored
+                String updateJson = "{\n" +
+                                "  \"clientName\": \"Acme Corporation\",\n" +
+                                "  \"roleTitle\": \"Lead Backend Developer\",\n" +
+                                "  \"startDate\": \"" + LocalDate.now().minusMonths(6) + "\",\n" +
+                                "  \"endDate\": \"" + LocalDate.now().minusMonths(1) + "\",\n" +
+                                "  \"feedback\": \"Should still ignore\",\n" +
+                                "  \"rating\": 4\n" +
+                                "}";
+
+                mockMvc.perform(put("/api/v1/contractors/profiles/" + profileId + "/engagements/" + engagementId)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(updateJson))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.clientName").value("Acme Corporation"))
+                                .andExpect(jsonPath("$.roleTitle").value("Lead Backend Developer"))
+                                .andExpect(jsonPath("$.feedback").value((Object)null))
+                                .andExpect(jsonPath("$.rating").value((Object)null));
+
+                // 3. Submit feedback on the completed engagement
+                String feedbackJson = "{\n" +
+                                "  \"feedback\": \"Outstanding job during assignment\",\n" +
+                                "  \"rating\": 5\n" +
+                                "}";
+
+                mockMvc.perform(put("/api/v1/contractors/profiles/" + profileId + "/engagements/" + engagementId + "/feedback")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(feedbackJson))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.feedback").value("Outstanding job during assignment"))
+                                .andExpect(jsonPath("$.rating").value(5));
+        }
+
+        @Test
+        @WithMockUser(username = "harold@example.com", roles = "HIRING_MANAGER")
+        public void testFeedbackOnOngoingEngagementFails() throws Exception {
+                String profileId = contractorProfile.getId();
+                // Create an ongoing engagement (endDate is null)
+                String requestJson = "{\n" +
+                                "  \"clientName\": \"Acme Corp\",\n" +
+                                "  \"roleTitle\": \"Backend Developer\",\n" +
+                                "  \"startDate\": \"" + LocalDate.now().minusMonths(1) + "\"\n" +
+                                "}";
+
+                String responseStr = mockMvc.perform(post("/api/v1/contractors/profiles/" + profileId + "/engagements")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(requestJson))
+                                .andExpect(status().isCreated())
+                                .andReturn().getResponse().getContentAsString();
+
+                EngagementHistoryResponseDTO created = objectMapper.readValue(responseStr, EngagementHistoryResponseDTO.class);
+                String engagementId = created.getId();
+
+                // Submit feedback on ongoing engagement should fail
+                String feedbackJson = "{\n" +
+                                "  \"feedback\": \"Trying on ongoing\",\n" +
+                                "  \"rating\": 4\n" +
+                                "}";
+
+                mockMvc.perform(put("/api/v1/contractors/profiles/" + profileId + "/engagements/" + engagementId + "/feedback")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(feedbackJson))
+                                .andExpect(status().isInternalServerError());
+        }
+
+        @Test
+        @WithMockUser(username = "victor@example.com", roles = "VENDOR_MANAGER")
+        public void testVendorManagerForbiddenFromEngagementActions() throws Exception {
+                String profileId = contractorProfile.getId();
+                String requestJson = "{\n" +
+                                "  \"clientName\": \"Acme Corp\",\n" +
+                                "  \"roleTitle\": \"Backend Developer\",\n" +
+                                "  \"startDate\": \"" + LocalDate.now().minusMonths(6) + "\"\n" +
+                                "}";
+
+                mockMvc.perform(post("/api/v1/contractors/profiles/" + profileId + "/engagements")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(requestJson))
+                                .andExpect(status().isForbidden());
+
+                mockMvc.perform(put("/api/v1/contractors/profiles/" + profileId + "/engagements/someId")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(requestJson))
+                                .andExpect(status().isForbidden());
+        }
+
+        @Test
+        @WithMockUser(username = "harold@example.com", roles = "HIRING_MANAGER")
+        public void testDeleteEngagementAccessControl() throws Exception {
+                String profileId = contractorProfile.getId();
+                String requestJson = "{\n" +
+                                "  \"clientName\": \"Acme Corp\",\n" +
+                                "  \"roleTitle\": \"Backend Developer\",\n" +
+                                "  \"startDate\": \"" + LocalDate.now().minusMonths(6) + "\"\n" +
+                                "}";
+
+                String responseStr = mockMvc.perform(post("/api/v1/contractors/profiles/" + profileId + "/engagements")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(requestJson))
+                                .andExpect(status().isCreated())
+                                .andReturn().getResponse().getContentAsString();
+
+                EngagementHistoryResponseDTO created = objectMapper.readValue(responseStr, EngagementHistoryResponseDTO.class);
+                String engagementId = created.getId();
+
+                // Delete as HIRING_MANAGER should succeed
+                mockMvc.perform(delete("/api/v1/contractors/profiles/" + profileId + "/engagements/" + engagementId))
+                                .andExpect(status().isNoContent());
+        }
+
+        @Test
+        @WithMockUser(username = "alice@example.com", roles = "CONTRACTOR")
+        public void testContractorForbiddenFromProfileById() throws Exception {
+                String profileId = contractorProfile.getId();
+                // Contractor should be forbidden from accessing GET /profiles/{id}
+                mockMvc.perform(get("/api/v1/contractors/profiles/" + profileId))
+                                .andExpect(status().isForbidden());
+        }
+
+        @Test
+        @WithMockUser(username = "harold@example.com", roles = "HIRING_MANAGER")
+        public void testHiringManagerAllowedProfileById() throws Exception {
+                String profileId = contractorProfile.getId();
+                // Hiring Manager should be allowed to access GET /profiles/{id}
+                mockMvc.perform(get("/api/v1/contractors/profiles/" + profileId))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.id").value(profileId));
+        }
+
+        @Test
+        @WithMockUser(username = "alice@example.com", roles = "CONTRACTOR")
+        public void testContractorForbiddenFromProfileEngagements() throws Exception {
+                String profileId = contractorProfile.getId();
+                mockMvc.perform(get("/api/v1/contractors/profiles/" + profileId + "/engagements"))
+                                .andExpect(status().isForbidden());
+        }
+
+        @Test
+        @WithMockUser(username = "harold@example.com", roles = "HIRING_MANAGER")
+        public void testHiringManagerAllowedProfileEngagements() throws Exception {
+                String profileId = contractorProfile.getId();
+                mockMvc.perform(get("/api/v1/contractors/profiles/" + profileId + "/engagements"))
+                                .andExpect(status().isOk());
+        }
+
+        @Test
+        @WithMockUser(username = "harold@example.com", roles = "HIRING_MANAGER")
+        public void testResourceRequisitionNewFieldsFlow() throws Exception {
+                // Get a valid skill id
+                Skill skill = skillRepository.findAll().get(0);
+
+                ResourceRequisitionRequestDTO request = ResourceRequisitionRequestDTO.builder()
+                                .title("Python Developer")
+                                .description("Python development gig")
+                                .requiredSkillId(skill.getId())
+                                .minExperienceYears(5)
+                                .maxHourlyRate(new BigDecimal("75.00"))
+                                .quantity(2)
+                                .engagementType(EngagementType.HYBRID)
+                                .experienceLevel(ExperienceLevel.MID)
+                                .startDate(LocalDate.now().plusDays(2))
+                                .duration("3 months")
+                                .build();
+
+                String body = objectMapper.writeValueAsString(request);
+
+                // Create Requisition
+                String responseStr = mockMvc.perform(post("/api/v1/requisitions")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(body))
+                                .andExpect(status().isCreated())
+                                .andExpect(jsonPath("$.engagementType").value("HYBRID"))
+                                .andExpect(jsonPath("$.experienceLevel").value("MID"))
+                                .andExpect(jsonPath("$.startDate").value(LocalDate.now().plusDays(2).toString()))
+                                .andExpect(jsonPath("$.duration").value("3 months"))
+                                .andReturn().getResponse().getContentAsString();
+
+                ResourceRequisitionResponseDTO created = objectMapper.readValue(responseStr, ResourceRequisitionResponseDTO.class);
+                String reqId = created.getId();
+
+                // Update Requisition
+                request.setEngagementType(EngagementType.ONSITE);
+                request.setExperienceLevel(ExperienceLevel.JUNIOR);
+                request.setStartDate(LocalDate.now().plusDays(10));
+                request.setDuration("1 year");
+
+                String updateBody = objectMapper.writeValueAsString(request);
+
+                mockMvc.perform(put("/api/v1/requisitions/" + reqId)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(updateBody))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.engagementType").value("ONSITE"))
+                                .andExpect(jsonPath("$.experienceLevel").value("JUNIOR"))
+                                .andExpect(jsonPath("$.startDate").value(LocalDate.now().plusDays(10).toString()))
+                                .andExpect(jsonPath("$.duration").value("1 year"));
+        }
+
+        @Test
+        @WithMockUser(username = "harold@example.com", roles = "HIRING_MANAGER")
+        public void testResourceRequisitionStartDateInPastFails() throws Exception {
+                Skill skill = skillRepository.findAll().get(0);
+                ResourceRequisitionRequestDTO request = ResourceRequisitionRequestDTO.builder()
+                                .title("Python Developer")
+                                .description("Python development gig")
+                                .requiredSkillId(skill.getId())
+                                .minExperienceYears(5)
+                                .maxHourlyRate(new BigDecimal("75.00"))
+                                .quantity(2)
+                                .engagementType(EngagementType.HYBRID)
+                                .experienceLevel(ExperienceLevel.MID)
+                                .startDate(LocalDate.now().minusDays(1)) // Past date
+                                .duration("3 months")
+                                .build();
+
+                String body = objectMapper.writeValueAsString(request);
+
+                mockMvc.perform(post("/api/v1/requisitions")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(body))
+                                .andExpect(status().isBadRequest()); // Start date in past
         }
 }

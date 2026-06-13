@@ -510,16 +510,21 @@ public class TimesheetServiceImpl implements TimesheetService {
                 throw new IllegalArgumentException("Work date " + workDate + " cannot be in the future.");
             }
 
-            BigDecimal regular = dto.getHoursWorked();
-            BigDecimal overtime = dto.getOvertimeHours();
+            BigDecimal totalHours = dto.getHoursWorked();
+            BigDecimal regular;
+            BigDecimal overtime;
+
+            if (totalHours.compareTo(new BigDecimal("8.00")) > 0) {
+                regular = new BigDecimal("8.00");
+                overtime = totalHours.subtract(regular);
+            } else {
+                regular = totalHours;
+                overtime = BigDecimal.ZERO;
+            }
 
             // Daily limits checks
-            if (regular.add(overtime).compareTo(new BigDecimal("24.00")) > 0) {
+            if (totalHours.compareTo(new BigDecimal("24.00")) > 0) {
                 throw new IllegalArgumentException("Daily hours on " + workDate + " cannot exceed 24 hours.");
-            }
-            if (regular.compareTo(new BigDecimal("8.00")) > 0) {
-                throw new IllegalArgumentException(
-                        "Standard regular hours on " + workDate + " cannot exceed 8.00 hours.");
             }
 
             // Check approved leave restrictions

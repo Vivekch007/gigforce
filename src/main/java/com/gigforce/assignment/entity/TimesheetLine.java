@@ -1,5 +1,6 @@
 package com.gigforce.assignment.entity;
 
+import com.gigforce.common.entity.BaseEntity;
 import com.gigforce.identity.entity.ContractorAbsence;
 import jakarta.persistence.*;
 import lombok.*;
@@ -13,16 +14,13 @@ import java.time.LocalDate;
 }, indexes = {
         @Index(name = "idx_line_date", columnList = "work_date")
 })
+@AttributeOverride(name = "id", column = @Column(name = "timesheet_line_id", length = 64))
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class TimesheetLine {
-
-    @Id
-    @Column(name = "timesheet_line_id", length = 64)
-    private String id;
+public class TimesheetLine extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "timesheet_id", nullable = false)

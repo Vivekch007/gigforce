@@ -1,0 +1,688 @@
+{
+  "info": {
+    "_postman_id": "rbac-engagement-verification-0001",
+    "name": "GigForce - Engagement & RBAC Verification",
+    "description": "Collection to verify the updated Engagement History endpoints, HR Feedback submissions, and Contractor Profile access controls.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "0. Authentication Setup",
+      "item": [
+        {
+          "name": "Login Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.environment.set(\"adminToken\", jsonData.accessToken);",
+                  "    console.log(\"Captured adminToken\");",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@gigforce.com\",\n  \"password\": \"Admin@123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Login as ADMIN to verify all administrative actions."
+          }
+        },
+        {
+          "name": "Login Hiring Manager",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.environment.set(\"managerToken\", jsonData.accessToken);",
+                  "    console.log(\"Captured managerToken\");",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"charles.manager@example.com\",\n  \"password\": \"Password123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Login as HIRING_MANAGER (HR Manager) to verify engagement creation, updates, deletions, and feedback submissions."
+          }
+        },
+        {
+          "name": "Login Contractor",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.environment.set(\"contractorToken\", jsonData.accessToken);",
+                  "    console.log(\"Captured contractorToken\");",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"alice.contractor@example.com\",\n  \"password\": \"Password123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Login as CONTRACTOR to verify profile/engagement endpoint restrictions."
+          }
+        },
+        {
+          "name": "Login Vendor Manager",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.environment.set(\"vendorManagerToken\", jsonData.accessToken);",
+                  "    console.log(\"Captured vendorManagerToken\");",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"victor.vendor@example.com\",\n  \"password\": \"Password123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Login as VENDOR_MANAGER to verify they no longer have access to engagement details additions/updates."
+          }
+        }
+      ]
+    },
+    {
+      "name": "1. Engagement History CRUD & Verification",
+      "item": [
+        {
+          "name": "Create Contractor Profile (Admin/HR Only)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.environment.set(\"testProfileId\", jsonData.id);",
+                  "    console.log(\"Profile ID saved: \" + jsonData.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{managerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"usr_some_contractor_id\",\n  \"hourlyRate\": 45.00,\n  \"experienceYears\": 4,\n  \"availabilityStatus\": \"AVAILABLE\",\n  \"profileStatus\": \"ACTIVE\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/contractors/profiles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contractors",
+                "profiles"
+              ]
+            },
+            "description": "HR Manager registers a contractor profile. This provides the `testProfileId` environment variable needed for subsequent requests. Update `userId` to a valid contractor user ID if needed."
+          }
+        },
+        {
+          "name": "Add Engagement (HR/Admin Only) - Feedback/Rating Omitted",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.environment.set(\"testEngagementId\", jsonData.id);",
+                  "    pm.test(\"Feedback is ignored/null\", function () {",
+                  "        pm.expect(jsonData.feedback).to.be.null;",
+                  "    });",
+                  "    pm.test(\"Rating is ignored/null\", function () {",
+                  "        pm.expect(jsonData.rating).to.be.null;",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{managerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientName\": \"Acme Corp\",\n  \"roleTitle\": \"Senior Engineer\",\n  \"startDate\": \"2026-01-01\",\n  \"endDate\": \"2026-06-01\",\n  \"feedback\": \"Should be ignored\",\n  \"rating\": 5\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/contractors/profiles/{{testProfileId}}/engagements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contractors",
+                "profiles",
+                "{{testProfileId}}",
+                "engagements"
+              ]
+            },
+            "description": "Hiring Manager (HR) creates an engagement history. Even though `feedback` and `rating` are passed in the JSON body, they must be ignored and default to `null` in the database."
+          }
+        },
+        {
+          "name": "Update Engagement (HR/Admin Only) - Feedback/Rating Omitted",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Update successful\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.feedback).to.be.null;",
+                  "    pm.expect(jsonData.rating).to.be.null;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{managerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientName\": \"Acme Corporation\",\n  \"roleTitle\": \"Lead Software Engineer\",\n  \"startDate\": \"2026-01-01\",\n  \"endDate\": \"2026-06-01\",\n  \"feedback\": \"Still ignored\",\n  \"rating\": 4\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/contractors/profiles/{{testProfileId}}/engagements/{{testEngagementId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contractors",
+                "profiles",
+                "{{testProfileId}}",
+                "engagements",
+                "{{testEngagementId}}"
+              ]
+            },
+            "description": "Updates client details or date range. The `feedback` and `rating` inputs must continue to be ignored and remain `null`."
+          }
+        },
+        {
+          "name": "Submit HR Feedback (HR/Admin Only)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Feedback submitted successfully\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.feedback).to.equal(\"Outstanding execution and deliverables.\");",
+                  "    pm.expect(jsonData.rating).to.equal(5);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{managerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"feedback\": \"Outstanding execution and deliverables.\",\n  \"rating\": 5\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/contractors/profiles/{{testProfileId}}/engagements/{{testEngagementId}}/feedback",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contractors",
+                "profiles",
+                "{{testProfileId}}",
+                "engagements",
+                "{{testEngagementId}}",
+                "feedback"
+              ]
+            },
+            "description": "Submit feedback and rating specifically for a completed assignment. Since the engagement's `endDate` has passed, this request succeeds."
+          }
+        },
+        {
+          "name": "Delete Engagement (HR/Admin Only)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Engagement deleted\", function () {",
+                  "    pm.response.to.have.status(204);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{managerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/contractors/profiles/{{testProfileId}}/engagements/{{testEngagementId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contractors",
+                "profiles",
+                "{{testProfileId}}",
+                "engagements",
+                "{{testEngagementId}}"
+              ]
+            },
+            "description": "Hiring Manager (HR) or Admin deletes an engagement history record."
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. RBAC & Restriction Verification",
+      "item": [
+        {
+          "name": "Add Engagement as Vendor Manager (Forbidden)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Access Forbidden\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{vendorManagerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientName\": \"Hack Corp\",\n  \"roleTitle\": \"Developer\",\n  \"startDate\": \"2026-01-01\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/contractors/profiles/{{testProfileId}}/engagements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contractors",
+                "profiles",
+                "{{testProfileId}}",
+                "engagements"
+              ]
+            },
+            "description": "Verifies that Vendor Manager access has been removed from engagement creation (must return 403 Forbidden)."
+          }
+        },
+        {
+          "name": "Add Engagement as Contractor (Forbidden)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Access Forbidden\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{contractorToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientName\": \"Hack Corp\",\n  \"roleTitle\": \"Developer\",\n  \"startDate\": \"2026-01-01\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/contractors/profiles/{{testProfileId}}/engagements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contractors",
+                "profiles",
+                "{{testProfileId}}",
+                "engagements"
+              ]
+            },
+            "description": "Verifies that Contractor has no access to create engagements (must return 403 Forbidden)."
+          }
+        },
+        {
+          "name": "Get Profile by ID as Contractor (Forbidden)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Access Forbidden\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{contractorToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/contractors/profiles/{{testProfileId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contractors",
+                "profiles",
+                "{{testProfileId}}"
+              ]
+            },
+            "description": "Verifies that the Contractor role is forbidden from retrieving contractor profiles by ID (must return 403 Forbidden). Contractors must use `/profiles/me` instead."
+          }
+        },
+        {
+          "name": "Get Profile Engagements as Contractor (Forbidden)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Access Forbidden\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{contractorToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/contractors/profiles/{{testProfileId}}/engagements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contractors",
+                "profiles",
+                "{{testProfileId}}",
+                "engagements"
+              ]
+            },
+            "description": "Verifies that the Contractor role is forbidden from retrieving engagement history (must return 403 Forbidden)."
+          }
+        },
+        {
+          "name": "Get Profile by ID as HR (Allowed)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Access Allowed\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{managerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/contractors/profiles/{{testProfileId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contractors",
+                "profiles",
+                "{{testProfileId}}"
+              ]
+            },
+            "description": "Verifies that HR / Hiring Manager can view profiles by ID (must return 200 OK)."
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -3,6 +3,7 @@ package com.gigforce.identity.service;
 import com.gigforce.audit.service.AuditService;
 import com.gigforce.exception.ContractorProfileNotFoundException;
 import com.gigforce.exception.EngagementNotFoundException;
+import com.gigforce.identity.dto.EngagementFeedbackRequestDTO;
 import com.gigforce.identity.dto.EngagementHistoryRequestDTO;
 import com.gigforce.identity.dto.EngagementHistoryResponseDTO;
 import com.gigforce.identity.entity.ContractorProfile;
@@ -15,6 +16,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -55,8 +57,6 @@ public class EngagementHistoryServiceImpl implements EngagementHistoryService {
                                 .roleTitle(request.getRoleTitle().trim())
                                 .startDate(request.getStartDate())
                                 .endDate(request.getEndDate())
-                                .feedback(request.getFeedback() != null ? request.getFeedback().trim() : null)
-                                .rating(request.getRating())
                                 .build();
 
                 EngagementHistory saved = engagementHistoryRepository.save(engagement);
@@ -113,8 +113,6 @@ public class EngagementHistoryServiceImpl implements EngagementHistoryService {
                 engagement.setRoleTitle(request.getRoleTitle().trim());
                 engagement.setStartDate(request.getStartDate());
                 engagement.setEndDate(request.getEndDate());
-                engagement.setFeedback(request.getFeedback() != null ? request.getFeedback().trim() : null);
-                engagement.setRating(request.getRating());
 
                 EngagementHistory updated = engagementHistoryRepository.save(engagement);
 
@@ -163,6 +161,46 @@ public class EngagementHistoryServiceImpl implements EngagementHistoryService {
                                 profile.getId(),
                                 "Engagement deleted for client '" + engagement.getClientName() + "' for contractor: "
                                                 + profile.getUser().getEmail());
+        }
+
+        @Override
+        @Transactional
+        public EngagementHistoryResponseDTO submitFeedback(String profileId, String engagementId, EngagementFeedbackRequestDTO request) {
+                ContractorProfile profile = contractorProfileRepository.findById(profileId)
+                                .orElseThrow(() -> new ContractorProfileNotFoundException(
+                                                "Contractor profile not found with ID: " + profileId));
+
+                EngagementHistory engagement = engagementHistoryRepository.findById(engagementId)
+                                .orElseThrow(() -> new EngagementNotFoundException(
+                                                "Engagement history not found with ID: " + engagementId));
+
+                if (!engagement.getContractorProfile().getId().equals(profile.getId())) {
+                        throw new IllegalArgumentException("Engagement does not belong to the specified profile.");
+                }
+
+                if (engagement.getEndDate() == null || engagement.getEndDate().isAfter(LocalDate.now())) {
+                        throw new IllegalStateException("Feedback and rating can only be submitted after completing the assignment.");
+                }
+
+                engagement.setFeedback(request.getFeedback().trim());
+                engagement.setRating(request.getRating());
+
+                EngagementHistory updated = engagementHistoryRepository.save(engagement);
+
+                // Audit Logging
+                String actorEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+                User actor = userRepository.findByEmail(actorEmail).orElse(null);
+                String actorId = (actor != null) ? actor.getId() : profile.getUser().getId();
+
+                auditService.logAction(
+                                actorId,
+                                "CONTRACTOR_ENGAGEMENT_FEEDBACK_SUBMITTED",
+                                "ContractorProfile",
+                                profile.getId(),
+                                "Feedback and rating submitted for client '" + engagement.getClientName()
+                                                + "' for contractor: " + profile.getUser().getEmail());
+
+                return toDto(updated);
         }
 
         private EngagementHistoryResponseDTO toDto(EngagementHistory eng) {

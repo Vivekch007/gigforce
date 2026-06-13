@@ -39,25 +39,53 @@ public class IdGenerationListener {
                 case FINANCE -> "fin";
             };
         }
-        // mapping for common entities by class simple name
-        String cls = entity.getClass().getSimpleName().toLowerCase();
-        // ContractorProfile should use a distinct prefix from generic contractor/user
-        if (cls.contains("contractorprofile") || cls.equals("contractorprofile"))
+
+        if (entity instanceof com.gigforce.identity.entity.ContractorProfile) {
             return "cp";
-        if (cls.contains("contractor"))
-            return "cnt";
-        if (cls.contains("assignment"))
+        }
+        if (entity instanceof com.gigforce.identity.entity.ContractorCertification) {
+            return "cert";
+        }
+        if (entity instanceof com.gigforce.identity.entity.ContractorAbsence) {
+            return "abs";
+        }
+        if (entity instanceof com.gigforce.identity.entity.ContractorSkill) {
+            return "csk";
+        }
+        if (entity instanceof com.gigforce.identity.entity.EngagementHistory) {
+            return "eng";
+        }
+        if (entity instanceof com.gigforce.assignment.entity.Assignment) {
             return "asn";
-        if (cls.contains("skill"))
-            return "sk";
-        if (cls.contains("timesheet"))
+        }
+        if (entity instanceof com.gigforce.assignment.entity.AssignmentAmendment) {
+            return "asm";
+        }
+        if (entity instanceof com.gigforce.assignment.entity.Timesheet) {
             return "tsm";
-        if (cls.contains("vendor"))
-            return "ven";
-        if (cls.contains("requisition") || cls.contains("resource"))
-            return "req";
-        if (cls.contains("audit"))
+        }
+        if (entity instanceof com.gigforce.assignment.entity.TimesheetApproval) {
+            return "tsa";
+        }
+        if (entity instanceof com.gigforce.assignment.entity.TimesheetComment) {
+            return "tsc";
+        }
+        if (entity instanceof com.gigforce.assignment.entity.TimesheetLine) {
+            return "tsl";
+        }
+        if (entity instanceof com.gigforce.audit.entity.AuditLog) {
             return "aud";
+        }
+        if (entity instanceof com.gigforce.identity.entity.Skill) {
+            return "sk";
+        }
+        if (entity instanceof com.gigforce.requisition.entity.ResourceRequisition) {
+            return "req";
+        }
+        if (entity instanceof com.gigforce.requisition.entity.VendorSubmission) {
+            return "vsb";
+        }
+
         return "id";
     }
 }

@@ -34,7 +34,7 @@ public class VendorSubmissionController {
     }
 
     @PostMapping("/requisitions/{reqId}/submit")
-    @PreAuthorize("hasAnyRole('ADMIN', 'VENDOR_MANAGER', 'VENDOR', 'CONTRACTOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'VENDOR_MANAGER', 'VENDOR')")
     @Operation(summary = "Submit a contractor profile to an open requisition")
     public ResponseEntity<VendorSubmissionResponseDTO> submitContractor(
             @PathVariable String reqId,
@@ -44,7 +44,7 @@ public class VendorSubmissionController {
     }
 
     @GetMapping("/requisitions/{reqId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER', 'VENDOR_MANAGER', 'VENDOR', 'CONTRACTOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER', 'VENDOR_MANAGER', 'VENDOR')")
     @Operation(summary = "Get all submissions for a specific requisition (filtered by user access)")
     public ResponseEntity<List<VendorSubmissionResponseDTO>> getSubmissionsByRequisitionId(@PathVariable String reqId) {
         List<VendorSubmissionResponseDTO> response = submissionService.getSubmissionsByRequisitionId(reqId);
@@ -52,27 +52,36 @@ public class VendorSubmissionController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER', 'VENDOR_MANAGER', 'VENDOR')")
     @Operation(summary = "Get submission details by ID")
     public ResponseEntity<VendorSubmissionResponseDTO> getSubmissionById(@PathVariable String id) {
         VendorSubmissionResponseDTO response = submissionService.getSubmissionById(id);
         return ResponseEntity.ok(response);
     }
 
-    @PutMapping("/{id}/review")
+    @PutMapping("/{id}/shortlist")
     @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER')")
-    @Operation(summary = "Transition submission status to REVIEWING")
-    public ResponseEntity<VendorSubmissionResponseDTO> transitionToReviewing(@PathVariable String id) {
-        VendorSubmissionResponseDTO response = submissionService.transitionStatus(id, SubmissionStatus.REVIEWING, null);
+    @Operation(summary = "Transition submission status to SHORTLISTED")
+    public ResponseEntity<VendorSubmissionResponseDTO> transitionToShortlisted(@PathVariable String id) {
+        VendorSubmissionResponseDTO response = submissionService.transitionStatus(id, SubmissionStatus.SHORTLISTED, null);
         return ResponseEntity.ok(response);
     }
 
-    @PutMapping("/{id}/accept")
+    @PutMapping("/{id}/schedule-interview")
     @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER')")
-    @Operation(summary = "Transition submission status to ACCEPTED")
-    public ResponseEntity<VendorSubmissionResponseDTO> transitionToAccepted(
+    @Operation(summary = "Transition submission status to INTERVIEW_SCHEDULED")
+    public ResponseEntity<VendorSubmissionResponseDTO> transitionToInterviewScheduled(@PathVariable String id) {
+        VendorSubmissionResponseDTO response = submissionService.transitionStatus(id, SubmissionStatus.INTERVIEW_SCHEDULED, null);
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/{id}/select")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER')")
+    @Operation(summary = "Transition submission status to SELECTED")
+    public ResponseEntity<VendorSubmissionResponseDTO> transitionToSelected(
             @PathVariable String id,
             @RequestParam(required = false) String remarks) {
-        VendorSubmissionResponseDTO response = submissionService.transitionStatus(id, SubmissionStatus.ACCEPTED,
+        VendorSubmissionResponseDTO response = submissionService.transitionStatus(id, SubmissionStatus.SELECTED,
                 remarks);
         return ResponseEntity.ok(response);
     }
@@ -89,6 +98,7 @@ public class VendorSubmissionController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER', 'VENDOR_MANAGER', 'VENDOR')")
     @Operation(summary = "Search and filter submissions (Paginated)")
     public ResponseEntity<Page<VendorSubmissionResponseDTO>> searchSubmissions(
             @RequestParam(required = false) String requisitionId,

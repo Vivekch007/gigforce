@@ -26,6 +26,7 @@ public class VendorSubmissionResponseDTO {
     private SubmissionStatus status;
     private BigDecimal proposedRate;
     private String remarks;
+    private java.time.LocalDate submissionDate;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

@@ -23,10 +23,6 @@ public class TimesheetLineRequestDTO {
     @DecimalMin(value = "0.00", message = "Hours worked must be non-negative")
     private BigDecimal hoursWorked;
 
-    @NotNull(message = "Overtime hours is required")
-    @DecimalMin(value = "0.00", message = "Overtime hours must be non-negative")
-    private BigDecimal overtimeHours;
-
     @NotBlank(message = "Activity description is required")
     @Size(max = 255, message = "Activity description must not exceed 255 characters")
     private String activityDesc;

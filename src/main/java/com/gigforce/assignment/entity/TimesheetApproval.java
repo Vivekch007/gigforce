@@ -1,5 +1,6 @@
 package com.gigforce.assignment.entity;
 
+import com.gigforce.common.entity.BaseEntity;
 import com.gigforce.identity.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
@@ -10,16 +11,13 @@ import java.time.LocalDateTime;
 @Table(name = "timesheet_approvals", indexes = {
         @Index(name = "idx_approval_timesheet", columnList = "timesheet_id")
 })
+@AttributeOverride(name = "id", column = @Column(name = "approval_id", length = 64))
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class TimesheetApproval {
-
-    @Id
-    @Column(name = "approval_id", length = 64)
-    private String id;
+public class TimesheetApproval extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "timesheet_id", nullable = false)

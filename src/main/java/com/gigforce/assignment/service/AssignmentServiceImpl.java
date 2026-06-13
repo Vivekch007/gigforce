@@ -81,10 +81,10 @@ public class AssignmentServiceImpl implements AssignmentService {
             throw new IllegalArgumentException("An assignment has already been created for this submission.");
         }
 
-        // STRICT BUSINESS RULE: Submission status must be ACCEPTED
-        if (submission.getStatus() != SubmissionStatus.ACCEPTED) {
+        // STRICT BUSINESS RULE: Submission status must be SELECTED
+        if (submission.getStatus() != SubmissionStatus.SELECTED) {
             throw new IllegalArgumentException(
-                    "Assignment can only be created from an ACCEPTED submission. Current status: "
+                    "Assignment can only be created from a SELECTED submission. Current status: "
                             + submission.getStatus());
         }
 

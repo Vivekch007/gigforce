@@ -28,7 +28,6 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    @PreAuthorize("hasRole('ADMIN')") // Only Admins can register new users
     @Operation(summary = "Register a new user", description = "Registers a new user (Contractor, Vendor, Finance, Admin etc.).")
     public ResponseEntity<UserResponseDTO> register(@Valid @RequestBody RegisterRequestDTO request) {
         UserResponseDTO registeredUser = authService.register(request);

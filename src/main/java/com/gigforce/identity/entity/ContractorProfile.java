@@ -26,7 +26,7 @@ import java.math.BigDecimal;
     name = "contractor_profiles",
     indexes = {
         @Index(name = "idx_contractor_user_id", columnList = "user_id"),
-        @Index(name = "idx_contractor_status", columnList = "status")
+        @Index(name = "idx_contractor_status", columnList = "profile_status")
     }
 )
 @AttributeOverride(name = "id", column = @Column(name = "contractor_profile_id"))
