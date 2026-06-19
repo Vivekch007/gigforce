@@ -22,12 +22,10 @@ public class AssignmentResponseDTO {
     private String contractorEmail;
     private String hiringManagerId;
     private String hiringManagerName;
-    private String vendorId;
-    private String vendorName;
     private LocalDate startDate;
     private LocalDate endDate;
     private BigDecimal agreedRatePerDay;
-    private String engagementType;
+    private com.gigforce.requisition.enums.EngagementType engagementType;
     private String sowReference;
     private AssignmentStatus status;
     private LocalDateTime createdAt;

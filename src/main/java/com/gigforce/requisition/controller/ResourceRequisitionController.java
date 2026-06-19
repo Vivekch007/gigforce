@@ -69,6 +69,7 @@ public class ResourceRequisitionController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER', 'VENDOR_MANAGER', 'VENDOR')")
     @Operation(summary = "Get requisition details by ID")
     public ResponseEntity<ResourceRequisitionResponseDTO> getRequisitionById(@PathVariable String id) {
         ResourceRequisitionResponseDTO response = requisitionService.getRequisitionById(id);
@@ -76,15 +77,17 @@ public class ResourceRequisitionController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER', 'VENDOR_MANAGER', 'VENDOR')")
     @Operation(summary = "Search and filter requisitions (Paginated)")
     public ResponseEntity<Page<ResourceRequisitionResponseDTO>> searchRequisitions(
             @RequestParam(required = false) RequisitionStatus status,
             @RequestParam(required = false) String requiredSkillId,
             @RequestParam(required = false) BigDecimal maxRate,
+            @RequestParam(required = false) String businessUnitId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         Page<ResourceRequisitionResponseDTO> response = requisitionService.searchRequisitions(
-                status, requiredSkillId, maxRate, page, size);
+                status, requiredSkillId, maxRate, businessUnitId, page, size);
         return ResponseEntity.ok(response);
     }
 }

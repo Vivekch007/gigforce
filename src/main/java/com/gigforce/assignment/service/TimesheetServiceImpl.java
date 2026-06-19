@@ -25,6 +25,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.gigforce.notification.service.NotificationService;
+import com.gigforce.notification.dto.NotificationRequestDTO;
+
 @Service
 @Transactional(readOnly = true)
 public class TimesheetServiceImpl implements TimesheetService {
@@ -37,6 +40,7 @@ public class TimesheetServiceImpl implements TimesheetService {
     private final AssignmentRepository assignmentRepository;
     private final UserRepository userRepository;
     private final AuditService auditService;
+    private final NotificationService notificationService;
 
     public TimesheetServiceImpl(
             TimesheetRepository timesheetRepository,
@@ -46,7 +50,8 @@ public class TimesheetServiceImpl implements TimesheetService {
             ContractorAbsenceRepository absenceRepository,
             AssignmentRepository assignmentRepository,
             UserRepository userRepository,
-            AuditService auditService) {
+            AuditService auditService,
+            NotificationService notificationService) {
         this.timesheetRepository = timesheetRepository;
         this.timesheetLineRepository = timesheetLineRepository;
         this.timesheetApprovalRepository = timesheetApprovalRepository;
@@ -55,9 +60,9 @@ public class TimesheetServiceImpl implements TimesheetService {
         this.assignmentRepository = assignmentRepository;
         this.userRepository = userRepository;
         this.auditService = auditService;
+        this.notificationService = notificationService;
     }
 
-    @SuppressWarnings("null")
     @Override
     @Transactional
     public TimesheetResponseDTO createTimesheet(TimesheetRequestDTO request) {
@@ -73,7 +78,7 @@ public class TimesheetServiceImpl implements TimesheetService {
         }
 
         // Week start date validation (must be Monday)
-        if (request.getWeekStartDate().getDayOfWeek() != DayOfWeek.MONDAY) {
+        if (request.getWeekStartDate().getDayOfWeek() != DayOfWeek.SATURDAY) {
             throw new IllegalArgumentException("Timesheet week start date must be a Monday.");
         }
 
@@ -83,11 +88,7 @@ public class TimesheetServiceImpl implements TimesheetService {
         User currentUser = userRepository.findByEmail(currentUsername)
                 .orElseThrow(() -> new UserNotFoundException("User not found with email: " + currentUsername));
 
-        // Security check: Contractor owner or Admin/HM
-        if (currentUser.getRole().name().equals("CONTRACTOR")
-                && !profile.getUser().getId().equals(currentUser.getId())) {
-            throw new AccessDeniedException("You are not authorized to create a timesheet for this assignment.");
-        }
+
 
         // Duplicate weekly timesheet check
         if (timesheetRepository.existsByContractorIdAndAssignmentIdAndWeekStartDate(profile.getUser().getId(),
@@ -108,6 +109,21 @@ public class TimesheetServiceImpl implements TimesheetService {
 
         Timesheet saved = timesheetRepository.save(timesheet);
         List<TimesheetLine> lines = validateAndPopulateLines(saved, request.getLines(), profile.getId());
+        if(lines.size() < 7) {
+            throw new IllegalArgumentException("Timesheet lines cannot be less than 7.");
+        }
+        if(lines.size() > 7){
+            throw new IllegalArgumentException("Timesheet lines cannot be more than 7.");
+        }
+        for(TimesheetLine line: lines) {
+            if(line.getWorkDate().isBefore(saved.getWeekStartDate()) || line.getWorkDate().isAfter(saved.getWeekEndDate())) {
+                throw new IllegalArgumentException("Timesheet line work date must be within the timesheet week range.");
+            }
+            if(line.getHoursWorked().compareTo(BigDecimal.ZERO) != 0 && line.getOvertimeHours().compareTo(BigDecimal.ZERO) != 0) {
+                throw new IllegalArgumentException("Timesheet line hours while created must be 0.");
+            }
+        }
+
         timesheetLineRepository.saveAll(lines);
         saved = timesheetRepository.save(saved);
 
@@ -121,6 +137,8 @@ public class TimesheetServiceImpl implements TimesheetService {
 
         return toDto(saved);
     }
+
+    // ... Keep your constructor and other methods exactly the same ...
 
     @Override
     @Transactional
@@ -149,27 +167,60 @@ public class TimesheetServiceImpl implements TimesheetService {
             throw new AccessDeniedException("You are not authorized to update this timesheet.");
         }
 
-        // Clear existing lines to replace
-        List<TimesheetLine> existingLines = timesheetLineRepository.findByTimesheetId(timesheet.getId());
-        timesheetLineRepository.deleteAll(existingLines);
-        timesheetLineRepository.flush();
-
-        List<TimesheetLine> lines = validateAndPopulateLines(timesheet, request.getLines(),
-                timesheet.getAssignment().getContractorProfile().getId());
+        // Explicitly update the main timesheet metadata tracking
+        // If your entity uses @LastModifiedBy annotation, ensure your AuditorAware bean is configured correctly.
+        // Otherwise, set your audit entity tracking property manually here:
+        // timesheet.setUpdatedBy(currentUser);
 
         if (timesheet.getStatus() == TimesheetStatus.REJECTED) {
             timesheet.setStatus(TimesheetStatus.REVISED);
         }
 
+        // FIX FOR ISSUE #2: Merge lines intelligently instead of wiping them out
+        List<TimesheetLine> existingLines = timesheetLineRepository.findByTimesheetId(timesheet.getId());
+
+        // Process and calculate values for new inputs
+        List<TimesheetLine> updatedLines = validateAndPopulateLines(timesheet, request.getLines(),
+                timesheet.getAssignment().getContractorProfile().getId());
+
+        List<TimesheetLine> linesToSave = new ArrayList<>();
+
+        for (TimesheetLine updatedLine : updatedLines) {
+            // Look for an existing row matching the exact date to preserve its creation details
+            TimesheetLine matchingExistingLine = existingLines.stream()
+                    .filter(el -> el.getWorkDate().equals(updatedLine.getWorkDate()))
+                    .findFirst()
+                    .orElse(null);
+
+            if (matchingExistingLine != null) {
+                // Retain the identity and creation logs of the original line item
+                updatedLine.setId(matchingExistingLine.getId());
+
+                // Explicitly preserve original creator audit fields if managing them manually
+                // updatedLine.setCreatedBy(matchingExistingLine.getCreatedBy());
+                // updatedLine.setCreatedAt(matchingExistingLine.getCreatedAt());
+
+                // Remove from the cleanup tracking list
+                existingLines.remove(matchingExistingLine);
+            }
+            linesToSave.add(updatedLine);
+        }
+
+        // Delete ONLY the residual lines that were left completely out of the update payload
+        if (!existingLines.isEmpty()) {
+            timesheetLineRepository.deleteAll(existingLines);
+            timesheetLineRepository.flush();
+        }
+
         Timesheet saved = timesheetRepository.save(timesheet);
-        timesheetLineRepository.saveAll(lines);
+        timesheetLineRepository.saveAll(linesToSave);
 
         auditService.logAction(
                 currentUser.getId(),
                 "TIMESHEET_UPDATED",
                 "Timesheet",
                 saved.getId(),
-                String.format("Weekly timesheet draft updated for week %s", saved.getWeekStartDate()));
+                String.format("Weekly timesheet draft updated for week %s by %s", saved.getWeekStartDate(), currentUser.getEmail()));
 
         return toDto(saved);
     }
@@ -197,6 +248,10 @@ public class TimesheetServiceImpl implements TimesheetService {
         timesheet.setStatus(TimesheetStatus.SUBMITTED);
         timesheet.setSubmittedDate(LocalDateTime.now());
 
+        // Explicitly flag the updated action context if not utilizing automatic Auditing Frameworks
+        // timesheet.setUpdatedBy(currentUser);
+
+        // FIX FOR ISSUE #3: Ensure historical entries aren't touched by decoupling saved references
         TimesheetApproval approval = TimesheetApproval.builder()
                 .timesheet(timesheet)
                 .approver(currentUser)
@@ -205,8 +260,8 @@ public class TimesheetServiceImpl implements TimesheetService {
                 .remarks("Timesheet submitted for review")
                 .actionDate(LocalDateTime.now())
                 .build();
-        timesheetApprovalRepository.save(approval);
 
+        timesheetApprovalRepository.save(approval);
         Timesheet saved = timesheetRepository.save(timesheet);
 
         auditService.logAction(
@@ -217,9 +272,19 @@ public class TimesheetServiceImpl implements TimesheetService {
                 String.format("Timesheet submitted for contractor %s for week %s", timesheet.getContractor().getEmail(),
                         saved.getWeekStartDate()));
 
+        if (saved.getAssignment() != null && saved.getAssignment().getHiringManager() != null) {
+            notificationService.createNotification(NotificationRequestDTO.builder()
+                    .userId(saved.getAssignment().getHiringManager().getId())
+                    .message(String.format("Timesheet %s submitted and awaiting approval.", saved.getId()))
+                    .category("TIMESHEET")
+                    .notificationType("TIMESHEET_SUBMISSION")
+                    .referenceEntityId(saved.getId())
+                    .referenceEntityType("Timesheet")
+                    .build());
+        }
+
         return toDto(saved);
     }
-
     @Override
     @Transactional
     public TimesheetResponseDTO approveTimesheet(String id, TimesheetApprovalRequestDTO request) {
@@ -242,7 +307,7 @@ public class TimesheetServiceImpl implements TimesheetService {
                 throw new AccessDeniedException("Access Denied: You are not authorized to perform L1 approval.");
             }
 
-            timesheet.setStatus(TimesheetStatus.PENDING_FINANCE);
+            timesheet.setStatus(TimesheetStatus.APPROVED);
             timesheet.setApprovedByHiringManager(currentUser);
 
             TimesheetApproval approval = TimesheetApproval.builder()
@@ -267,41 +332,7 @@ public class TimesheetServiceImpl implements TimesheetService {
 
             return toDto(saved);
 
-        } else if (timesheet.getStatus() == TimesheetStatus.PENDING_FINANCE) {
-            // L2 Approval: Finance or Admin
-            boolean isFinance = role.equals("FINANCE");
-            boolean isAdmin = role.equals("ADMIN");
-
-            if (!isFinance && !isAdmin) {
-                throw new AccessDeniedException("Access Denied: You are not authorized to perform L2 approval.");
-            }
-
-            timesheet.setStatus(TimesheetStatus.APPROVED);
-            timesheet.setApprovedByFinance(currentUser);
-            timesheet.setApprovedDate(LocalDateTime.now());
-
-            TimesheetApproval approval = TimesheetApproval.builder()
-                    .timesheet(timesheet)
-                    .approver(currentUser)
-                    .approvalLevel("L2_FINANCE")
-                    .action("APPROVED")
-                    .remarks(request != null ? request.getRemarks() : "Finance approved hours and billing rate")
-                    .actionDate(LocalDateTime.now())
-                    .build();
-            timesheetApprovalRepository.save(approval);
-
-            Timesheet saved = timesheetRepository.save(timesheet);
-
-            auditService.logAction(
-                    currentUser.getId(),
-                    "TIMESHEET_APPROVED_L2",
-                    "Timesheet",
-                    saved.getId(),
-                    String.format("L2 approved by %s for contractor %s", currentUser.getEmail(),
-                            timesheet.getContractor().getEmail()));
-
-            return toDto(saved);
-        } else {
+        }else {
             throw new IllegalArgumentException(
                     "Timesheet must be in SUBMITTED or PENDING_FINANCE status to approve. Current status: "
                             + timesheet.getStatus());
@@ -370,6 +401,17 @@ public class TimesheetServiceImpl implements TimesheetService {
                 String.format("Timesheet rejected by %s for contractor %s. Remarks: %s", currentUser.getEmail(),
                         timesheet.getContractor().getEmail(), request.getRemarks()));
 
+        if (saved.getContractor() != null) {
+            notificationService.createNotification(NotificationRequestDTO.builder()
+                    .userId(saved.getContractor().getId())
+                    .message(String.format("Your timesheet %s has been rejected.", saved.getId()))
+                    .category("TIMESHEET")
+                    .notificationType("TIMESHEET_REJECTION")
+                    .referenceEntityId(saved.getId())
+                    .referenceEntityType("Timesheet")
+                    .build());
+        }
+
         return toDto(saved);
     }
 
@@ -383,6 +425,10 @@ public class TimesheetServiceImpl implements TimesheetService {
         User currentUser = userRepository.findByEmail(currentUsername)
                 .orElseThrow(() -> new UserNotFoundException("User not found with email: " + currentUsername));
 
+        TimesheetStatus timesheetStatus = timesheet.getStatus();
+        if(timesheetStatus != TimesheetStatus.REJECTED){
+            throw new IllegalStateException("You can add Comment only when the timesheet status is REJECTED.");
+        }
         TimesheetComment comment = TimesheetComment.builder()
                 .timesheet(timesheet)
                 .user(currentUser)
@@ -561,7 +607,7 @@ public class TimesheetServiceImpl implements TimesheetService {
                     .hoursWorked(regular)
                     .overtimeHours(overtime)
                     .activityDesc(dto.getActivityDesc())
-                    .absence(leave)
+//                    .absence(leave)
                     .build();
 
             lines.add(line);
@@ -605,7 +651,7 @@ public class TimesheetServiceImpl implements TimesheetService {
                     .hoursWorked(l.getHoursWorked())
                     .overtimeHours(l.getOvertimeHours())
                     .activityDesc(l.getActivityDesc())
-                    .absenceId(l.getAbsence() != null ? l.getAbsence().getId() : null)
+//                    .absenceId(l.getAbsence() != null ? l.getAbsence().getId() : null)
                     .build();
             lineDtos.add(dto);
         }

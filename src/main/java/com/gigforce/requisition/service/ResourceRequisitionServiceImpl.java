@@ -6,11 +6,13 @@ import com.gigforce.exception.SkillNotFoundException;
 import com.gigforce.exception.UserNotFoundException;
 import com.gigforce.identity.entity.Skill;
 import com.gigforce.identity.entity.User;
+import com.gigforce.identity.enums.CertificationStatus;
 import com.gigforce.identity.repository.SkillRepository;
 import com.gigforce.identity.repository.UserRepository;
 import com.gigforce.requisition.dto.ResourceRequisitionRequestDTO;
 import com.gigforce.requisition.dto.ResourceRequisitionResponseDTO;
 import com.gigforce.requisition.entity.ResourceRequisition;
+import com.gigforce.requisition.enums.BusinessUnits;
 import com.gigforce.requisition.enums.RequisitionStatus;
 import com.gigforce.requisition.enums.EngagementType;
 import com.gigforce.requisition.enums.ExperienceLevel;
@@ -57,7 +59,14 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
         Skill skill = skillRepository.findById(request.getRequiredSkillId())
                 .orElseThrow(
                         () -> new SkillNotFoundException("Skill not found with ID: " + request.getRequiredSkillId()));
-
+        BusinessUnits businessUnits = null;
+        if (request.getBusinessUnitId() != null) {
+            try {
+                businessUnits = BusinessUnits.valueOf(request.getBusinessUnitId().trim().toUpperCase());
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("businessUnitId must be one of: IT, FINANCE, HIRING_MANAGER");
+            }
+        }
         ResourceRequisition requisition = ResourceRequisition.builder()
                 .title(request.getTitle().trim())
                 .description(request.getDescription() != null ? request.getDescription().trim() : null)
@@ -71,6 +80,7 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
                 .experienceLevel(request.getExperienceLevel() != null ? request.getExperienceLevel() : ExperienceLevel.MID)
                 .startDate(request.getStartDate() != null ? request.getStartDate() : java.time.LocalDate.now())
                 .duration(request.getDuration() != null ? request.getDuration().trim() : "6 months")
+                .businessUnitId(businessUnits != null ? businessUnits.name() : null)
                 .build();
 
         ResourceRequisition saved = requisitionRepository.save(requisition);
@@ -121,6 +131,7 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
         requisition.setExperienceLevel(request.getExperienceLevel() != null ? request.getExperienceLevel() : ExperienceLevel.MID);
         requisition.setStartDate(request.getStartDate() != null ? request.getStartDate() : java.time.LocalDate.now());
         requisition.setDuration(request.getDuration() != null ? request.getDuration().trim() : "6 months");
+        requisition.setBusinessUnitId(request.getBusinessUnitId());
 
         ResourceRequisition updated = requisitionRepository.save(requisition);
 
@@ -212,9 +223,15 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
 
     @Override
     public Page<ResourceRequisitionResponseDTO> searchRequisitions(
-            RequisitionStatus status, String requiredSkillId, BigDecimal maxRate, int page, int size) {
+            RequisitionStatus status, String requiredSkillId, BigDecimal maxRate, String businessUnitId, int page, int size) {
+        boolean isVendor = SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
+                .anyMatch(a -> (a.getAuthority().equals("ROLE_VENDOR")));
+        if(isVendor && status.equals(RequisitionStatus.DRAFT)) {
+            throw new AccessDeniedException(
+                    "Access Denied: Vendors are not authorized to access Draft Requisitions.");
+        }
         Pageable pageable = PageRequest.of(page, size);
-        return requisitionRepository.searchRequisitions(status, requiredSkillId, maxRate, pageable)
+        return requisitionRepository.searchRequisitions(status, requiredSkillId, maxRate, businessUnitId, pageable)
                 .map(this::toDto);
     }
 
@@ -250,6 +267,7 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
                 .experienceLevel(requisition.getExperienceLevel())
                 .startDate(requisition.getStartDate())
                 .duration(requisition.getDuration())
+                .businessUnitId(requisition.getBusinessUnitId())
                 .createdAt(requisition.getCreatedAt())
                 .updatedAt(requisition.getUpdatedAt())
                 .build();

@@ -85,6 +85,21 @@ public class IdGenerationListener {
         if (entity instanceof com.gigforce.requisition.entity.VendorSubmission) {
             return "vsb";
         }
+        if (entity instanceof com.gigforce.invoice.entity.PurchaseOrder) {
+            return "PO-";
+        }
+        if (entity instanceof com.gigforce.invoice.entity.ContractorInvoice) {
+            return "INV-";
+        }
+        if (entity instanceof com.gigforce.invoice.entity.Payment) {
+            return "PAY-";
+        }
+        if (entity instanceof com.gigforce.analytics.entity.WorkforceReport) {
+            return "WR-";
+        }
+        if (entity instanceof com.gigforce.notification.entity.Notification) {
+            return "NOT-";
+        }
 
         return "id";
     }

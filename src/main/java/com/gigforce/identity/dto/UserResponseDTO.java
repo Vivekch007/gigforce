@@ -24,4 +24,5 @@ public class UserResponseDTO {
     private String createdBy;
     private LocalDateTime updatedAt;
     private String updatedBy;
+    private String orgUnitId;
 }

@@ -3,6 +3,8 @@ package com.gigforce.identity.service;
 import com.gigforce.identity.dto.EngagementFeedbackRequestDTO;
 import com.gigforce.identity.dto.EngagementHistoryRequestDTO;
 import com.gigforce.identity.dto.EngagementHistoryResponseDTO;
+import com.gigforce.identity.dto.EngagementHistoryUpdateRequestDTO;
+import jakarta.validation.Valid;
 
 import java.util.List;
 
@@ -12,7 +14,7 @@ public interface EngagementHistoryService {
     List<EngagementHistoryResponseDTO> getEngagementsByProfileId(String profileId);
 
     EngagementHistoryResponseDTO updateEngagement(String profileId, String engagementId,
-            EngagementHistoryRequestDTO request);
+                                                  @Valid EngagementHistoryUpdateRequestDTO request);
 
     EngagementHistoryResponseDTO submitFeedback(String profileId, String engagementId, EngagementFeedbackRequestDTO request);
 

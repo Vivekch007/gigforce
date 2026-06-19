@@ -38,7 +38,7 @@ public class TimesheetLine extends BaseEntity {
     @Column(name = "activity_desc", nullable = false, length = 255)
     private String activityDesc;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "absence_id")
-    private ContractorAbsence absence;
+//    @ManyToOne(fetch = FetchType.LAZY)
+//    @JoinColumn(name = "absence_id")
+//    private ContractorAbsence absence;
 }

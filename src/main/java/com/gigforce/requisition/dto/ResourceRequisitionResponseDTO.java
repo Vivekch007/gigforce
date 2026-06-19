@@ -31,6 +31,7 @@ public class ResourceRequisitionResponseDTO {
     private com.gigforce.requisition.enums.ExperienceLevel experienceLevel;
     private java.time.LocalDate startDate;
     private String duration;
+    private String businessUnitId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

@@ -26,4 +26,6 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, String> {
     @Query("SELECT t FROM Timesheet t WHERE t.status = :status AND t.updatedAt < :cutoff")
     List<Timesheet> findPendingTimesheetsOlderThan(@Param("status") TimesheetStatus status,
             @Param("cutoff") java.time.LocalDateTime cutoff);
+    List<Timesheet> findByAssignmentIdAndContractorIdAndStatusAndInvoiceIsNull(
+            String assignmentId, String contractorId, TimesheetStatus status);
 }

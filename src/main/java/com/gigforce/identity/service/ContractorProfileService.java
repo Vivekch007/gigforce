@@ -1,17 +1,16 @@
 package com.gigforce.identity.service;
 
-import com.gigforce.identity.dto.ContractorProfileRequestDTO;
-import com.gigforce.identity.dto.ContractorProfileResponseDTO;
-import com.gigforce.identity.dto.ContractorSkillRequestDTO;
+import com.gigforce.identity.dto.*;
+import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 
 public interface ContractorProfileService {
-    ContractorProfileResponseDTO createProfile(String userId, ContractorProfileRequestDTO request);
+    ContractorProfileResponseDTO createProfile(String userId, @Valid ContractorProfileCreationRequestDTO request);
     ContractorProfileResponseDTO getProfileById(String profileId);
     ContractorProfileResponseDTO getProfileByUserId(String userId);
-    ContractorProfileResponseDTO updateProfile(String profileId, ContractorProfileRequestDTO request);
+    ContractorProfileResponseDTO updateProfile(String profileId, ContractorProfileUpdateRequestDTO request);
     Page<ContractorProfileResponseDTO> searchProfiles(int page, int size, String skillName, Integer minExperience, String status);
     ContractorProfileResponseDTO addSkill(String profileId, ContractorSkillRequestDTO request);
-    ContractorProfileResponseDTO updateSkill(String profileId, String skillId, ContractorSkillRequestDTO request);
+    ContractorProfileResponseDTO updateSkill(String profileId, String skillId, ContractorSkillUpdateRequestDTO request);
     ContractorProfileResponseDTO removeSkill(String profileId, String skillId);
 }

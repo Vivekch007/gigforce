@@ -19,5 +19,5 @@ public interface ResourceRequisitionService {
     ResourceRequisitionResponseDTO getRequisitionById(String id);
 
     Page<ResourceRequisitionResponseDTO> searchRequisitions(
-            RequisitionStatus status, String requiredSkillId, BigDecimal maxRate, int page, int size);
+            RequisitionStatus status, String requiredSkillId, BigDecimal maxRate, String businessUnitId, int page, int size);
 }

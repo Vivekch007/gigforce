@@ -34,6 +34,5 @@ public class ContractorCertificationRequestDTO {
     private LocalDate issueDate;
 
     private LocalDate expiryDate; // Optional
-    @Pattern(regexp = "(?i)^(valid|expired|revoked)$", message = "certStatus must be one of: valid, expired, revoked")
-    private String certStatus; // optional: valid, expired, revoked
+
 }

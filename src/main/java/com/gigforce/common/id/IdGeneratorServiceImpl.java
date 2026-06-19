@@ -22,6 +22,9 @@ public class IdGeneratorServiceImpl implements IdGeneratorService {
             seq.setLastValue(seq.getLastValue() + 1);
         }
         repository.save(seq);
+        if ("PO-".equals(prefix) || "INV-".equals(prefix) || "PAY-".equals(prefix) || "WR-".equals(prefix) || "NOT-".equals(prefix)) {
+            return prefix + String.format("%03d", seq.getLastValue());
+        }
         return prefix + seq.getLastValue();
     }
 }

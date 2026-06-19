@@ -28,6 +28,7 @@ public class AuthController {
     }
 
     @PostMapping("/register")
+    @PreAuthorize("hasRole('ADMIN') || hasRole('HIRING_MANAGER')")
     @Operation(summary = "Register a new user", description = "Registers a new user (Contractor, Vendor, Finance, Admin etc.).")
     public ResponseEntity<UserResponseDTO> register(@Valid @RequestBody RegisterRequestDTO request) {
         UserResponseDTO registeredUser = authService.register(request);

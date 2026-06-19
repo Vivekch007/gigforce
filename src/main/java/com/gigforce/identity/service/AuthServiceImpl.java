@@ -70,6 +70,7 @@ public class AuthServiceImpl implements AuthService {
                 .phone(request.getPhone())
                 .role(request.getRole())
                 .status(UserStatus.ACTIVE)
+                .orgUnitId(request.getOrgUnitId())
                 .build();
 
         User savedUser = userRepository.save(user);

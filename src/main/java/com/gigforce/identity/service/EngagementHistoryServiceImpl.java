@@ -6,12 +6,14 @@ import com.gigforce.exception.EngagementNotFoundException;
 import com.gigforce.identity.dto.EngagementFeedbackRequestDTO;
 import com.gigforce.identity.dto.EngagementHistoryRequestDTO;
 import com.gigforce.identity.dto.EngagementHistoryResponseDTO;
+import com.gigforce.identity.dto.EngagementHistoryUpdateRequestDTO;
 import com.gigforce.identity.entity.ContractorProfile;
 import com.gigforce.identity.entity.EngagementHistory;
 import com.gigforce.identity.entity.User;
 import com.gigforce.identity.repository.ContractorProfileRepository;
 import com.gigforce.identity.repository.EngagementHistoryRepository;
 import com.gigforce.identity.repository.UserRepository;
+import jakarta.validation.Valid;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -92,7 +94,7 @@ public class EngagementHistoryServiceImpl implements EngagementHistoryService {
         @Override
         @Transactional
         public EngagementHistoryResponseDTO updateEngagement(String profileId, String engagementId,
-                        EngagementHistoryRequestDTO request) {
+                                                             @Valid EngagementHistoryUpdateRequestDTO request) {
                 ContractorProfile profile = contractorProfileRepository.findById(profileId)
                                 .orElseThrow(() -> new ContractorProfileNotFoundException(
                                                 "Contractor profile not found with ID: " + profileId));
@@ -109,7 +111,7 @@ public class EngagementHistoryServiceImpl implements EngagementHistoryService {
                         throw new IllegalArgumentException("Engagement does not belong to the specified profile.");
                 }
 
-                engagement.setClientName(request.getClientName().trim());
+
                 engagement.setRoleTitle(request.getRoleTitle().trim());
                 engagement.setStartDate(request.getStartDate());
                 engagement.setEndDate(request.getEndDate());
@@ -126,7 +128,7 @@ public class EngagementHistoryServiceImpl implements EngagementHistoryService {
                                 "CONTRACTOR_ENGAGEMENT_UPDATED",
                                 "ContractorProfile",
                                 profile.getId(),
-                                "Engagement updated for client '" + request.getClientName().trim()
+                                "Engagement updated for client '" + engagement.getClientName().trim()
                                                 + "' for contractor: " + profile.getUser().getEmail());
 
                 return toDto(updated);

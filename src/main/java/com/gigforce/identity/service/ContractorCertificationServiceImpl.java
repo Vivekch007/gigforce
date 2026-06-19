@@ -5,6 +5,7 @@ import com.gigforce.exception.CertificationNotFoundException;
 import com.gigforce.exception.ContractorProfileNotFoundException;
 import com.gigforce.identity.dto.ContractorCertificationRequestDTO;
 import com.gigforce.identity.dto.ContractorCertificationResponseDTO;
+import com.gigforce.identity.dto.ContractorCertificationUpdateRequestDTO;
 import com.gigforce.identity.entity.ContractorCertification;
 import com.gigforce.identity.entity.ContractorProfile;
 import com.gigforce.identity.entity.User;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -68,12 +70,10 @@ public class ContractorCertificationServiceImpl implements ContractorCertificati
                 }
 
                 CertificationStatus status = null;
-                if (request.getCertStatus() != null) {
-                        try {
-                                status = CertificationStatus.valueOf(request.getCertStatus().trim().toUpperCase());
-                        } catch (IllegalArgumentException e) {
-                                throw new IllegalArgumentException("certStatus must be one of: valid, expired, revoked");
-                        }
+                if(request.getExpiryDate() != null && request.getExpiryDate().isBefore(LocalDate.now())){
+                        status = CertificationStatus.EXPIRED;
+                } else {
+                        status = CertificationStatus.VALID;
                 }
 
                 ContractorCertification cert = ContractorCertification.builder()
@@ -121,7 +121,8 @@ public class ContractorCertificationServiceImpl implements ContractorCertificati
         @Override
         @Transactional
         public ContractorCertificationResponseDTO updateCertification(String profileId, String certId,
-                        ContractorCertificationRequestDTO request) {
+                                                                      ContractorCertificationUpdateRequestDTO request) {
+
                 if (profileId == null) {
                         throw new IllegalArgumentException("Profile ID cannot be null");
                 }
@@ -137,31 +138,14 @@ public class ContractorCertificationServiceImpl implements ContractorCertificati
                         throw new IllegalArgumentException("Certification does not belong to the specified profile.");
                 }
 
-                if (request.getExpiryDate() != null && request.getExpiryDate().isBefore(request.getIssueDate())) {
+                if (request.getExpiryDate() != null && request.getExpiryDate().isBefore(cert.getIssueDate())) {
                         throw new IllegalArgumentException("Certification expiry date cannot be before issue date.");
                 }
 
                 List<ContractorCertification> existingCerts = contractorCertificationRepository
                                 .findByContractorProfile(profile);
-                String reqCertNum = request.getCertificateNumber() != null ? request.getCertificateNumber().trim()
-                                : null;
-                boolean duplicateExists = existingCerts.stream()
-                                .filter(c -> !c.getId().equals(certId))
-                                .anyMatch(c -> c.getName().equalsIgnoreCase(request.getName().trim()) &&
-                                                ((c.getCertificateNumber() == null && reqCertNum == null) ||
-                                                                (c.getCertificateNumber() != null && c
-                                                                                .getCertificateNumber()
-                                                                                .equalsIgnoreCase(reqCertNum))));
-                if (duplicateExists) {
-                        throw new IllegalArgumentException(
-                                        "Certification with the same name and certificate number already exists on this profile.");
-                }
 
-                cert.setName(request.getName().trim());
-                cert.setIssuingAuthority(request.getIssuingAuthority().trim());
-                cert.setCertificateNumber(
-                                request.getCertificateNumber() != null ? request.getCertificateNumber().trim() : null);
-                cert.setIssueDate(request.getIssueDate());
+
                 cert.setExpiryDate(request.getExpiryDate());
                 CertificationStatus updateStatus = null;
                 if (request.getCertStatus() != null) {

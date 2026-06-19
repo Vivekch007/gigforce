@@ -34,7 +34,7 @@ public class VendorSubmissionController {
     }
 
     @PostMapping("/requisitions/{reqId}/submit")
-    @PreAuthorize("hasAnyRole('ADMIN', 'VENDOR_MANAGER', 'VENDOR')")
+    @PreAuthorize("hasAnyRole('VENDOR_MANAGER', 'VENDOR')")
     @Operation(summary = "Submit a contractor profile to an open requisition")
     public ResponseEntity<VendorSubmissionResponseDTO> submitContractor(
             @PathVariable String reqId,

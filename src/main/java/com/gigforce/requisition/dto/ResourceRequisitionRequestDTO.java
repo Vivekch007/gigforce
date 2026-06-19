@@ -50,4 +50,6 @@ public class ResourceRequisitionRequestDTO {
 
     @Size(max = 50, message = "Duration must be at most 50 characters")
     private String duration;
+
+    private String businessUnitId;
 }

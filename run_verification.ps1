@@ -23,6 +23,9 @@ function Log-Test {
     $global:results += $result
     $color = if ($status -eq "PASS") { "Green" } else { "Red" }
     Write-Host "[ $status ] $name - $details" -ForegroundColor $color
+    if ($status -eq "FAIL" -and $responseBody -ne "") {
+        Write-Host "  Response: $responseBody" -ForegroundColor Yellow
+    }
 }
 
 function Send-Req {
@@ -197,6 +200,7 @@ $regHaroldBody = @{
     password = "Password123!"
     phone = "9444444444"
     role = "HIRING_MANAGER"
+    orgUnitId = "HR"
 }
 $res = Send-Req "POST" "/auth/register" -body $regHaroldBody
 if ($res.StatusCode -eq 201) {
@@ -210,6 +214,7 @@ if ($res.StatusCode -eq 201) {
 $updateHaroldBody = @{
     name = "Hiring Manager Harold"
     phone = "9444444445"
+    orgUnitId = "HR"
 }
 $res = Send-Req "PUT" "/users/$($variables["hiringManagerUserId"])" -token $variables["adminAccessToken"] -body $updateHaroldBody
 if ($res.StatusCode -eq 200) {
@@ -286,6 +291,7 @@ $profileAliceBody = @{
     bio = "Experienced engineer specializing in Spring Boot microservices."
     hourlyRate = 45.00
     experienceYears = 6
+    preferredEngagementType = "REMOTE"
 }
 $res = Send-Req "POST" "/contractors/profiles" -token $variables["adminAccessToken"] -body $profileAliceBody
 if ($res.StatusCode -eq 201) {
@@ -326,6 +332,7 @@ $updateAliceBody = @{
     bio = "Specializing in distributed systems and cloud solutions."
     hourlyRate = 55.00
     experienceYears = 7
+    preferredEngagementType = "REMOTE"
 }
 $res = Send-Req "PUT" "/contractors/profiles/$($variables["contractorAProfileId"])" -token $variables["contractorAccessTokenA"] -body $updateAliceBody
 if ($res.StatusCode -eq 200 -and $res.Body.experienceYears -eq 7) {
@@ -341,6 +348,7 @@ $profileBobBody = @{
     bio = "Building beautiful frontends with React."
     hourlyRate = 40.00
     experienceYears = 4
+    preferredEngagementType = "REMOTE"
 }
 $res = Send-Req "POST" "/contractors/profiles" -token $variables["adminAccessToken"] -body $profileBobBody
 if ($res.StatusCode -eq 201) {
@@ -572,6 +580,7 @@ $profileNegativeBody = @{
     bio = "Negative hourly rate test"
     hourlyRate = -1.00
     experienceYears = 5
+    preferredEngagementType = "REMOTE"
 }
 $res = Send-Req "POST" "/contractors/profiles" -token $variables["adminAccessToken"] -body $profileNegativeBody
 if ($res.StatusCode -eq 400) {
@@ -587,6 +596,7 @@ $profileEmptyBody = @{
     bio = "Empty title test"
     hourlyRate = 10.00
     experienceYears = 5
+    preferredEngagementType = "REMOTE"
 }
 $res = Send-Req "POST" "/contractors/profiles" -token $variables["adminAccessToken"] -body $profileEmptyBody
 if ($res.StatusCode -eq 400) {
@@ -762,6 +772,7 @@ $createReqBody = @{
     minExperienceYears = 3
     maxHourlyRate = 50.00
     quantity = 1
+    businessUnitId = "HR"
 }
 $res = Send-Req "POST" "/requisitions" -token $variables["hiringManagerAccessTokenB"] -body $createReqBody
 if ($res.StatusCode -eq 201 -and $res.Body.status -eq "DRAFT") {
@@ -779,6 +790,7 @@ $updateReqBody = @{
     minExperienceYears = 4
     maxHourlyRate = 55.00
     quantity = 1
+    businessUnitId = "HR"
 }
 $res = Send-Req "PUT" "/requisitions/$($variables["reqId"])" -token $variables["hiringManagerAccessTokenB"] -body $updateReqBody
 if ($res.StatusCode -eq 200 -and $res.Body.maxHourlyRate -eq 55.00) {
@@ -935,7 +947,7 @@ $createAssignBody = @{
     startDate = "2026-06-10"
     endDate = "2026-12-10"
     agreedRatePerDay = 50.00
-    engagementType = "TIME_AND_MATERIALS"
+    engagementType = "REMOTE"
     sowReference = "SOW-ALICE-101"
 }
 $res = Send-Req "POST" "/assignments" -token $variables["hiringManagerAccessTokenB"] -body $createAssignBody
@@ -954,7 +966,7 @@ $createAssignBobBody = @{
     startDate = "2026-06-10"
     endDate = "2026-12-10"
     agreedRatePerDay = 45.00
-    engagementType = "TIME_AND_MATERIALS"
+    engagementType = "REMOTE"
     sowReference = "SOW-BOB-101"
 }
 $res = Send-Req "POST" "/assignments" -token $variables["hiringManagerAccessTokenB"] -body $createAssignBobBody
@@ -994,7 +1006,7 @@ $createAssignBobBody2 = @{
     startDate = "2026-06-10"
     endDate = "2026-12-10"
     agreedRatePerDay = 45.00
-    engagementType = "TIME_AND_MATERIALS"
+    engagementType = "REMOTE"
     sowReference = "SOW-BOB-102"
 }
 $res = Send-Req "POST" "/assignments" -token $variables["hiringManagerAccessTokenB"] -body $createAssignBobBody2
@@ -1260,6 +1272,7 @@ $createConcur1ProfileBody = @{
     bio = "Specialist in race conditions"
     hourlyRate = 55.00
     experienceYears = 5
+    preferredEngagementType = "REMOTE"
 }
 $res = Send-Req "POST" "/contractors/profiles" -token $variables["adminAccessToken"] -body $createConcur1ProfileBody
 $concur1ProfileId = $res.Body.id
@@ -1329,6 +1342,7 @@ $createConcur2ProfileBody = @{
     bio = "Specialist in race conditions"
     hourlyRate = 65.00
     experienceYears = 6
+    preferredEngagementType = "REMOTE"
 }
 $res = Send-Req "POST" "/contractors/profiles" -token $variables["adminAccessToken"] -body $createConcur2ProfileBody
 $concur2ProfileId = $res.Body.id
@@ -1376,7 +1390,7 @@ $createAssignBody = @{
     startDate = "2026-06-10"
     endDate = "2026-12-10"
     agreedRatePerDay = 65.00
-    engagementType = "TIME_AND_MATERIALS"
+    engagementType = "REMOTE"
     sowReference = "SOW-CONCUR2"
 }
 $bodyJson = $createAssignBody | ConvertTo-Json -Depth 10
@@ -1449,6 +1463,7 @@ $createAlice2ProfileBody = @{
     bio = "Junior java dev"
     hourlyRate = 30.00
     experienceYears = 2
+    preferredEngagementType = "REMOTE"
 }
 $res = Send-Req "POST" "/contractors/profiles" -token $variables["adminAccessToken"] -body $createAlice2ProfileBody
 $alice2ProfileId = $res.Body.id
@@ -1574,7 +1589,7 @@ $m5CreateAssignBody = @{
     startDate = "2026-06-08"
     endDate = "2026-12-08"
     agreedRatePerDay = 400.00
-    engagementType = "TIME_AND_MATERIALS"
+    engagementType = "REMOTE"
     sowReference = "SOW-M5-ALICE"
 }
 $res = Send-Req "POST" "/assignments" -token $variables["hiringManagerAccessTokenB"] -body $m5CreateAssignBody
@@ -1760,6 +1775,301 @@ if ($res.StatusCode -eq 201) {
     Log-Test "M5: Log <=4 hours on Half-Day Leave (Succeeds)" "PASS" "Successfully created timesheet draft with 4 hours on half-day leave."
 } else {
     Log-Test "M5: Log <=4 hours on Half-Day Leave (Succeeds)" "FAIL" "Expected 201 but got status $($res.StatusCode): $($res.RawContent)"
+}# ==================== MODULE 6: INVOICING & PAYMENT PROCESSING ====================
+
+# Step 1: Submit Alice's timesheet draft (created in Module 5, $res.Body.id)
+$m5TsId = $res.Body.id
+$res = Send-Req "POST" "/timesheets/$m5TsId/submit" -token $variables["contractorAccessTokenA"]
+if ($res.StatusCode -eq 200) {
+    Log-Test "M6: Submit Timesheet" "PASS" "Submitted timesheet draft $m5TsId successfully."
+} else {
+    Log-Test "M6: Submit Timesheet" "FAIL" "Failed to submit timesheet. Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# Step 2: Approve timesheet L1 by Harold (Hiring Manager)
+$res = Send-Req "POST" "/timesheets/$m5TsId/approve" -token $variables["hiringManagerAccessTokenB"] -body @{ remarks = "L1 Approved" }
+if ($res.StatusCode -eq 200) {
+    Log-Test "M6: L1 Approve Timesheet" "PASS" "HM approved timesheet successfully."
+} else {
+    Log-Test "M6: L1 Approve Timesheet" "FAIL" "HM failed to approve timesheet. Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# Step 3: Approve timesheet L2 by Finance
+$res = Send-Req "POST" "/timesheets/$m5TsId/approve" -token $variables["financeAccessToken"] -body @{ remarks = "L2 Approved" }
+if ($res.StatusCode -eq 200) {
+    Log-Test "M6: L2 Approve Timesheet" "PASS" "Finance approved timesheet successfully."
+} else {
+    Log-Test "M6: L2 Approve Timesheet" "FAIL" "Finance failed to approve timesheet. Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# Step 4: Create Purchase Order (Admin -> Victor Vendor for Assignment $m5AssignmentId)
+$createPOBody = @{
+    AssignmentID = $m5AssignmentId
+    VendorID = $variables["vendorManagerUserId"]
+    POAmount = 2500.00
+    Currency = "USD"
+    IssuedDate = "2026-06-01"
+    ExpiryDate = "2026-12-01"
+    Status = "ACTIVE"
+}
+$res = Send-Req "POST" "/purchase-orders" -token $variables["adminAccessToken"] -body $createPOBody
+$m6PoId = $res.Body.POID
+if ($res.StatusCode -eq 201 -and $m6PoId -like "PO-*") {
+    Log-Test "M6: Create Purchase Order" "PASS" "Created Purchase Order $m6PoId successfully."
+} else {
+    Log-Test "M6: Create Purchase Order" "FAIL" "Failed to create PO. Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# Step 5: Submit Invoice (Victor Vendor -> Admin/Finance)
+$createInvoiceBody = @{
+    POID = $m6PoId
+    AssignmentID = $m5AssignmentId
+    ContractorID = $variables["contractorAUserId"]
+    InvoicePeriod = "June 2026"
+    TimesheetIDs = @($m5TsId)
+}
+$res = Send-Req "POST" "/invoices" -token $variables["vendorManagerAccessTokenA"] -body $createInvoiceBody
+$m6InvoiceId = $res.Body.InvoiceID
+if ($res.StatusCode -eq 201 -and $m6InvoiceId -like "INV-*") {
+    Log-Test "M6: Submit Contractor Invoice" "PASS" "Submitted Contractor Invoice $m6InvoiceId successfully. Hours Billed: $($res.Body.HoursBilled), Amount: $($res.Body.InvoiceAmount)"
+} else {
+    Log-Test "M6: Submit Contractor Invoice" "FAIL" "Failed to submit invoice. Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# Step 6: Approve Invoice (Finance)
+$res = Send-Req "PUT" "/invoices/$m6InvoiceId/approve" -token $variables["financeAccessToken"]
+if ($res.StatusCode -eq 200 -and $res.Body.Status -eq "APPROVED") {
+    Log-Test "M6: Approve Contractor Invoice" "PASS" "Invoice approved successfully."
+} else {
+    Log-Test "M6: Approve Contractor Invoice" "FAIL" "Failed to approve invoice. Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# Step 7: Create Payment (Finance)
+$createPaymentBody = @{
+    InvoiceID = $m6InvoiceId
+    PaidAmount = 600.00
+    PaymentDate = "2026-06-13"
+    PaymentMode = "BANK_TRANSFER"
+    Status = "PENDING"
+}
+$res = Send-Req "POST" "/payments" -token $variables["financeAccessToken"] -body $createPaymentBody
+$m6PaymentId = $res.Body.PaymentID
+if ($res.StatusCode -eq 201 -and $m6PaymentId -like "PAY-*") {
+    Log-Test "M6: Create Pending Payment" "PASS" "Created pending payment $m6PaymentId successfully."
+} else {
+    Log-Test "M6: Create Pending Payment" "FAIL" "Failed to create payment. Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# Step 8: Process Payment & Verify Invoice Paid Status Cascade (Finance)
+$res = Send-Req "PUT" "/payments/$m6PaymentId/process" -token $variables["financeAccessToken"]
+if ($res.StatusCode -eq 200 -and $res.Body.Status -eq "PROCESSED") {
+    $invRes = Send-Req "GET" "/invoices/$m6InvoiceId" -token $variables["financeAccessToken"]
+    if ($invRes.Body.Status -eq "PAID") {
+        Log-Test "M6: Process Payment & Cascade Invoice PAID status" "PASS" "Payment processed and invoice marked PAID successfully."
+    } else {
+        Log-Test "M6: Process Payment & Cascade Invoice PAID status" "FAIL" "Payment processed but invoice status is $($invRes.Body.Status)"
+    }
+} else {
+    Log-Test "M6: Process Payment & Cascade Invoice PAID status" "FAIL" "Failed to process payment. Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+
+# ==================== MODULE 7: WORKFORCE ANALYTICS & REPORTING ====================
+
+# Step 1: Generate Report Snapshot (Admin)
+$generateReportBody = @{
+    scope = "EXECUTIVE"
+}
+$res = Send-Req "POST" "/reports/generate" -token $variables["adminAccessToken"] -body $generateReportBody
+$m7ReportId = $res.Body.ReportID
+if ($res.StatusCode -eq 201 -and $m7ReportId -like "WR-*") {
+    Log-Test "M7: Generate Report Snapshot" "PASS" "Created report snapshot $m7ReportId successfully."
+} else {
+    Log-Test "M7: Generate Report Snapshot" "FAIL" "Failed to generate report. Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# Step 2: Get All Reports (Finance)
+$res = Send-Req "GET" "/reports" -token $variables["financeAccessToken"]
+if ($res.StatusCode -eq 200 -and $res.Body.GetType().IsArray) {
+    Log-Test "M7: Get All Reports" "PASS" "Listed all reports successfully."
+} else {
+    Log-Test "M7: Get All Reports" "FAIL" "Failed to get reports. Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# Step 3: Get Report By ID (Finance)
+$res = Send-Req "GET" "/reports/$m7ReportId" -token $variables["financeAccessToken"]
+if ($res.StatusCode -eq 200 -and $res.Body.ReportID -eq $m7ReportId) {
+    Log-Test "M7: Get Report By ID" "PASS" "Fetched report by ID successfully."
+} else {
+    Log-Test "M7: Get Report By ID" "FAIL" "Failed to get report by ID. Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# Step 4: Get Executive Dashboard (Finance)
+$res = Send-Req "GET" "/reports/executive-dashboard?days=30" -token $variables["financeAccessToken"]
+if ($res.StatusCode -eq 200 -and $res.Body.ActiveContractors -ne $null) {
+    Log-Test "M7: Get Executive Dashboard" "PASS" "Fetched executive dashboard successfully."
+} else {
+    Log-Test "M7: Get Executive Dashboard" "FAIL" "Failed to fetch executive dashboard. Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# Step 5: Get Vendor Scorecard IDOR Protection (Vendor)
+# Even if requesting another_vendor, should return logged-in vendor's ID (Victor's user id)
+$res = Send-Req "GET" "/reports/vendor-scorecard/another_vendor" -token $variables["vendorManagerAccessTokenA"]
+if ($res.StatusCode -eq 200 -and $res.Body.VendorID -eq $variables["vendorManagerUserId"]) {
+    Log-Test "M7: Get Vendor Scorecard IDOR Protection" "PASS" "Fetched vendor scorecard with IDOR protection successfully."
+} else {
+    Log-Test "M7: Get Vendor Scorecard IDOR Protection" "FAIL" "Failed IDOR check. Status: $($res.StatusCode), VendorID: $($res.Body.VendorID)" "$($res.RawContent)"
+}
+
+# Step 6: Get Business Unit Dashboard IDOR Protection (Hiring Manager)
+# Even if requesting IT, should return Harold's business unit (HR)
+$res = Send-Req "GET" "/reports/business-unit/IT" -token $variables["hiringManagerAccessTokenB"]
+if ($res.StatusCode -eq 200 -and $res.Body.BusinessUnit -eq "HR") {
+    Log-Test "M7: Get Business Unit Dashboard IDOR Protection" "PASS" "Fetched Business Unit dashboard with IDOR protection successfully."
+} else {
+    Log-Test "M7: Get Business Unit Dashboard IDOR Protection" "FAIL" "Failed IDOR check. Status: $($res.StatusCode), BusinessUnit: $($res.Body.BusinessUnit)" "$($res.RawContent)"
+}
+
+# Step 7: Get Skill Dashboard (Hiring Manager)
+$res = Send-Req "GET" "/reports/skill/Java" -token $variables["hiringManagerAccessTokenB"]
+if ($res.StatusCode -eq 200 -and $res.Body.Skill -eq "Java") {
+    Log-Test "M7: Get Skill Dashboard" "PASS" "Fetched skill dashboard successfully."
+} else {
+    Log-Test "M7: Get Skill Dashboard" "FAIL" "Failed to fetch skill dashboard. Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# Step 8: Get Compliance Expiries (Admin)
+$res = Send-Req "GET" "/reports/compliance-expiry?days=30" -token $variables["adminAccessToken"]
+if ($res.StatusCode -eq 200 -and $res.Body -ge 0) {
+    Log-Test "M7: Get Compliance Expiries" "PASS" "Fetched compliance expiry count successfully."
+} else {
+    Log-Test "M7: Get Compliance Expiries" "FAIL" "Failed to get compliance expiries. Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+
+# ==================== MODULE 8: NOTIFICATIONS & ALERTS ====================
+
+# Step 1: Create an expiring certification for Alice to trigger scheduler alert
+$certExpiringBody = @{
+    name = "Expiring Scrum Master"
+    issuingAuthority = "Scrum Alliance"
+    certificateNumber = "CSM-998822"
+    issueDate = "2024-05-15"
+    expiryDate = "2026-06-20" # Expiring soon (6 days from current date 2026-06-14, which is within the 30-day window)
+    certStatus = "valid"
+}
+$res = Send-Req "POST" "/contractors/profiles/$($variables["contractorAProfileId"])/certifications" -token $variables["contractorAccessTokenA"] -body $certExpiringBody
+if ($res.StatusCode -eq 201) {
+    Log-Test "M8: Create Expiring Certification" "PASS" "Created expiring certification for Alice."
+} else {
+    Log-Test "M8: Create Expiring Certification" "FAIL" "Failed to create certification. Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# Step 2: Trigger Scheduler Jobs (Admin) - First Run
+$res = Send-Req "POST" "/notifications/trigger-jobs" -token $variables["adminAccessToken"]
+if ($res.StatusCode -eq 200) {
+    Log-Test "M8: Trigger Notification Scheduler Jobs (Run 1)" "PASS" "Successfully triggered scheduler jobs first time."
+} else {
+    Log-Test "M8: Trigger Notification Scheduler Jobs (Run 1)" "FAIL" "Failed to trigger jobs. Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# Step 3: Trigger Scheduler Jobs (Admin) - Second Run (Verify Duplicate Prevention)
+$res = Send-Req "POST" "/notifications/trigger-jobs" -token $variables["adminAccessToken"]
+if ($res.StatusCode -eq 200) {
+    Log-Test "M8: Trigger Notification Scheduler Jobs (Run 2)" "PASS" "Successfully triggered scheduler jobs second time."
+} else {
+    Log-Test "M8: Trigger Notification Scheduler Jobs (Run 2)" "FAIL" "Failed to trigger jobs. Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# Step 4: Contractor Fetch Notifications
+$res = Send-Req "GET" "/notifications" -token $variables["contractorAccessTokenA"]
+if ($res.StatusCode -eq 200 -and $res.Body.GetType().IsArray) {
+    $aliceNotifications = $res.Body
+    # Find warning notifications
+    $warningNotifications = @($aliceNotifications | Where-Object { $_.notificationType -eq "CERTIFICATION_EXPIRY_WARNING" })
+    if ($warningNotifications.Count -eq 1) {
+        Log-Test "M8: Duplicate Warning Prevention" "PASS" "Only one unread warning notification exists for the expiring certification."
+    } else {
+        Log-Test "M8: Duplicate Warning Prevention" "FAIL" "Expected exactly 1 warning, but got $($warningNotifications.Count)"
+    }
+} else {
+    Log-Test "M8: Contractor Fetch Notifications" "FAIL" "Failed to fetch notifications. Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# Step 5: Get Unread Notification Count
+$res = Send-Req "GET" "/notifications/unread-count" -token $variables["contractorAccessTokenA"]
+if ($res.StatusCode -eq 200) {
+    Log-Test "M8: Get Unread Count (Alice)" "PASS" "Fetched unread count for Alice: $($res.Body)"
+} else {
+    Log-Test "M8: Get Unread Count (Alice)" "FAIL" "Failed to fetch unread count. Status: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# Step 6: Verify Blocked Public POST endpoint (Fail 404, 405, or 500 Not Supported)
+$fakeNotifBody = @{
+    userId = $variables["contractorAUserId"]
+    message = "Fake Notification"
+    category = "ASSIGNMENT"
+}
+$res = Send-Req "POST" "/notifications" -token $variables["contractorAccessTokenA"] -body $fakeNotifBody
+if ($res.StatusCode -eq 404 -or $res.StatusCode -eq 405 -or ($res.StatusCode -eq 500 -and $res.RawContent -like "*not supported*")) {
+    Log-Test "M8: Public POST /notifications Blocked" "PASS" "Public notification creation blocked successfully."
+} else {
+    Log-Test "M8: Public POST /notifications Blocked" "FAIL" "Expected blocked response but got: $($res.StatusCode)" "$($res.RawContent)"
+}
+
+# Step 7: Verify IDOR Protection on GET by ID, READ, DISMISS
+if ($aliceNotifications.Length -gt 0) {
+    $notifId = $aliceNotifications[0].notificationId
+    
+    # Bob tries to access Alice's notification
+    $res = Send-Req "GET" "/notifications/$notifId" -token $variables["contractorAccessTokenB"]
+    if ($res.StatusCode -eq 403) {
+        Log-Test "M8: Get Notification IDOR Protection" "PASS" "Successfully blocked Bob from reading Alice's notification."
+    } else {
+        Log-Test "M8: Get Notification IDOR Protection" "FAIL" "Expected 403 but got status: $($res.StatusCode)" "$($res.RawContent)"
+    }
+    
+    # Alice accesses her own notification
+    $res = Send-Req "GET" "/notifications/$notifId" -token $variables["contractorAccessTokenA"]
+    if ($res.StatusCode -eq 200 -and $res.Body.notificationId -eq $notifId) {
+        Log-Test "M8: Get Notification By ID" "PASS" "Alice successfully fetched her own notification."
+    } else {
+        Log-Test "M8: Get Notification By ID" "FAIL" "Failed to fetch notification by ID. Status: $($res.StatusCode)" "$($res.RawContent)"
+    }
+
+    # Bob tries to read Alice's notification
+    $res = Send-Req "PUT" "/notifications/$notifId/read" -token $variables["contractorAccessTokenB"]
+    if ($res.StatusCode -eq 403) {
+        Log-Test "M8: Mark Read IDOR Protection" "PASS" "Successfully blocked Bob from marking Alice's notification as read."
+    } else {
+        Log-Test "M8: Mark Read IDOR Protection" "FAIL" "Expected 403 but got status: $($res.StatusCode)" "$($res.RawContent)"
+    }
+
+    # Alice marks her notification as read
+    $res = Send-Req "PUT" "/notifications/$notifId/read" -token $variables["contractorAccessTokenA"]
+    if ($res.StatusCode -eq 200 -and $res.Body.status -eq "READ") {
+        Log-Test "M8: Mark Notification As READ" "PASS" "Alice marked her notification as READ."
+    } else {
+        Log-Test "M8: Mark Notification As READ" "FAIL" "Failed to mark read. Status: $($res.StatusCode)" "$($res.RawContent)"
+    }
+
+    # Bob tries to dismiss Alice's notification
+    $res = Send-Req "PUT" "/notifications/$notifId/dismiss" -token $variables["contractorAccessTokenB"]
+    if ($res.StatusCode -eq 403) {
+        Log-Test "M8: Mark Dismissed IDOR Protection" "PASS" "Successfully blocked Bob from dismissing Alice's notification."
+    } else {
+        Log-Test "M8: Mark Dismissed IDOR Protection" "FAIL" "Expected 403 but got status: $($res.StatusCode)" "$($res.RawContent)"
+    }
+
+    # Alice dismisses her notification
+    $res = Send-Req "PUT" "/notifications/$notifId/dismiss" -token $variables["contractorAccessTokenA"]
+    if ($res.StatusCode -eq 200 -and $res.Body.status -eq "DISMISSED") {
+        Log-Test "M8: Mark Notification As DISMISSED" "PASS" "Alice marked her notification as DISMISSED."
+    } else {
+        Log-Test "M8: Mark Notification As DISMISSED" "FAIL" "Failed to dismiss notification. Status: $($res.StatusCode)" "$($res.RawContent)"
+    }
+} else {
+    Log-Test "M8: Get Notification IDOR/Actions" "FAIL" "No notifications exist for Alice to test IDOR/Read/Dismiss."
 }
 
 
@@ -1771,5 +2081,6 @@ $failed = ($global:results | Where-Object { $_.Status -eq "FAIL" }).Count
 Write-Host "Passed: $passed" -ForegroundColor Green
 Write-Host "Failed: $failed" -ForegroundColor Red
 Write-Host "==================================================" -ForegroundColor Cyan
+
 
 

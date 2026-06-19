@@ -4,12 +4,15 @@ import com.gigforce.assignment.dto.AssignmentRequestDTO;
 import com.gigforce.assignment.dto.AssignmentResponseDTO;
 import com.gigforce.assignment.enums.AssignmentStatus;
 import com.gigforce.assignment.service.AssignmentService;
+import com.gigforce.common.util.ApplicationContextHolder;
+import com.gigforce.security.CurrentUserContext;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,9 +22,11 @@ import org.springframework.web.bind.annotation.*;
 public class AssignmentController {
 
     private final AssignmentService assignmentService;
+    private final CurrentUserContext currentUserContext;
 
-    public AssignmentController(AssignmentService assignmentService) {
+    public AssignmentController(AssignmentService assignmentService, CurrentUserContext currentUserContext) {
         this.assignmentService = assignmentService;
+        this.currentUserContext = currentUserContext;
     }
 
     @PostMapping
@@ -40,8 +45,10 @@ public class AssignmentController {
         return ResponseEntity.ok(response);
     }
 
+
+
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER', 'VENDOR_MANAGER', 'VENDOR', 'CONTRACTOR', 'FINANCE')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER', 'VENDOR_MANAGER', 'VENDOR', 'FINANCE')")
     @Operation(summary = "Search and filter assignments (Paginated)")
     public ResponseEntity<Page<AssignmentResponseDTO>> searchAssignments(
             @RequestParam(required = false) AssignmentStatus status,

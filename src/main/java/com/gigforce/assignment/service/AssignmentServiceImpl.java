@@ -19,6 +19,7 @@ import com.gigforce.requisition.entity.VendorSubmission;
 import com.gigforce.identity.entity.EngagementHistory;
 import com.gigforce.identity.repository.EngagementHistoryRepository;
 import com.gigforce.requisition.enums.RequisitionStatus;
+import com.gigforce.requisition.enums.EngagementType;
 import com.gigforce.requisition.repository.ResourceRequisitionRepository;
 import com.gigforce.requisition.enums.SubmissionStatus;
 import com.gigforce.requisition.repository.VendorSubmissionRepository;
@@ -33,6 +34,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
+import com.gigforce.notification.service.NotificationService;
+import com.gigforce.notification.dto.NotificationRequestDTO;
+
 @Service
 @Transactional(readOnly = true)
 public class AssignmentServiceImpl implements AssignmentService {
@@ -44,6 +48,7 @@ public class AssignmentServiceImpl implements AssignmentService {
     private final EngagementHistoryRepository engagementHistoryRepository;
     private final UserRepository userRepository;
     private final AuditService auditService;
+    private final NotificationService notificationService;
 
     public AssignmentServiceImpl(
             AssignmentRepository assignmentRepository,
@@ -52,7 +57,8 @@ public class AssignmentServiceImpl implements AssignmentService {
             ContractorProfileRepository contractorProfileRepository,
             EngagementHistoryRepository engagementHistoryRepository,
             UserRepository userRepository,
-            AuditService auditService) {
+            AuditService auditService,
+            NotificationService notificationService) {
         this.assignmentRepository = assignmentRepository;
         this.submissionRepository = submissionRepository;
         this.requisitionRepository = requisitionRepository;
@@ -60,11 +66,13 @@ public class AssignmentServiceImpl implements AssignmentService {
         this.engagementHistoryRepository = engagementHistoryRepository;
         this.userRepository = userRepository;
         this.auditService = auditService;
+        this.notificationService = notificationService;
     }
 
     @Override
     @Transactional
     public AssignmentResponseDTO createAssignment(AssignmentRequestDTO request) {
+        // 1. Basic Request Validations
         if (request.getAgreedRatePerDay() == null || request.getAgreedRatePerDay().compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Agreed daily rate must be positive.");
         }
@@ -73,6 +81,7 @@ public class AssignmentServiceImpl implements AssignmentService {
             throw new IllegalArgumentException("End date cannot be before start date.");
         }
 
+        // 2. Fetch and Validate Submission
         VendorSubmission submission = submissionRepository.findById(request.getVendorSubmissionId())
                 .orElseThrow(() -> new SubmissionNotFoundException(
                         "Vendor submission not found with ID: " + request.getVendorSubmissionId()));
@@ -88,39 +97,57 @@ public class AssignmentServiceImpl implements AssignmentService {
                             + submission.getStatus());
         }
 
+        // 3. Contractor Profile Validations & Status Transition
         ContractorProfile profile = submission.getContractorProfile();
 
+        if (request.getEngagementType() != profile.getPreferredEngagementType()) {
+            throw new IllegalArgumentException(String.format(
+                    "Assignment engagement type %s does not match contractor preferred engagement type %s",
+                    request.getEngagementType(), profile.getPreferredEngagementType()));
+        }
+
+        // CONSOLIDATED AVAILABILITY CHECK & LOCK
+        if (profile.getAvailabilityStatus() == AvailabilityStatus.ON_ASSIGNMENT) {
+            throw new IllegalArgumentException("Contractor is already on an assignment and cannot be assigned to another requisition.");
+        }
+
+        // Safely shift the contractor status to ON_ASSIGNMENT
+        profile.setAvailabilityStatus(AvailabilityStatus.ON_ASSIGNMENT);
+        contractorProfileRepository.save(profile);
+
+        // 4. Context Setup (Current User & Requisition)
         String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
         User currentUser = userRepository.findByEmail(currentUsername)
                 .orElseThrow(() -> new UserNotFoundException("User not found with email: " + currentUsername));
 
         ResourceRequisition requisition = submission.getRequisition();
 
-                // Lock Contractor profile availability to ON_ASSIGNMENT if not already done
-                if (profile.getAvailabilityStatus() != AvailabilityStatus.ON_ASSIGNMENT) {
-                        profile.setAvailabilityStatus(AvailabilityStatus.ON_ASSIGNMENT);
-            contractorProfileRepository.save(profile);
-            auditService.logAction(
-                    currentUser.getId(),
-                    "CONTRACTOR_PROFILE_UPDATED",
-                    "ContractorProfile",
-                    profile.getId(),
-                    String.format("Contractor status changed to ASSIGNED on assignment creation by %s",
-                            currentUser.getEmail()));
-        }
+        // Log the Contractor Status Change
+        auditService.logAction(
+                currentUser.getId(),
+                "CONTRACTOR_PROFILE_UPDATED",
+                "ContractorProfile",
+                profile.getId(),
+                String.format("Contractor status changed to ASSIGNED on assignment creation by %s",
+                        currentUser.getEmail()));
 
-        // Determine vendor (if submission was vendor-submitted)
+        // 5. Determine Vendor Securely
+        User submittedBy = submission.getSubmittedBy();
         User vendorUser = null;
-        String submitterRole = submission.getSubmittedBy().getRole().name();
-        if (submitterRole.equals("VENDOR") || submitterRole.equals("VENDOR_MANAGER")) {
-            vendorUser = submission.getSubmittedBy();
+
+        if (submittedBy != null && submittedBy.getRole() != null) {
+            String submitterRole = submittedBy.getRole().name().trim();
+            if ("VENDOR".equalsIgnoreCase(submitterRole) || "VENDOR_MANAGER".equalsIgnoreCase(submitterRole)) {
+                vendorUser = submittedBy;
+            }
         }
 
+        // 6. Build and Save Assignment
         Assignment assignment = Assignment.builder()
                 .requisition(requisition)
                 .contractorProfile(profile)
-                .hiringManager(requisition.getCreator())
-                .vendor(vendorUser)
+                .hiringManager(requisition != null ? requisition.getCreator() : null)
+                .vendor(vendorUser) // Maps directly to vendor_user_id column via JPA object association
                 .vendorSubmission(submission)
                 .startDate(request.getStartDate())
                 .endDate(request.getEndDate())
@@ -132,6 +159,7 @@ public class AssignmentServiceImpl implements AssignmentService {
 
         Assignment saved = assignmentRepository.save(assignment);
 
+        // 7. Post-Creation Operations (Audit, Notifications & Capacity Management)
         auditService.logAction(
                 currentUser.getId(),
                 "ASSIGNMENT_CREATED",
@@ -140,16 +168,26 @@ public class AssignmentServiceImpl implements AssignmentService {
                 String.format("Assignment contract created for contractor %s by manager %s",
                         profile.getUser().getEmail(), currentUser.getEmail()));
 
+        if (saved.getContractorProfile() != null && saved.getContractorProfile().getUser() != null) {
+            notificationService.createNotification(NotificationRequestDTO.builder()
+                    .userId(saved.getContractorProfile().getUser().getId())
+                    .message(String.format("Your assignment %s has been created.", saved.getId()))
+                    .category("ASSIGNMENT")
+                    .notificationType("ASSIGNMENT_CREATED")
+                    .referenceEntityId(saved.getId())
+                    .referenceEntityType("Assignment")
+                    .build());
+        }
+
         // Auto-fill capacity transition check
         if (requisition != null) {
-            long activeAssignmentsCount = assignmentRepository.countByRequisitionIdAndStatus(requisition.getId(),
-                    AssignmentStatus.ACTIVE)
-                    + assignmentRepository.countByRequisitionIdAndStatus(requisition.getId(),
-                            AssignmentStatus.EXTENDED);
-            if (activeAssignmentsCount >= requisition.getQuantity()
-                    && requisition.getStatus() != RequisitionStatus.FILLED) {
+            long activeAssignmentsCount = assignmentRepository.countByRequisitionIdAndStatus(requisition.getId(), AssignmentStatus.ACTIVE)
+                    + assignmentRepository.countByRequisitionIdAndStatus(requisition.getId(), AssignmentStatus.EXTENDED);
+
+            if (activeAssignmentsCount >= requisition.getQuantity() && requisition.getStatus() != RequisitionStatus.FILLED) {
                 requisition.setStatus(RequisitionStatus.FILLED);
                 requisitionRepository.save(requisition);
+
                 auditService.logAction(
                         currentUser.getId(),
                         "REQUISITION_STATUS_CHANGED",
@@ -282,8 +320,6 @@ public class AssignmentServiceImpl implements AssignmentService {
                 .contractorEmail(assignment.getContractorProfile().getUser().getEmail())
                 .hiringManagerId(assignment.getHiringManager().getId())
                 .hiringManagerName(assignment.getHiringManager().getName())
-                .vendorId(assignment.getVendor() != null ? assignment.getVendor().getId() : null)
-                .vendorName(assignment.getVendor() != null ? assignment.getVendor().getName() : null)
                 .startDate(assignment.getStartDate())
                 .endDate(assignment.getEndDate())
                 .agreedRatePerDay(assignment.getAgreedRatePerDay())

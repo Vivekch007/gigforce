@@ -32,7 +32,7 @@ public class UserController {
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN') || hasRole('HIRING_MANAGER')")
-    @Operation(summary = "Get all users (Paginated & Filtered)", description = "Retrieves a paginated list of users. Restricted to ADMIN users.")
+    @Operation(summary = "Get all users (Paginated & Filtered)", description = "Retrieves a paginated list of users. Restricted to ADMIN users and Hiring Manager.")
     public ResponseEntity<Page<UserResponseDTO>> getAllUsers(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -51,22 +51,16 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Get user by ID", description = "Admins can view any user, other roles restricted to viewing only their own details.")
+    @PreAuthorize("hasRole('ADMIN') || hasRole('HIRING_MANAGER')")
+    @Operation(summary = "Get user by ID", description = "Admins and Hiring Manager can view any user profile. Other roles restricted to viewing self profile only.")
     public ResponseEntity<UserResponseDTO> getUserById(@PathVariable String id) {
         String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
         UserResponseDTO user = userService.getUserById(id);
-
-        boolean isAdmin = SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
-
-        if (!isAdmin && !user.getEmail().equals(currentUsername)) {
-            throw new AccessDeniedException("Access Denied: You are not authorized to view this user's details.");
-        }
-
         return ResponseEntity.ok(user);
     }
 
     @PutMapping("/{id}")
+
     @Operation(summary = "Update user details", description = "Updates name and/or phone. Admins can update any user, other roles restricted to updating self.")
     public ResponseEntity<UserResponseDTO> updateUser(
             @PathVariable String id,
@@ -77,6 +71,7 @@ public class UserController {
         boolean isAdmin = SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
 
+
         if (!isAdmin && !user.getEmail().equals(currentUsername)) {
             throw new AccessDeniedException("Access Denied: You are not authorized to update this user.");
         }
@@ -86,7 +81,7 @@ public class UserController {
     }
 
     @PutMapping("/{id}/suspend")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN', 'HIRING_MANAGER')")
     @Operation(summary = "Suspend user account", description = "Restricted to ADMIN users.")
     public ResponseEntity<UserResponseDTO> suspendUser(@PathVariable String id) {
         UserResponseDTO suspendedUser = userService.suspendUser(id);
@@ -94,16 +89,16 @@ public class UserController {
     }
 
     @PutMapping("/{id}/deactivate")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Deactivate user account", description = "Restricted to ADMIN users.")
+    @PreAuthorize("hasRole('ADMIN', 'HIRING_MANAGER')")
+    @Operation(summary = "Deactivate user account", description = "Restricted to ADMIN and Hiring Manager users.")
     public ResponseEntity<UserResponseDTO> deactivateUser(@PathVariable String id) {
         UserResponseDTO deactivatedUser = userService.deactivateUser(id);
         return ResponseEntity.ok(deactivatedUser);
     }
 
     @PutMapping("/{id}/activate")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Activate user account", description = "Activates a suspended/inactive user. Restricted to ADMIN users.")
+    @PreAuthorize("hasRole('ADMIN', 'HIRING_MANAGER')")
+    @Operation(summary = "Activate user account", description = "Activates a suspended/inactive user. Restricted to ADMIN and Hiring Manager users.")
     public ResponseEntity<UserResponseDTO> activateUser(@PathVariable String id) {
         UserResponseDTO activatedUser = userService.activateUser(id);
         return ResponseEntity.ok(activatedUser);

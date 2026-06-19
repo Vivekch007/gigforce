@@ -19,14 +19,17 @@ public interface ResourceRequisitionRepository extends JpaRepository<ResourceReq
                         "LEFT JOIN FETCH r.creator c " +
                         "WHERE (:status IS NULL OR r.status = :status) AND " +
                         "(:requiredSkillId IS NULL OR r.requiredSkill.id = :requiredSkillId) AND " +
-                        "(:maxHourlyRate IS NULL OR r.maxHourlyRate <= :maxHourlyRate)", countQuery = "SELECT COUNT(r) FROM ResourceRequisition r WHERE "
-                                        +
-                                        "(:status IS NULL OR r.status = :status) AND " +
-                                        "(:requiredSkillId IS NULL OR r.requiredSkill.id = :requiredSkillId) AND " +
-                                        "(:maxHourlyRate IS NULL OR r.maxHourlyRate <= :maxHourlyRate)")
+                        "(:maxHourlyRate IS NULL OR r.maxHourlyRate <= :maxHourlyRate) AND " +
+                        "(:businessUnitId IS NULL OR r.businessUnitId = :businessUnitId)", 
+                countQuery = "SELECT COUNT(r) FROM ResourceRequisition r WHERE " +
+                                "(:status IS NULL OR r.status = :status) AND " +
+                                "(:requiredSkillId IS NULL OR r.requiredSkill.id = :requiredSkillId) AND " +
+                                "(:maxHourlyRate IS NULL OR r.maxHourlyRate <= :maxHourlyRate) AND " +
+                                "(:businessUnitId IS NULL OR r.businessUnitId = :businessUnitId)")
         Page<ResourceRequisition> searchRequisitions(
                         @Param("status") RequisitionStatus status,
                         @Param("requiredSkillId") String requiredSkillId,
                         @Param("maxHourlyRate") BigDecimal maxHourlyRate,
+                        @Param("businessUnitId") String businessUnitId,
                         Pageable pageable);
 }

@@ -1,15 +1,13 @@
 package com.gigforce.identity.service;
 
+import com.gigforce.assignment.repository.AssignmentRepository;
 import com.gigforce.audit.service.AuditService;
 import com.gigforce.exception.ContractorProfileNotFoundException;
 import com.gigforce.exception.DuplicateProfileException;
 import com.gigforce.exception.DuplicateSkillException;
 import com.gigforce.exception.SkillNotFoundException;
 import com.gigforce.exception.UserNotFoundException;
-import com.gigforce.identity.dto.ContractorProfileRequestDTO;
-import com.gigforce.identity.dto.ContractorProfileResponseDTO;
-import com.gigforce.identity.dto.ContractorSkillRequestDTO;
-import com.gigforce.identity.dto.ContractorSkillResponseDTO;
+import com.gigforce.identity.dto.*;
 import com.gigforce.identity.entity.ContractorProfile;
 import com.gigforce.identity.entity.ContractorSkill;
 import com.gigforce.identity.entity.Skill;
@@ -18,10 +16,12 @@ import com.gigforce.identity.enums.AvailabilityStatus;
 import com.gigforce.identity.enums.ProfileStatus;
 import com.gigforce.identity.enums.ProficiencyLevel;
 import com.gigforce.identity.enums.UserRole;
+import com.gigforce.requisition.enums.EngagementType;
 import com.gigforce.identity.repository.ContractorProfileRepository;
 import com.gigforce.identity.repository.ContractorSkillRepository;
 import com.gigforce.identity.repository.SkillRepository;
 import com.gigforce.identity.repository.UserRepository;
+import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -58,7 +58,7 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
 
     @Override
     @Transactional
-    public ContractorProfileResponseDTO createProfile(String userId, ContractorProfileRequestDTO request) {
+    public ContractorProfileResponseDTO createProfile(String userId, @Valid ContractorProfileCreationRequestDTO request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException("User not found with ID: " + userId));
 
@@ -70,14 +70,30 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
             throw new IllegalArgumentException("Only users with CONTRACTOR role can have a profile.");
         }
 
+        AvailabilityStatus availability = AvailabilityStatus.AVAILABLE;
+
+
+        ProfileStatus profileStatus = ProfileStatus.ACTIVE;
+
+
+        EngagementType preferredEngagementType;
+        if (request.getPreferredEngagementType() == null || request.getPreferredEngagementType().trim().isEmpty()) {
+            throw new IllegalArgumentException("Preferred engagement type is required.");
+        }
+        try {
+            preferredEngagementType = EngagementType.valueOf(request.getPreferredEngagementType().toUpperCase().trim());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid preferredEngagementType: " + request.getPreferredEngagementType());
+        }
+
         ContractorProfile profile = ContractorProfile.builder()
             .user(user)
             .hourlyRate(request.getHourlyRate())
             .experienceYears(request.getExperienceYears())
-//                .availabilityStatus(AvailabilityStatus.AVAILABLE)
-                .availabilityStatus(AvailabilityStatus.valueOf(request.getAvailabilityStatus()))
-                .profileStatus(ProfileStatus.valueOf(request.getStatus()))
-                .build();
+            .availabilityStatus(availability)
+            .profileStatus(profileStatus)
+            .preferredEngagementType(preferredEngagementType)
+            .build();
 
         ContractorProfile savedProfile = contractorProfileRepository.save(profile);
 
@@ -117,9 +133,11 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
         return toDto(profile, skills);
     }
 
+
+
     @Override
     @Transactional
-    public ContractorProfileResponseDTO updateProfile(String profileId, ContractorProfileRequestDTO request) {
+    public ContractorProfileResponseDTO updateProfile(String profileId, ContractorProfileUpdateRequestDTO request) {
         ContractorProfile profile = contractorProfileRepository.findById(profileId)
                 .orElseThrow(() -> new ContractorProfileNotFoundException(
                         "Contractor profile not found with ID: " + profileId));
@@ -134,6 +152,8 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
             } catch (IllegalArgumentException e) {
                 throw new IllegalArgumentException("Invalid availabilityStatus: " + request.getAvailabilityStatus());
             }
+        }else{
+            throw new IllegalArgumentException("Invalid availabilityStatus: Can't be null or Empty");
         }
 
         if (request.getStatus() != null && !request.getStatus().trim().isEmpty()) {
@@ -143,6 +163,21 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
             } catch (IllegalArgumentException e) {
                 throw new IllegalArgumentException("Invalid profile status: " + request.getStatus());
             }
+        }
+        else{
+            throw new IllegalArgumentException("Invalid Profile Status: Can't be Empty");
+        }
+
+        if (request.getPreferredEngagementType() != null && !request.getPreferredEngagementType().trim().isEmpty()) {
+            try {
+                EngagementType engType = EngagementType.valueOf(request.getPreferredEngagementType().toUpperCase().trim());
+                profile.setPreferredEngagementType(engType);
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("Invalid preferredEngagementType: " + request.getPreferredEngagementType());
+            }
+        }
+        else{
+            throw new IllegalArgumentException("Invalid Preferred Engagement Type: Can't be Empty");
         }
 
         ContractorProfile updatedProfile = contractorProfileRepository.save(profile);
@@ -182,13 +217,29 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
             return null;
         });
 
-                if (status != null && !status.trim().isEmpty()) {
-                    try {
-                        ProfileStatus statusEnum = ProfileStatus.valueOf(status.toUpperCase().trim());
-                        spec = spec.and((root, query, cb) -> cb.equal(root.get("profileStatus"), statusEnum));
-                    } catch (IllegalArgumentException e) {
-                        // ignore invalid status filter
+        if (status != null && !status.trim().isEmpty()) {
+            try {
+                String statusUpper = status.toUpperCase().trim();
+                if (statusUpper.equals("ACTIVE") || statusUpper.equals("INACTIVE") || statusUpper.equals("BLACKLISTED")) {
+                    ProfileStatus statusEnum = ProfileStatus.valueOf(statusUpper);
+                    spec = spec.and((root, query, cb) -> cb.equal(root.get("profileStatus"), statusEnum));
+                } else {
+                    AvailabilityStatus availEnum = null;
+                    if (statusUpper.equals("ONBOARDING")) {
+                        spec = spec.and((root, query, cb) -> cb.equal(root.get("profileStatus"), ProfileStatus.ACTIVE));
+                    } else {
+                        if (statusUpper.equals("ASSIGNED")) {
+                            availEnum = AvailabilityStatus.ON_ASSIGNMENT;
+                        } else {
+                            availEnum = AvailabilityStatus.valueOf(statusUpper);
+                        }
+                        AvailabilityStatus finalAvail = availEnum;
+                        spec = spec.and((root, query, cb) -> cb.equal(root.get("availabilityStatus"), finalAvail));
                     }
+                }
+            } catch (IllegalArgumentException e) {
+                // ignore invalid status filter
+            }
         }
 
         if (minExperience != null) {
@@ -272,7 +323,7 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
 
     @Override
     @Transactional
-    public ContractorProfileResponseDTO updateSkill(String profileId, String skillId, ContractorSkillRequestDTO request) {
+    public ContractorProfileResponseDTO updateSkill(String profileId, String skillId, ContractorSkillUpdateRequestDTO request) {
         ContractorProfile profile = contractorProfileRepository.findById(profileId)
                 .orElseThrow(() -> new ContractorProfileNotFoundException(
                         "Contractor profile not found with ID: " + profileId));
@@ -361,12 +412,16 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
                 .userName(profile.getUser().getName())
                 .userEmail(profile.getUser().getEmail())
                 .availabilityStatus(profile.getAvailabilityStatus() != null ? profile.getAvailabilityStatus().name() : null)
-                .status(profile.getProfileStatus() == ProfileStatus.INACTIVE ? "INACTIVE" :
-                        (profile.getProfileStatus() == ProfileStatus.ACTIVE ? "ACTIVE" :
-                         (profile.getProfileStatus() == ProfileStatus.BLACKLISTED ? "BLACKLISTED" : null)))
+//                .status(profile.getProfileStatus() == ProfileStatus.INACTIVE ? "INACTIVE" :
+//                        (profile.getProfileStatus() == ProfileStatus.BLACKLISTED ? "BLACKLISTED" :
+//                         (profile.getAvailabilityStatus() == AvailabilityStatus.ON_ASSIGNMENT ? "ACTIVE" :
+//                          (profile.getAvailabilityStatus() == AvailabilityStatus.ON_STATUS ? "ONBOARDING" : "AVAILABLE"))))
+//
+                .status(profile.getProfileStatus() != null ? profile.getProfileStatus().name() : null)
                 .hourlyRate(profile.getHourlyRate())
                 .experienceYears(profile.getExperienceYears())
                 .skills(skillDtos)
+                .preferredEngagementType(profile.getPreferredEngagementType() != null ? profile.getPreferredEngagementType().name() : null)
                 .createdAt(profile.getCreatedAt())
                 .updatedAt(profile.getUpdatedAt())
                 .build();

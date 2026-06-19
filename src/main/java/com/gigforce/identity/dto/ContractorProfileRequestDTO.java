@@ -38,4 +38,7 @@ public class ContractorProfileRequestDTO {
 //    private ProfileStatus status; // profile status: ACTIVE, INACTIVE, BLACKLISTED
     private String availabilityStatus;
     private String status;
+
+    @NotBlank(message = "Preferred engagement type is required")
+    private String preferredEngagementType;
 }

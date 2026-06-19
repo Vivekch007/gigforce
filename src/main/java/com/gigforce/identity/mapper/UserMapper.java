@@ -22,6 +22,7 @@ public class UserMapper {
                 .createdBy(user.getCreatedBy())
                 .updatedAt(user.getUpdatedAt())
                 .updatedBy(user.getUpdatedBy())
+                .orgUnitId(user.getOrgUnitId())
                 .build();
     }
 }

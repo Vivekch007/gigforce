@@ -25,7 +25,7 @@ public class TimesheetController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'CONTRACTOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER')")
     @Operation(summary = "Create weekly timesheet draft")
     public ResponseEntity<TimesheetResponseDTO> createTimesheet(@Valid @RequestBody TimesheetRequestDTO request) {
         TimesheetResponseDTO response = timesheetService.createTimesheet(request);
@@ -100,7 +100,7 @@ public class TimesheetController {
     }
 
     @GetMapping("/payroll-ready")
-    @PreAuthorize("hasAnyRole('ADMIN', 'FINANCE')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'FINANCE', 'HIRING_MANAGER')")
     @Operation(summary = "Get APPROVED and NOT_PROCESSED timesheets for billing/payroll")
     public ResponseEntity<List<TimesheetResponseDTO>> getPayrollReadyTimesheets() {
         List<TimesheetResponseDTO> response = timesheetService.getPayrollReadyTimesheets();

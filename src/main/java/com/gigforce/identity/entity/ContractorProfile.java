@@ -3,6 +3,7 @@ package com.gigforce.identity.entity;
 import com.gigforce.common.entity.BaseEntity;
 import com.gigforce.identity.enums.AvailabilityStatus;
 import com.gigforce.identity.enums.ProfileStatus;
+import com.gigforce.requisition.enums.EngagementType;
 import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -57,5 +58,7 @@ public class ContractorProfile extends BaseEntity {
     @Column(name = "profile_status", nullable = false, length = 30)
     private ProfileStatus profileStatus;
 
-    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "preferred_engagement_type", nullable = false, length = 30)
+    private EngagementType preferredEngagementType;
 }

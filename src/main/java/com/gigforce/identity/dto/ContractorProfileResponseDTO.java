@@ -25,6 +25,7 @@ public class ContractorProfileResponseDTO {
     private String availabilityStatus;
     private String status;
     private List<ContractorSkillResponseDTO> skills;
+    private String preferredEngagementType;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

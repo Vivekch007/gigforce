@@ -83,4 +83,7 @@ public class ResourceRequisition extends BaseEntity {
 
     @Column(nullable = false, length = 50)
     private String duration;
+
+    @Column(name = "business_unit_id", length = 64)
+    private String businessUnitId;
 }

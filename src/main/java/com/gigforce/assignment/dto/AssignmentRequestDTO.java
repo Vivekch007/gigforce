@@ -29,9 +29,8 @@ public class AssignmentRequestDTO {
     @DecimalMin(value = "0.01", message = "Agreed daily rate must be greater than 0")
     private BigDecimal agreedRatePerDay;
 
-    @NotBlank(message = "Engagement type is required")
-    @Size(max = 50, message = "Engagement type must not exceed 50 characters")
-    private String engagementType;
+    @NotNull(message = "Engagement type is required")
+    private com.gigforce.requisition.enums.EngagementType engagementType;
 
     @Size(max = 150, message = "SOW reference must not exceed 150 characters")
     private String sowReference;

@@ -125,36 +125,37 @@ public class VendorSubmissionServiceImpl implements VendorSubmissionService {
         VendorSubmission submission = submissionRepository.findById(id)
                 .orElseThrow(() -> new SubmissionNotFoundException("Vendor submission not found with ID: " + id));
 
+        SubmissionStatus oldStatus = submission.getStatus();
+
+        // 1. STAGE TRANSITION VALIDATION
+        if (!oldStatus.canTransitionTo(targetStatus)) {
+            throw new IllegalArgumentException(
+                    String.format("Invalid status transition: Cannot change status from %s to %s.", oldStatus, targetStatus)
+            );
+        }
+
         ResourceRequisition requisition = submission.getRequisition();
 
+        // 2. SECURITY CHECK
         String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
         User currentUser = userRepository.findByEmail(currentUsername)
                 .orElseThrow(() -> new UserNotFoundException("User not found with email: " + currentUsername));
 
-        // Security check: Only requisition creator (Hiring Manager) or ADMIN can
-        // transition submission status
         boolean isAdmin = currentUser.getRole().name().equals("ADMIN");
         if (!isAdmin && !requisition.getCreator().getId().equals(currentUser.getId())) {
             throw new AccessDeniedException("Access Denied: Only the requisition creator can evaluate submissions.");
         }
 
-        SubmissionStatus oldStatus = submission.getStatus();
-
-        // Validate state transitions
-        if (oldStatus == SubmissionStatus.SELECTED || oldStatus == SubmissionStatus.REJECTED) {
-            throw new IllegalArgumentException(
-                    "Cannot transition status. Submission is already in " + oldStatus + " status.");
-        }
-
+        // 3. TARGET STATUS SPECIFIC LOGIC
         if (targetStatus == SubmissionStatus.SELECTED) {
             ContractorProfile profile = submission.getContractorProfile();
             if (profile.getAvailabilityStatus() != AvailabilityStatus.AVAILABLE
                     && profile.getAvailabilityStatus() != AvailabilityStatus.ON_STATUS) {
                 throw new IllegalArgumentException(
-                    "Contractor is no longer available (AvailabilityStatus: " + profile.getAvailabilityStatus() + ").");
+                        "Contractor is no longer available (AvailabilityStatus: " + profile.getAvailabilityStatus() + ").");
             }
 
-            // Transition contractor profile status
+            // Keep your profile update active if required
             profile.setAvailabilityStatus(AvailabilityStatus.ON_ASSIGNMENT);
             contractorProfileRepository.save(profile);
 
@@ -163,19 +164,21 @@ public class VendorSubmissionServiceImpl implements VendorSubmissionService {
                     "CONTRACTOR_PROFILE_UPDATED",
                     "ContractorProfile",
                     profile.getId(),
-                    String.format("Contractor status changed to ASSIGNED on submission acceptance by %s",
-                            currentUser.getEmail()));
+                    String.format("Contractor status changed to ASSIGNED on submission acceptance by %s", currentUser.getEmail()));
+        }
 
-            // Transition submission status to SELECTED
-            submission.setStatus(SubmissionStatus.SELECTED);
-            if (remarks != null) {
-                submission.setRemarks(remarks.trim());
-            }
-            submissionRepository.saveAndFlush(submission);
+        // 4. GENERAL STATE UPDATE (Removes the repetitive if/else blocks)
+        submission.setStatus(targetStatus);
+        if (remarks != null) {
+            submission.setRemarks(remarks.trim());
+        }
 
-            // Requisition auto-fill logic
-            long acceptedCount = submissionRepository.countByRequisitionIdAndStatus(requisition.getId(),
-                    SubmissionStatus.SELECTED);
+        // Use flush if you need the count queries below to immediately see this change
+        submissionRepository.saveAndFlush(submission);
+
+        // 5. POST-TRANSITION LOGIC (AUTO-FILL REQUISITION)
+        if (targetStatus == SubmissionStatus.SELECTED) {
+            long acceptedCount = submissionRepository.countByRequisitionIdAndStatus(requisition.getId(), SubmissionStatus.SELECTED);
             if (acceptedCount >= requisition.getQuantity()) {
                 requisition.setStatus(RequisitionStatus.FILLED);
                 requisitionRepository.save(requisition);
@@ -188,35 +191,15 @@ public class VendorSubmissionServiceImpl implements VendorSubmissionService {
                         String.format("Requisition '%s' marked as FILLED automatically. Selected submissions count: %d",
                                 requisition.getTitle(), acceptedCount));
             }
-        } else if (targetStatus == SubmissionStatus.REJECTED) {
-            submission.setStatus(SubmissionStatus.REJECTED);
-            if (remarks != null) {
-                submission.setRemarks(remarks.trim());
-            }
-            submissionRepository.save(submission);
-        } else if (targetStatus == SubmissionStatus.SHORTLISTED) {
-            submission.setStatus(SubmissionStatus.SHORTLISTED);
-            if (remarks != null) {
-                submission.setRemarks(remarks.trim());
-            }
-            submissionRepository.save(submission);
-        } else if (targetStatus == SubmissionStatus.INTERVIEW_SCHEDULED) {
-            submission.setStatus(SubmissionStatus.INTERVIEW_SCHEDULED);
-            if (remarks != null) {
-                submission.setRemarks(remarks.trim());
-            }
-            submissionRepository.save(submission);
-        } else {
-            throw new IllegalArgumentException("Invalid target status for transition.");
         }
 
+        // 6. GLOBAL AUDIT LOGGING
         auditService.logAction(
                 currentUser.getId(),
                 "VENDOR_SUBMISSION_STATUS_CHANGED",
                 "VendorSubmission",
                 submission.getId(),
-                String.format("Submission status changed: %s -> %s by %s", oldStatus, targetStatus,
-                        currentUser.getEmail()));
+                String.format("Submission status changed: %s -> %s by %s", oldStatus, targetStatus, currentUser.getEmail()));
 
         return toDto(submission);
     }

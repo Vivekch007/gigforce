@@ -3,6 +3,7 @@ package com.gigforce.assignment.dto;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.*;
 
 import java.time.LocalDate;
@@ -23,5 +24,6 @@ public class TimesheetRequestDTO {
 
     @NotEmpty(message = "Timesheet lines cannot be empty")
     @Valid
+
     private List<TimesheetLineRequestDTO> lines;
 }
