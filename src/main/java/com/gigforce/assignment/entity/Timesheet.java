@@ -1,6 +1,7 @@
 package com.gigforce.assignment.entity;
 
 import com.gigforce.common.entity.BaseEntity;
+import com.gigforce.identity.entity.ContractorProfile;
 import com.gigforce.identity.entity.User;
 import com.gigforce.assignment.enums.TimesheetStatus;
 import com.gigforce.assignment.enums.PayrollStatus;
@@ -13,12 +14,12 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "timesheets", uniqueConstraints = {
-        @UniqueConstraint(name = "uq_contractor_assignment_week", columnNames = { "contractor_user_id", "assignment_id",
+        @UniqueConstraint(name = "uq_contractor_assignment_week", columnNames = { "contractor_profile_id", "assignment_id",
                 "week_start_date" })
 }, indexes = {
         @Index(name = "idx_timesheet_status", columnList = "status"),
         @Index(name = "idx_timesheet_assignment", columnList = "assignment_id"),
-        @Index(name = "idx_timesheet_contractor", columnList = "contractor_user_id"),
+        @Index(name = "idx_timesheet_contractor", columnList = "contractor_profile_id"),
         @Index(name = "idx_timesheet_week", columnList = "week_start_date"),
         @Index(name = "idx_timesheet_payroll_status", columnList = "payroll_status")
 })
@@ -35,8 +36,8 @@ public class Timesheet extends BaseEntity {
     private Assignment assignment;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "contractor_user_id", nullable = false)
-    private User contractor;
+    @JoinColumn(name = "contractor_profile_id", nullable = false)
+    private ContractorProfile contractor;
 
     @Column(name = "week_start_date", nullable = false)
     private LocalDate weekStartDate;

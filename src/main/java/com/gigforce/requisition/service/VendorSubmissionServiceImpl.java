@@ -156,7 +156,7 @@ public class VendorSubmissionServiceImpl implements VendorSubmissionService {
             }
 
             // Keep your profile update active if required
-            profile.setAvailabilityStatus(AvailabilityStatus.ON_ASSIGNMENT);
+            profile.setAvailabilityStatus(AvailabilityStatus.AVAILABLE);
             contractorProfileRepository.save(profile);
 
             auditService.logAction(

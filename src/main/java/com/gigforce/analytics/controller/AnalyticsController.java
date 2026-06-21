@@ -47,7 +47,7 @@ public class AnalyticsController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping({"/dashboard", "/executive-dashboard"})
+    @GetMapping({"/executive-dashboard"})
     @PreAuthorize("hasAnyRole('ADMIN', 'FINANCE')")
     @Operation(summary = "Get Executive Dashboard metrics")
     public ResponseEntity<ExecutiveDashboardResponseDTO> getExecutiveDashboard(

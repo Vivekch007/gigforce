@@ -11,6 +11,7 @@ import com.gigforce.identity.entity.ContractorAbsence;
 import com.gigforce.identity.entity.ContractorProfile;
 import com.gigforce.identity.entity.User;
 import com.gigforce.identity.repository.ContractorAbsenceRepository;
+import com.gigforce.identity.repository.ContractorProfileRepository;
 import com.gigforce.identity.repository.UserRepository;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -33,6 +34,7 @@ import com.gigforce.notification.dto.NotificationRequestDTO;
 public class TimesheetServiceImpl implements TimesheetService {
 
     private final TimesheetRepository timesheetRepository;
+    private final ContractorProfileRepository contractorProfileRepository;
     private final TimesheetLineRepository timesheetLineRepository;
     private final TimesheetApprovalRepository timesheetApprovalRepository;
     private final TimesheetCommentRepository timesheetCommentRepository;
@@ -43,6 +45,7 @@ public class TimesheetServiceImpl implements TimesheetService {
     private final NotificationService notificationService;
 
     public TimesheetServiceImpl(
+            ContractorProfileRepository contractorProfileRepository,
             TimesheetRepository timesheetRepository,
             TimesheetLineRepository timesheetLineRepository,
             TimesheetApprovalRepository timesheetApprovalRepository,
@@ -61,6 +64,7 @@ public class TimesheetServiceImpl implements TimesheetService {
         this.userRepository = userRepository;
         this.auditService = auditService;
         this.notificationService = notificationService;
+        this.contractorProfileRepository = contractorProfileRepository;
     }
 
     @Override
@@ -79,7 +83,7 @@ public class TimesheetServiceImpl implements TimesheetService {
 
         // Week start date validation (must be Monday)
         if (request.getWeekStartDate().getDayOfWeek() != DayOfWeek.SATURDAY) {
-            throw new IllegalArgumentException("Timesheet week start date must be a Monday.");
+            throw new IllegalArgumentException("Timesheet week start date must be a SATURDAY.");
         }
 
         ContractorProfile profile = assignment.getContractorProfile();
@@ -100,7 +104,7 @@ public class TimesheetServiceImpl implements TimesheetService {
 
         Timesheet timesheet = Timesheet.builder()
                 .assignment(assignment)
-                .contractor(profile.getUser())
+                .contractor(profile)
                 .weekStartDate(request.getWeekStartDate())
                 .weekEndDate(request.getWeekStartDate().plusDays(6))
                 .status(TimesheetStatus.DRAFT)
@@ -162,10 +166,15 @@ public class TimesheetServiceImpl implements TimesheetService {
         User currentUser = userRepository.findByEmail(currentUsername)
                 .orElseThrow(() -> new UserNotFoundException("User not found with email: " + currentUsername));
 
-        if (currentUser.getRole().name().equals("CONTRACTOR")
-                && !timesheet.getContractor().getId().equals(currentUser.getId())) {
-            throw new AccessDeniedException("You are not authorized to update this timesheet.");
+        if (currentUser.getRole().name().equals("CONTRACTOR")){
+            ContractorProfile cp = contractorProfileRepository.findByUserId(currentUser.getId())
+                    .orElseThrow(() -> new UserNotFoundException("Contractor profile not found for user: " + currentUsername));
+            if(!timesheet.getContractor().getId().equals(cp.getId())) {
+                System.out.println(timesheet.getContractor().getId() + "\t" + cp.getId());
+                throw new AccessDeniedException("You are not authorized to update this timesheet.");
+            }
         }
+
 
         // Explicitly update the main timesheet metadata tracking
         // If your entity uses @LastModifiedBy annotation, ensure your AuditorAware bean is configured correctly.
@@ -240,9 +249,13 @@ public class TimesheetServiceImpl implements TimesheetService {
         User currentUser = userRepository.findByEmail(currentUsername)
                 .orElseThrow(() -> new UserNotFoundException("User not found with email: " + currentUsername));
 
-        if (currentUser.getRole().name().equals("CONTRACTOR")
-                && !timesheet.getContractor().getId().equals(currentUser.getId())) {
-            throw new AccessDeniedException("You are not authorized to submit this timesheet.");
+        if (currentUser.getRole().name().equals("CONTRACTOR")){
+            ContractorProfile cp = contractorProfileRepository.findByUserId(currentUser.getId())
+                    .orElseThrow(() -> new UserNotFoundException("Contractor profile not found for user: " + currentUsername));
+            if(!timesheet.getContractor().getId().equals(cp.getId())) {
+                System.out.println(timesheet.getContractor().getId() + "\t" + cp.getId());
+                throw new AccessDeniedException("You are not authorized to update this timesheet.");
+            }
         }
 
         timesheet.setStatus(TimesheetStatus.SUBMITTED);
@@ -264,12 +277,13 @@ public class TimesheetServiceImpl implements TimesheetService {
         timesheetApprovalRepository.save(approval);
         Timesheet saved = timesheetRepository.save(timesheet);
 
+
         auditService.logAction(
                 currentUser.getId(),
                 "TIMESHEET_SUBMITTED",
                 "Timesheet",
                 saved.getId(),
-                String.format("Timesheet submitted for contractor %s for week %s", timesheet.getContractor().getEmail(),
+                String.format("Timesheet submitted for contractor %s for week %s", timesheet.getContractor().getUser().getEmail(),
                         saved.getWeekStartDate()));
 
         if (saved.getAssignment() != null && saved.getAssignment().getHiringManager() != null) {
@@ -328,7 +342,7 @@ public class TimesheetServiceImpl implements TimesheetService {
                     "Timesheet",
                     saved.getId(),
                     String.format("L1 approved by %s for contractor %s", currentUser.getEmail(),
-                            timesheet.getContractor().getEmail()));
+                            timesheet.getContractor().getUser().getEmail()));
 
             return toDto(saved);
 
@@ -399,7 +413,7 @@ public class TimesheetServiceImpl implements TimesheetService {
                 "Timesheet",
                 saved.getId(),
                 String.format("Timesheet rejected by %s for contractor %s. Remarks: %s", currentUser.getEmail(),
-                        timesheet.getContractor().getEmail(), request.getRemarks()));
+                        timesheet.getContractor().getUser().getEmail(), request.getRemarks()));
 
         if (saved.getContractor() != null) {
             notificationService.createNotification(NotificationRequestDTO.builder()
@@ -660,7 +674,7 @@ public class TimesheetServiceImpl implements TimesheetService {
                 .id(timesheet.getId())
                 .assignmentId(timesheet.getAssignment().getId())
                 .contractorUserId(timesheet.getContractor().getId())
-                .contractorName(timesheet.getContractor().getName())
+                .contractorName(timesheet.getContractor().getUser().getName())
                 .weekStartDate(timesheet.getWeekStartDate())
                 .weekEndDate(timesheet.getWeekEndDate())
                 .hoursLogged(timesheet.getHoursLogged())

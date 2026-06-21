@@ -25,7 +25,7 @@ public class InvoiceController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'VENDOR', 'VENDOR_MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER')")
     @Operation(summary = "Submit a new Contractor Invoice")
     public ResponseEntity<ContractorInvoiceResponseDTO> createInvoice(@Valid @RequestBody ContractorInvoiceRequestDTO request) {
         ContractorInvoiceResponseDTO response = invoiceService.createInvoice(request);

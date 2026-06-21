@@ -33,7 +33,7 @@ public class TimesheetController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'CONTRACTOR')")
+    @PreAuthorize("hasAnyRole('ADMIN') || hasAnyRole('CONTRACTOR')")
     @Operation(summary = "Update weekly timesheet draft")
     public ResponseEntity<TimesheetResponseDTO> updateTimesheet(
             @PathVariable String id,

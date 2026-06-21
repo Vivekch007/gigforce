@@ -21,4 +21,6 @@ public interface NotificationRepository extends JpaRepository<Notification, Stri
             String notificationType,
             NotificationStatus status
     );
+
+    Long countByStatus(NotificationStatus notificationStatus);
 }

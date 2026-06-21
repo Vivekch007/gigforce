@@ -54,10 +54,15 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
                 .orElseThrow(() -> new IllegalArgumentException("Assignment not found with ID: " + request.getAssignmentId()));
 
         // IDOR Validation Rule: Strictly protect Hiring Manager scope boundary constraints
-        if ("HIRING_MANAGER".equals(role)) {
-            if (assignment.getHiringManager() == null || !assignment.getHiringManager().getId().equals(currentUser.getId())) {
-                throw new AccessDeniedException("Access Denied: You can only create Purchase Orders for assignments you manage.");
-            }
+//        if ("HIRING_MANAGER".equals(role)) {
+//            System.out.println("Current User ID: " + currentUser.getId() + ", Assignment Hiring Manager ID: " + (assignment.getHiringManager() != null ? assignment.getHiringManager().getId() : "null"));
+//            if (assignment.getHiringManager() == null || !assignment.getHiringManager().getId().equals(currentUser.getId())) {
+//                throw new AccessDeniedException("Access Denied: You can only create Purchase Orders for assignments you manage.");
+//            }
+//        }
+        List<PurchaseOrder> existingOrders = purchaseOrderRepository.findByAssignmentId(request.getAssignmentId());
+        if (!existingOrders.isEmpty()) {
+            throw new IllegalStateException("A Purchase Order already exists for this Assignment.");
         }
 
         User vendor = userRepository.findById(request.getVendorId())

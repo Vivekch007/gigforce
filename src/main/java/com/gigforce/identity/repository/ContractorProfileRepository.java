@@ -12,6 +12,8 @@ import java.util.Optional;
 public interface ContractorProfileRepository
         extends JpaRepository<ContractorProfile, String>, JpaSpecificationExecutor<ContractorProfile> {
     Optional<ContractorProfile> findByUser(User user);
+    Optional<ContractorProfile> findById(String id);
 
     boolean existsByUser(User user);
+    Optional<ContractorProfile> findByUserId(String userId);
 }

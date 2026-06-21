@@ -5,7 +5,9 @@ import com.gigforce.assignment.entity.Timesheet;
 import com.gigforce.assignment.repository.AssignmentRepository;
 import com.gigforce.assignment.repository.TimesheetRepository;
 import com.gigforce.assignment.enums.TimesheetStatus;
+import com.gigforce.identity.entity.ContractorProfile;
 import com.gigforce.identity.entity.User;
+import com.gigforce.identity.repository.ContractorProfileRepository;
 import com.gigforce.identity.repository.UserRepository;
 import com.gigforce.invoice.dto.ContractorInvoiceRequestDTO;
 import com.gigforce.invoice.dto.ContractorInvoiceResponseDTO;
@@ -40,8 +42,10 @@ public class InvoiceServiceImpl implements InvoiceService {
     private final UserRepository userRepository;
     private final CurrentUserContext currentUserContext;
     private final NotificationService notificationService;
+    private final ContractorProfileRepository contractorProfileRepository;
 
     public InvoiceServiceImpl(
+            ContractorProfileRepository contractorProfileRepository,
             ContractorInvoiceRepository contractorInvoiceRepository,
             PurchaseOrderRepository purchaseOrderRepository,
             AssignmentRepository assignmentRepository,
@@ -56,6 +60,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         this.userRepository = userRepository;
         this.currentUserContext = currentUserContext;
         this.notificationService = notificationService;
+        this.contractorProfileRepository = contractorProfileRepository;
     }
 
     @Override
@@ -67,20 +72,15 @@ public class InvoiceServiceImpl implements InvoiceService {
         }
 
         String role = currentUser.getRole().name();
-        // RBAC: ADMIN, VENDOR, VENDOR_MANAGER allowed
-        if (!"ADMIN".equals(role) && !"VENDOR".equals(role) && !"VENDOR_MANAGER".equals(role)) {
+        // RBAC: ADMIN, HIRING_MANAGER allowed
+        if (!"ADMIN".equals(role) && !"HIRING_MANAGER".equals(role)) {
             throw new AccessDeniedException("Access Denied: You are not authorized to submit invoices.");
         }
 
         Assignment assignment = assignmentRepository.findById(request.getAssignmentId())
                 .orElseThrow(() -> new IllegalArgumentException("Assignment not found with ID: " + request.getAssignmentId()));
 
-        // IDOR: If VENDOR or VENDOR_MANAGER, verify they own the assignment vendor
-        if ("VENDOR".equals(role) || "VENDOR_MANAGER".equals(role)) {
-            if (assignment.getVendor() == null || !assignment.getVendor().getId().equals(currentUser.getId())) {
-                throw new AccessDeniedException("Access Denied: You can only submit invoices for assignments associated with your Vendor profile.");
-            }
-        }
+
 
         PurchaseOrder po = purchaseOrderRepository.findById(request.getPoId())
                 .orElseThrow(() -> new IllegalArgumentException("Purchase Order not found with ID: " + request.getPoId()));
@@ -89,7 +89,7 @@ public class InvoiceServiceImpl implements InvoiceService {
             throw new IllegalStateException("Cannot generate invoice against a " + po.getStatus() + " Purchase Order.");
         }
 
-        User contractor = userRepository.findById(request.getContractorId())
+        ContractorProfile contractor = contractorProfileRepository.findById(request.getContractorId())
                 .orElseThrow(() -> new IllegalArgumentException("Contractor not found with ID: " + request.getContractorId()));
 
         // Fetch eligible timesheets (must be APPROVED, belonging to contractor and assignment, and uninvoiced)
@@ -105,6 +105,7 @@ public class InvoiceServiceImpl implements InvoiceService {
                     throw new IllegalArgumentException("Timesheet " + tsId + " does not belong to assignment " + assignment.getId());
                 }
                 if (!ts.getContractor().getId().equals(contractor.getId())) {
+                    System.out.println(ts.getContractor().getId()+"\t"+contractor.getId());
                     throw new IllegalArgumentException("Timesheet " + tsId + " does not belong to contractor " + contractor.getId());
                 }
                 if (ts.getStatus() != TimesheetStatus.APPROVED) {
@@ -116,7 +117,6 @@ public class InvoiceServiceImpl implements InvoiceService {
                 timesheets.add(ts);
             }
         } else {
-            // Auto-fetch all approved uninvoiced timesheets
             timesheets = timesheetRepository.findByAssignmentIdAndContractorIdAndStatusAndInvoiceIsNull(
                     assignment.getId(), contractor.getId(), TimesheetStatus.APPROVED);
         }
@@ -143,7 +143,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         ContractorInvoice invoice = ContractorInvoice.builder()
                 .purchaseOrder(po)
                 .assignment(assignment)
-                .contractor(contractor)
+                .contractor(contractor.getUser())
                 .invoicePeriod(request.getInvoicePeriod())
                 .hoursBilled(hoursBilled)
                 .invoiceAmount(invoiceAmount)

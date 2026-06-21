@@ -145,7 +145,7 @@ public class NotificationServiceImpl implements NotificationService {
             throw new AccessDeniedException("Access Denied: Unauthenticated.");
         }
 
-        return notificationRepository.countByUserIdAndStatus(currentUser.getId(), NotificationStatus.UNREAD);
+        return notificationRepository.countByStatus(NotificationStatus.UNREAD);
     }
 
     private void validateOwnership(Notification notification) {
