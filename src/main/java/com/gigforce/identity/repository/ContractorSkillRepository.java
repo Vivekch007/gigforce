@@ -14,6 +14,8 @@ public interface ContractorSkillRepository extends JpaRepository<ContractorSkill
 
     boolean existsByContractorProfileAndSkill(ContractorProfile profile, Skill skill);
 
+    boolean existsByContractorProfile(ContractorProfile profile);
+
     @org.springframework.data.jpa.repository.Query("SELECT cs FROM ContractorSkill cs LEFT JOIN FETCH cs.skill WHERE cs.contractorProfile = :contractorProfile")
     java.util.List<ContractorSkill> findByContractorProfile(
             @org.springframework.data.repository.query.Param("contractorProfile") ContractorProfile contractorProfile);

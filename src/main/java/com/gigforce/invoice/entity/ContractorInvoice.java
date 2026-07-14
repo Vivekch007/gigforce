@@ -7,8 +7,10 @@ import com.gigforce.invoice.enums.InvoiceStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
+import com.gigforce.identity.entity.ContractorProfile;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 @Entity
 @Table(
@@ -17,7 +19,8 @@ import java.time.LocalDateTime;
         @Index(name = "idx_invoice_po", columnList = "POID"),
         @Index(name = "idx_invoice_assignment", columnList = "AssignmentID"),
         @Index(name = "idx_invoice_contractor", columnList = "ContractorID"),
-        @Index(name = "idx_invoice_status", columnList = "Status")
+        @Index(name = "idx_invoice_status", columnList = "Status"),
+        @Index(name = "idx_invoice_org_unit", columnList = "OrgUnitID")
     }
 )
 @AttributeOverride(name = "id", column = @Column(name = "InvoiceID", length = 64))
@@ -28,8 +31,8 @@ import java.time.LocalDateTime;
 @Builder
 public class ContractorInvoice extends BaseEntity {
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "POID", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "POID")
     private PurchaseOrder purchaseOrder;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -40,6 +43,29 @@ public class ContractorInvoice extends BaseEntity {
     @JoinColumn(name = "ContractorID", nullable = false)
     private User contractor;
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "contractor_profile_id", nullable = false)
+    private ContractorProfile contractorProfile;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "VendorID")
+    private User vendor;
+
+    @Column(name = "OrgUnitID", length = 64)
+    private String orgUnitId;
+
+    @Column(name = "InvoiceNumber", nullable = false, unique = true, length = 64)
+    private String invoiceNumber;
+
+    @Column(name = "InvoiceDate", nullable = false)
+    private LocalDate invoiceDate;
+
+    @Column(name = "BillingStartDate", nullable = false)
+    private LocalDate billingStartDate;
+
+    @Column(name = "BillingEndDate", nullable = false)
+    private LocalDate billingEndDate;
+
     @Column(name = "InvoicePeriod", nullable = false, length = 100)
     private String invoicePeriod;
 
@@ -49,7 +75,31 @@ public class ContractorInvoice extends BaseEntity {
     @Column(name = "InvoiceAmount", nullable = false, precision = 10, scale = 2)
     private BigDecimal invoiceAmount;
 
-    @Column(name = "SubmittedDate", nullable = false)
+    @Column(name = "TotalRegularHours", nullable = false, precision = 8, scale = 2)
+    private BigDecimal totalRegularHours;
+
+    @Column(name = "TotalOvertimeHours", nullable = false, precision = 8, scale = 2)
+    private BigDecimal totalOvertimeHours;
+
+    @Column(name = "RegularAmount", nullable = false, precision = 10, scale = 2)
+    private BigDecimal regularAmount;
+
+    @Column(name = "OvertimeAmount", nullable = false, precision = 10, scale = 2)
+    private BigDecimal overtimeAmount;
+
+    @Column(name = "TaxAmount", nullable = false, precision = 10, scale = 2)
+    private BigDecimal taxAmount;
+
+    @Column(name = "TotalAmount", nullable = false, precision = 10, scale = 2)
+    private BigDecimal totalAmount;
+
+    @Column(name = "PaymentDate")
+    private LocalDate paymentDate;
+
+    @Column(name = "PaymentReference", length = 150)
+    private String paymentReference;
+
+    @Column(name = "SubmittedDate")
     private LocalDateTime submittedDate;
 
     @Enumerated(EnumType.STRING)

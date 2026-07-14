@@ -15,7 +15,6 @@ public class ContractorInvoiceRequestDTO {
 
     @JsonProperty("POID")
     @JsonAlias({"poId", "poid", "poID"})
-    @NotBlank(message = "POID is required")
     private String poId;
 
     @JsonProperty("AssignmentID")
@@ -36,4 +35,16 @@ public class ContractorInvoiceRequestDTO {
     @JsonProperty("TimesheetIDs")
     @JsonAlias({"timesheetIds", "timesheetIDs"})
     private List<String> timesheetIds;
+
+    @JsonProperty("BillingStartDate")
+    @JsonAlias({"billingStartDate", "billing_start_date"})
+    private java.time.LocalDate billingStartDate;
+
+    @JsonProperty("BillingEndDate")
+    @JsonAlias({"billingEndDate", "billing_end_date"})
+    private java.time.LocalDate billingEndDate;
+
+    @JsonProperty("Status")
+    @JsonAlias({"status"})
+    private String status;
 }

@@ -47,16 +47,36 @@ public class AssignmentController {
 
 
 
+    @PutMapping("/{id}/cancel")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER')")
+    @Operation(summary = "Cancel an assignment (CREATED -> CANCELLED)")
+    public ResponseEntity<AssignmentResponseDTO> cancelAssignment(@PathVariable String id) {
+        AssignmentResponseDTO response = assignmentService.cancelAssignment(id);
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/{id}/complete")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER')")
+    @Operation(summary = "Complete an assignment (ACTIVE/EXTENDED -> COMPLETED)")
+    public ResponseEntity<AssignmentResponseDTO> completeAssignment(@PathVariable String id) {
+        AssignmentResponseDTO response = assignmentService.completeAssignment(id);
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER', 'VENDOR_MANAGER', 'VENDOR', 'FINANCE')")
     @Operation(summary = "Search and filter assignments (Paginated)")
     public ResponseEntity<Page<AssignmentResponseDTO>> searchAssignments(
-            @RequestParam(required = false) AssignmentStatus status,
+            @RequestParam(required = false) String assignmentId,
             @RequestParam(required = false) String contractorProfileId,
+            @RequestParam(required = false) String requisitionId,
+            @RequestParam(required = false) String vendorId,
+            @RequestParam(required = false) AssignmentStatus status,
+            @RequestParam(required = false) String orgUnitId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        Page<AssignmentResponseDTO> response = assignmentService.searchAssignments(status, contractorProfileId, page,
-                size);
+        Page<AssignmentResponseDTO> response = assignmentService.searchAssignments(
+                assignmentId, contractorProfileId, requisitionId, vendorId, status, orgUnitId, page, size);
         return ResponseEntity.ok(response);
     }
 }

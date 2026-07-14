@@ -25,7 +25,7 @@ public class TimesheetController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER', 'CONTRACTOR')")
     @Operation(summary = "Create weekly timesheet draft")
     public ResponseEntity<TimesheetResponseDTO> createTimesheet(@Valid @RequestBody TimesheetRequestDTO request) {
         TimesheetResponseDTO response = timesheetService.createTimesheet(request);
@@ -92,10 +92,15 @@ public class TimesheetController {
     @PreAuthorize("hasAnyRole('ADMIN', 'FINANCE', 'HIRING_MANAGER', 'VENDOR_MANAGER', 'VENDOR', 'CONTRACTOR')")
     @Operation(summary = "Search and filter timesheets")
     public ResponseEntity<List<TimesheetResponseDTO>> searchTimesheets(
+            @RequestParam(required = false) String timesheetId,
+            @RequestParam(required = false) String contractorProfileId,
+            @RequestParam(required = false) String assignmentId,
             @RequestParam(required = false) TimesheetStatus status,
-            @RequestParam(required = false) String contractorUserId,
-            @RequestParam(required = false) String assignmentId) {
-        List<TimesheetResponseDTO> response = timesheetService.searchTimesheets(status, contractorUserId, assignmentId);
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate weekStartDate,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate weekEndDate,
+            @RequestParam(required = false) String orgUnitId) {
+        List<TimesheetResponseDTO> response = timesheetService.searchTimesheets(
+                timesheetId, contractorProfileId, assignmentId, status, weekStartDate, weekEndDate, orgUnitId);
         return ResponseEntity.ok(response);
     }
 

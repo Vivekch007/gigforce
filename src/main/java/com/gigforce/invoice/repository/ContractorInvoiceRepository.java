@@ -10,7 +10,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface ContractorInvoiceRepository extends JpaRepository<ContractorInvoice, String> {
+public interface ContractorInvoiceRepository extends JpaRepository<ContractorInvoice, String>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<ContractorInvoice> {
 
     List<ContractorInvoice> findByAssignmentId(String assignmentId);
 
@@ -20,6 +20,12 @@ public interface ContractorInvoiceRepository extends JpaRepository<ContractorInv
 
     List<ContractorInvoice> findByStatus(InvoiceStatus status);
 
-    @Query("SELECT ci FROM ContractorInvoice ci WHERE ci.purchaseOrder.id = :poId AND ci.status <> 'REJECTED'")
+    @Query("SELECT ci FROM ContractorInvoice ci WHERE ci.purchaseOrder.id = :poId AND ci.status <> 'REJECTED' AND ci.status <> 'CANCELLED'")
     List<ContractorInvoice> findActiveInvoicesByPurchaseOrderId(@Param("poId") String poId);
+
+    boolean existsByAssignmentIdAndBillingStartDateAndBillingEndDateAndStatusNot(
+            String assignmentId,
+            java.time.LocalDate billingStartDate,
+            java.time.LocalDate billingEndDate,
+            InvoiceStatus status);
 }

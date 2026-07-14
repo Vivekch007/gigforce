@@ -8,6 +8,7 @@ import com.gigforce.exception.UserNotFoundException;
 import com.gigforce.identity.entity.ContractorProfile;
 import com.gigforce.identity.entity.EngagementHistory;
 import com.gigforce.identity.entity.User;
+import com.gigforce.exception.BusinessValidationException;
 import com.gigforce.identity.enums.AvailabilityStatus;
 import com.gigforce.identity.repository.ContractorProfileRepository;
 import com.gigforce.identity.repository.EngagementHistoryRepository;
@@ -63,14 +64,14 @@ public class VendorSubmissionServiceImpl implements VendorSubmissionService {
     @Transactional
     public VendorSubmissionResponseDTO submitContractor(String requisitionId, VendorSubmissionRequestDTO request) {
         if (request.getProposedRate() != null && request.getProposedRate().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Proposed rate must be positive.");
+            throw new BusinessValidationException("Proposed rate must be positive.");
         }
 
         ResourceRequisition requisition = requisitionRepository.findById(requisitionId)
                 .orElseThrow(() -> new RequisitionNotFoundException("Requisition not found with ID: " + requisitionId));
 
         if (requisition.getStatus() != RequisitionStatus.OPEN) {
-            throw new IllegalArgumentException("Submissions are only allowed for OPEN requisitions.");
+            throw new BusinessValidationException("Submissions are only allowed for OPEN requisitions.");
         }
 
         ContractorProfile profile = contractorProfileRepository.findById(request.getContractorProfileId())
@@ -78,13 +79,13 @@ public class VendorSubmissionServiceImpl implements VendorSubmissionService {
                         "Contractor profile not found with ID: " + request.getContractorProfileId()));
 
         if (profile.getAvailabilityStatus() != AvailabilityStatus.AVAILABLE && profile.getAvailabilityStatus() != AvailabilityStatus.ON_STATUS) {
-            throw new IllegalArgumentException(
+            throw new BusinessValidationException(
                 "Contractor profile is not available for submissions (AvailabilityStatus: " + profile.getAvailabilityStatus() + ").");
         }
 
         if (submissionRepository.existsByRequisitionIdAndContractorProfileId(requisitionId,
                 request.getContractorProfileId())) {
-            throw new IllegalArgumentException("This contractor has already been submitted for this requisition.");
+            throw new BusinessValidationException("This contractor has already been submitted for this requisition.");
         }
 
         String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -156,7 +157,7 @@ public class VendorSubmissionServiceImpl implements VendorSubmissionService {
             }
 
             // Keep your profile update active if required
-            profile.setAvailabilityStatus(AvailabilityStatus.AVAILABLE);
+            profile.setAvailabilityStatus(AvailabilityStatus.ON_ASSIGNMENT);
             contractorProfileRepository.save(profile);
 
             auditService.logAction(
@@ -164,7 +165,7 @@ public class VendorSubmissionServiceImpl implements VendorSubmissionService {
                     "CONTRACTOR_PROFILE_UPDATED",
                     "ContractorProfile",
                     profile.getId(),
-                    String.format("Contractor status changed to ASSIGNED on submission acceptance by %s", currentUser.getEmail()));
+                    String.format("Contractor status changed to ON_ASSIGNMENT on submission acceptance by %s", currentUser.getEmail()));
         }
 
         // 4. GENERAL STATE UPDATE (Removes the repetitive if/else blocks)

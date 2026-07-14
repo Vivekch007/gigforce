@@ -20,12 +20,17 @@ import com.gigforce.requisition.repository.ResourceRequisitionRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.gigforce.security.CurrentUserContext;
+import com.gigforce.exception.BusinessValidationException;
 
 import java.math.BigDecimal;
+
+import com.gigforce.notification.publisher.NotificationPublisher;
 
 @Service
 @Transactional(readOnly = true)
@@ -35,16 +40,22 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
     private final SkillRepository skillRepository;
     private final UserRepository userRepository;
     private final AuditService auditService;
+    private final CurrentUserContext currentUserContext;
+    private final NotificationPublisher notificationPublisher;
 
     public ResourceRequisitionServiceImpl(
             ResourceRequisitionRepository requisitionRepository,
             SkillRepository skillRepository,
             UserRepository userRepository,
-            AuditService auditService) {
+            AuditService auditService,
+            CurrentUserContext currentUserContext,
+            NotificationPublisher notificationPublisher) {
         this.requisitionRepository = requisitionRepository;
         this.skillRepository = skillRepository;
         this.userRepository = userRepository;
         this.auditService = auditService;
+        this.currentUserContext = currentUserContext;
+        this.notificationPublisher = notificationPublisher;
     }
 
     @Override
@@ -56,6 +67,15 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
         User currentUser = userRepository.findByEmail(currentUsername)
                 .orElseThrow(() -> new UserNotFoundException("User not found with email: " + currentUsername));
 
+        String role = currentUserContext.getCurrentUserRole();
+        if (!"ADMIN".equals(role) && !"HIRING_MANAGER".equals(role)) {
+            throw new BusinessValidationException("Creator must be HIRING_MANAGER or ADMIN");
+        }
+        String orgUnitId = currentUserContext.getCurrentUserOrgUnitId();
+        if (orgUnitId == null || orgUnitId.trim().isEmpty()) {
+            throw new BusinessValidationException("Creator must belong to an Organization");
+        }
+
         Skill skill = skillRepository.findById(request.getRequiredSkillId())
                 .orElseThrow(
                         () -> new SkillNotFoundException("Skill not found with ID: " + request.getRequiredSkillId()));
@@ -64,7 +84,7 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
             try {
                 businessUnits = BusinessUnits.valueOf(request.getBusinessUnitId().trim().toUpperCase());
             } catch (IllegalArgumentException e) {
-                throw new IllegalArgumentException("businessUnitId must be one of: IT, FINANCE, HIRING_MANAGER");
+                throw new BusinessValidationException("businessUnitId must be one of: IT, FINANCE, HIRING_MANAGER, HR");
             }
         }
         ResourceRequisition requisition = ResourceRequisition.builder()
@@ -76,6 +96,7 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
                 .quantity(request.getQuantity())
                 .status(RequisitionStatus.DRAFT)
                 .creator(currentUser)
+                .orgUnitId(orgUnitId)
                 .engagementType(request.getEngagementType() != null ? request.getEngagementType() : EngagementType.HYBRID)
                 .experienceLevel(request.getExperienceLevel() != null ? request.getExperienceLevel() : ExperienceLevel.MID)
                 .startDate(request.getStartDate() != null ? request.getStartDate() : java.time.LocalDate.now())
@@ -105,7 +126,7 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
                 .orElseThrow(() -> new RequisitionNotFoundException("Requisition not found with ID: " + id));
 
         if (requisition.getStatus() != RequisitionStatus.DRAFT) {
-            throw new IllegalArgumentException("Requisition can only be updated while in DRAFT status.");
+            throw new BusinessValidationException("Requisition can only be updated while in DRAFT status.");
         }
 
         String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -151,9 +172,8 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
         ResourceRequisition requisition = requisitionRepository.findById(id)
                 .orElseThrow(() -> new RequisitionNotFoundException("Requisition not found with ID: " + id));
 
-        if (requisition.getStatus() != RequisitionStatus.DRAFT) {
-            throw new IllegalArgumentException("Requisition can only be published while in DRAFT status.");
-        }
+        RequisitionStatus oldStatus = requisition.getStatus();
+        validateRequisitionStatusTransition(oldStatus, RequisitionStatus.OPEN);
 
         String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
         User currentUser = userRepository.findByEmail(currentUsername)
@@ -172,8 +192,10 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
                 "REQUISITION_STATUS_CHANGED",
                 "ResourceRequisition",
                 updated.getId(),
-                String.format("Requisition '%s' published (DRAFT -> OPEN) by %s", updated.getTitle(),
+                String.format("Requisition '%s' published (%s -> OPEN) by %s", updated.getTitle(), oldStatus,
                         currentUser.getEmail()));
+
+        notificationPublisher.publishRequisitionPublished(updated);
 
         return toDto(updated);
     }
@@ -184,11 +206,8 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
         ResourceRequisition requisition = requisitionRepository.findById(id)
                 .orElseThrow(() -> new RequisitionNotFoundException("Requisition not found with ID: " + id));
 
-        if (requisition.getStatus() == RequisitionStatus.CANCELLED
-                || requisition.getStatus() == RequisitionStatus.FILLED) {
-            throw new IllegalArgumentException(
-                    "Requisition is already in " + requisition.getStatus() + " status and cannot be cancelled.");
-        }
+        RequisitionStatus oldStatus = requisition.getStatus();
+        validateRequisitionStatusTransition(oldStatus, RequisitionStatus.CANCELLED);
 
         String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
         User currentUser = userRepository.findByEmail(currentUsername)
@@ -199,7 +218,6 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
             throw new AccessDeniedException("Access Denied: You are not authorized to cancel this requisition.");
         }
 
-        RequisitionStatus oldStatus = requisition.getStatus();
         requisition.setStatus(RequisitionStatus.CANCELLED);
         ResourceRequisition updated = requisitionRepository.save(requisition);
 
@@ -223,30 +241,94 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
 
     @Override
     public Page<ResourceRequisitionResponseDTO> searchRequisitions(
-            RequisitionStatus status, String requiredSkillId, BigDecimal maxRate, String businessUnitId, int page, int size) {
-        boolean isVendor = SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
-                .anyMatch(a -> (a.getAuthority().equals("ROLE_VENDOR")));
-        if(isVendor && status.equals(RequisitionStatus.DRAFT)) {
-            throw new AccessDeniedException(
-                    "Access Denied: Vendors are not authorized to access Draft Requisitions.");
-        }
+            String requisitionId,
+            String jobTitle,
+            RequisitionStatus status,
+            String requiredSkillId,
+            String hiringManager,
+            String orgUnitId,
+            int page,
+            int size) {
         Pageable pageable = PageRequest.of(page, size);
-        return requisitionRepository.searchRequisitions(status, requiredSkillId, maxRate, businessUnitId, pageable)
-                .map(this::toDto);
+        Specification<ResourceRequisition> spec = Specification.where(null);
+
+        // Fetch join creator and requiredSkill to avoid N+1 queries
+        spec = spec.and((root, query, cb) -> {
+            if (query.getResultType() != Long.class && query.getResultType() != long.class) {
+                root.fetch("creator", jakarta.persistence.criteria.JoinType.LEFT);
+                root.fetch("requiredSkill", jakarta.persistence.criteria.JoinType.LEFT);
+            }
+            return null;
+        });
+
+        // 1. Role-based Tenant Isolation
+        String currentRole = currentUserContext.getCurrentUserRole();
+        String currentOrgUnitId = currentUserContext.getCurrentUserOrgUnitId();
+
+        if ("HIRING_MANAGER".equals(currentRole)) {
+            // Can only see their own organization's requisitions
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("orgUnitId"), currentOrgUnitId));
+        } else if ("VENDOR".equals(currentRole) || "VENDOR_MANAGER".equals(currentRole)) {
+            // Vendors should NEVER see DRAFT requisitions
+            spec = spec.and((root, query, cb) -> cb.notEqual(root.get("status"), RequisitionStatus.DRAFT));
+            
+            // Vendors only see OPEN requisitions OR requisitions assigned to their vendor (where they sowed/submitted candidates)
+            spec = spec.and((root, query, cb) -> {
+                jakarta.persistence.criteria.Subquery<String> subquery = query.subquery(String.class);
+                jakarta.persistence.criteria.Root<com.gigforce.requisition.entity.VendorSubmission> vsRoot = subquery.from(com.gigforce.requisition.entity.VendorSubmission.class);
+                subquery.select(vsRoot.get("requisition").get("id"))
+                        .where(cb.and(
+                            cb.equal(vsRoot.get("requisition").get("id"), root.get("id")),
+                            cb.equal(vsRoot.get("submittedBy").get("orgUnitId"), currentOrgUnitId)
+                        ));
+                
+                return cb.or(
+                    cb.equal(root.get("status"), RequisitionStatus.OPEN),
+                    cb.exists(subquery)
+                );
+            });
+        }
+
+        // 2. Search Filters
+        if (requisitionId != null && !requisitionId.trim().isEmpty()) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("id"), requisitionId.trim()));
+        }
+
+        if (jobTitle != null && !jobTitle.trim().isEmpty()) {
+            spec = spec.and((root, query, cb) -> cb.like(cb.lower(root.get("title")), "%" + jobTitle.trim().toLowerCase() + "%"));
+        }
+
+        if (status != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("status"), status));
+        }
+
+        if (requiredSkillId != null && !requiredSkillId.trim().isEmpty()) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("requiredSkill").get("id"), requiredSkillId.trim()));
+        }
+
+        if (hiringManager != null && !hiringManager.trim().isEmpty()) {
+            spec = spec.and((root, query, cb) -> cb.like(cb.lower(root.get("creator").get("name")), "%" + hiringManager.trim().toLowerCase() + "%"));
+        }
+
+        if (orgUnitId != null && !orgUnitId.trim().isEmpty()) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("orgUnitId"), orgUnitId.trim()));
+        }
+
+        return requisitionRepository.findAll(spec, pageable).map(this::toDto);
     }
 
     private void validateRequest(ResourceRequisitionRequestDTO request) {
         if (request.getQuantity() != null && request.getQuantity() < 1) {
-            throw new IllegalArgumentException("Quantity must be at least 1.");
+            throw new BusinessValidationException("Quantity must be at least 1.");
         }
         if (request.getMinExperienceYears() != null && request.getMinExperienceYears() < 0) {
-            throw new IllegalArgumentException("Minimum experience years must be 0 or greater.");
+            throw new BusinessValidationException("Minimum experience years must be 0 or greater.");
         }
         if (request.getMaxHourlyRate() != null && request.getMaxHourlyRate().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Maximum hourly rate must be positive.");
+            throw new BusinessValidationException("Maximum hourly rate must be positive.");
         }
         if (request.getStartDate() != null && request.getStartDate().isBefore(java.time.LocalDate.now())) {
-            throw new IllegalArgumentException("Start date cannot be in the past.");
+            throw new BusinessValidationException("Start date cannot be in the past.");
         }
     }
 
@@ -271,5 +353,98 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
                 .createdAt(requisition.getCreatedAt())
                 .updatedAt(requisition.getUpdatedAt())
                 .build();
+    }
+
+    @Override
+    @Transactional
+    public ResourceRequisitionResponseDTO closeRequisition(String id) {
+        ResourceRequisition requisition = requisitionRepository.findById(id)
+                .orElseThrow(() -> new RequisitionNotFoundException("Requisition not found with ID: " + id));
+
+        String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+        User currentUser = userRepository.findByEmail(currentUsername)
+                .orElseThrow(() -> new UserNotFoundException("User not found with email: " + currentUsername));
+
+        boolean isAdmin = currentUser.getRole().name().equals("ADMIN");
+        if (!isAdmin && !requisition.getCreator().getId().equals(currentUser.getId())) {
+            throw new AccessDeniedException("Access Denied: You are not authorized to close this requisition.");
+        }
+
+        RequisitionStatus oldStatus = requisition.getStatus();
+        validateRequisitionStatusTransition(oldStatus, RequisitionStatus.CLOSED);
+        requisition.setStatus(RequisitionStatus.CLOSED);
+        ResourceRequisition updated = requisitionRepository.save(requisition);
+
+        auditService.logAction(
+                currentUser.getId(),
+                "REQUISITION_STATUS_CHANGED",
+                "ResourceRequisition",
+                updated.getId(),
+                String.format("Requisition '%s' closed (%s -> CLOSED) by %s", updated.getTitle(), oldStatus,
+                        currentUser.getEmail()));
+
+        return toDto(updated);
+    }
+
+    @Override
+    @Transactional
+    public ResourceRequisitionResponseDTO underReviewRequisition(String id) {
+        ResourceRequisition requisition = requisitionRepository.findById(id)
+                .orElseThrow(() -> new RequisitionNotFoundException("Requisition not found with ID: " + id));
+
+        String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+        User currentUser = userRepository.findByEmail(currentUsername)
+                .orElseThrow(() -> new UserNotFoundException("User not found with email: " + currentUsername));
+
+        boolean isAdmin = currentUser.getRole().name().equals("ADMIN");
+        if (!isAdmin && !requisition.getCreator().getId().equals(currentUser.getId())) {
+            throw new AccessDeniedException("Access Denied: You are not authorized to put this requisition under review.");
+        }
+
+        RequisitionStatus oldStatus = requisition.getStatus();
+        validateRequisitionStatusTransition(oldStatus, RequisitionStatus.UNDER_REVIEW);
+        requisition.setStatus(RequisitionStatus.UNDER_REVIEW);
+        ResourceRequisition updated = requisitionRepository.save(requisition);
+
+        auditService.logAction(
+                currentUser.getId(),
+                "REQUISITION_STATUS_CHANGED",
+                "ResourceRequisition",
+                updated.getId(),
+                String.format("Requisition '%s' put under review (%s -> UNDER_REVIEW) by %s", updated.getTitle(), oldStatus,
+                        currentUser.getEmail()));
+
+        return toDto(updated);
+    }
+
+    private void validateRequisitionStatusTransition(RequisitionStatus current, RequisitionStatus target) {
+        if (current == target) {
+            return;
+        }
+        boolean valid = false;
+        switch (current) {
+            case DRAFT:
+                valid = target == RequisitionStatus.OPEN || target == RequisitionStatus.CANCELLED;
+                break;
+            case OPEN:
+                valid = target == RequisitionStatus.UNDER_REVIEW 
+                        || target == RequisitionStatus.FILLED 
+                        || target == RequisitionStatus.CANCELLED;
+                break;
+            case UNDER_REVIEW:
+                valid = target == RequisitionStatus.FILLED 
+                        || target == RequisitionStatus.CANCELLED;
+                break;
+            case FILLED:
+                valid = target == RequisitionStatus.CLOSED;
+                break;
+            case CLOSED:
+            case CANCELLED:
+                valid = false;
+                break;
+        }
+        if (!valid) {
+            throw new BusinessValidationException("Invalid requisition status transition from " + current + " to " + target);
+        }
     }
 }

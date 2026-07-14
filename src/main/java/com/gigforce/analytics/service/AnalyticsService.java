@@ -21,4 +21,17 @@ public interface AnalyticsService {
     SkillDashboardResponseDTO getSkillDashboard(String skill);
 
     Long getComplianceExpiryCount(Integer days);
+
+    PersonalDashboardResponseDTO getPersonalDashboard();
+
+    ExecutiveDashboardResponseDTO getFilteredReport(
+            java.time.LocalDate startDate,
+            java.time.LocalDate endDate,
+            String orgUnitId,
+            String vendorId,
+            String contractorId,
+            String skill,
+            String assignmentStatus,
+            String invoiceStatus,
+            String timesheetStatus);
 }

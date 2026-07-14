@@ -18,7 +18,8 @@ import java.time.LocalDateTime;
         @Index(name = "idx_absence_contractor", columnList = "contractor_profile_id"),
         @Index(name = "idx_absence_assignment", columnList = "assignment_id"),
         @Index(name = "idx_absence_status", columnList = "status"),
-        @Index(name = "idx_absence_dates", columnList = "start_date, end_date")
+        @Index(name = "idx_absence_dates", columnList = "start_date, end_date"),
+        @Index(name = "idx_absence_org_unit", columnList = "org_unit_id")
     }
 )
 @org.hibernate.annotations.Check(constraints = "start_date <= end_date")
@@ -29,6 +30,10 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 public class ContractorAbsence extends BaseEntity {
+
+    @Column(name = "org_unit_id", length = 64)
+    private String orgUnitId;
+
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "contractor_profile_id", nullable = false)

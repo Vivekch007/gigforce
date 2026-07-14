@@ -32,7 +32,8 @@ import java.time.LocalDate;
     indexes = {
         @Index(name = "idx_req_skill_id", columnList = "required_skill_id"),
         @Index(name = "idx_req_status", columnList = "status"),
-        @Index(name = "idx_req_created_by", columnList = "created_by_user_id")
+        @Index(name = "idx_req_created_by", columnList = "created_by_user_id"),
+        @Index(name = "idx_req_org_unit", columnList = "org_unit_id")
     }
 )
 @AttributeOverride(name = "id", column = @Column(name = "resource_requisition_id"))
@@ -86,4 +87,7 @@ public class ResourceRequisition extends BaseEntity {
 
     @Column(name = "business_unit_id", length = 64)
     private String businessUnitId;
+
+    @Column(name = "org_unit_id", length = 64)
+    private String orgUnitId;
 }

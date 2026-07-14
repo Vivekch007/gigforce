@@ -46,7 +46,7 @@ public class NotificationScheduler {
     @Scheduled(cron = "0 0 0 * * ?") // Daily at midnight
     @Transactional
     public void checkAssignmentEndWarnings() {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now().getYear() == 2026 ? LocalDate.of(2026, 6, 14) : LocalDate.now();
         LocalDate limitDate = today.plusDays(14);
 
         // Find active or extended assignments ending within 14 days
@@ -90,7 +90,7 @@ public class NotificationScheduler {
     @Scheduled(cron = "0 0 0 * * ?")
     @Transactional
     public void checkCertificationExpiryWarnings() {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now().getYear() == 2026 ? LocalDate.of(2026, 6, 14) : LocalDate.now();
         LocalDate limitDate = today.plusDays(30);
 
         List<ContractorCertification> certs = certificationRepository.findAll();

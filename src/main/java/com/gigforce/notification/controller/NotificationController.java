@@ -26,8 +26,11 @@ public class NotificationController {
 
     @GetMapping
     @Operation(summary = "Get current user's notifications")
-    public ResponseEntity<List<NotificationResponseDTO>> getMyNotifications() {
-        List<NotificationResponseDTO> response = notificationService.getMyNotifications();
+    public ResponseEntity<List<NotificationResponseDTO>> getMyNotifications(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String priority) {
+        List<NotificationResponseDTO> response = notificationService.getMyNotifications(status, category, priority);
         return ResponseEntity.ok(response);
     }
 
@@ -56,6 +59,22 @@ public class NotificationController {
     @Operation(summary = "Mark notification as DISMISSED")
     public ResponseEntity<NotificationResponseDTO> dismiss(@PathVariable String id) {
         NotificationResponseDTO response = notificationService.dismiss(id);
+        return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Delete notification by ID")
+    public ResponseEntity<Void> deleteNotification(@PathVariable String id) {
+        notificationService.deleteNotification(id);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/system")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Send system notification (Admin only)")
+    public ResponseEntity<NotificationResponseDTO> sendSystemNotification(
+            @RequestBody com.gigforce.notification.dto.NotificationRequestDTO request) {
+        NotificationResponseDTO response = notificationService.sendSystemNotification(request);
         return ResponseEntity.ok(response);
     }
 

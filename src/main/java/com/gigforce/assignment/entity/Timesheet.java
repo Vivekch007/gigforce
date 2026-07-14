@@ -21,7 +21,8 @@ import java.time.LocalDateTime;
         @Index(name = "idx_timesheet_assignment", columnList = "assignment_id"),
         @Index(name = "idx_timesheet_contractor", columnList = "contractor_profile_id"),
         @Index(name = "idx_timesheet_week", columnList = "week_start_date"),
-        @Index(name = "idx_timesheet_payroll_status", columnList = "payroll_status")
+        @Index(name = "idx_timesheet_payroll_status", columnList = "payroll_status"),
+        @Index(name = "idx_timesheet_org_unit", columnList = "org_unit_id")
 })
 @AttributeOverride(name = "id", column = @Column(name = "timesheet_id"))
 @Getter
@@ -30,6 +31,10 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 public class Timesheet extends BaseEntity {
+
+    @Column(name = "org_unit_id", length = 64)
+    private String orgUnitId;
+
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "assignment_id", nullable = false)

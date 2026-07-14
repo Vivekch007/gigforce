@@ -60,10 +60,16 @@ public class ContractorAbsenceController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'FINANCE', 'HIRING_MANAGER', 'VENDOR_MANAGER', 'VENDOR', 'CONTRACTOR')")
-    @Operation(summary = "Get leaves by contractor profile ID")
-    public ResponseEntity<List<AbsenceResponseDTO>> getLeavesByContractorProfile(
-            @RequestParam String contractorProfileId) {
-        List<AbsenceResponseDTO> response = absenceService.getLeavesByContractorProfile(contractorProfileId);
+    @Operation(summary = "Search and filter contractor leaves")
+    public ResponseEntity<List<AbsenceResponseDTO>> searchLeaves(
+            @RequestParam(required = false) String contractorProfileId,
+            @RequestParam(required = false) String assignmentId,
+            @RequestParam(required = false) com.gigforce.assignment.enums.AbsenceStatus status,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate startDate,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate endDate,
+            @RequestParam(required = false) String orgUnitId) {
+        List<AbsenceResponseDTO> response = absenceService.searchLeaves(
+                contractorProfileId, assignmentId, status, startDate, endDate, orgUnitId);
         return ResponseEntity.ok(response);
     }
 }

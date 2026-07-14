@@ -26,6 +26,10 @@ public class ContractorProfileResponseDTO {
     private String status;
     private List<ContractorSkillResponseDTO> skills;
     private String preferredEngagementType;
+    private String phone;
+    private String address;
+    private Integer completionScore;
+    private String orgUnitId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

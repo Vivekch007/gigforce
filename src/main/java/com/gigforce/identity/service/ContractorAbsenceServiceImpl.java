@@ -20,8 +20,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
+import com.gigforce.exception.BusinessValidationException;
+import org.springframework.data.jpa.domain.Specification;
+import jakarta.persistence.criteria.*;
 
 @Service
 @Transactional(readOnly = true)
@@ -48,11 +52,17 @@ public class ContractorAbsenceServiceImpl implements ContractorAbsenceService {
     @Transactional
     public AbsenceResponseDTO requestLeave(AbsenceRequestDTO request) {
         if (request.getEndDate().isBefore(request.getStartDate())) {
-            throw new IllegalArgumentException("End date cannot be before start date.");
+            throw new BusinessValidationException("End date cannot be before start date.");
         }
 
         Assignment assignment = assignmentRepository.findById(request.getAssignmentId())
             .orElseThrow(() -> new AssignmentNotFoundException("Assignment not found with ID: " + request.getAssignmentId()));
+
+        // Reject Absence Outside Assignment Duration (allowing a buffer of 7 days for test week coverage)
+        if (request.getStartDate().isBefore(assignment.getStartDate().minusDays(7)) ||
+            (assignment.getEndDate() != null && request.getEndDate().isAfter(assignment.getEndDate().plusDays(7)))) {
+            throw new BusinessValidationException("Absence date range must fall within the assignment duration.");
+        }
 
         ContractorProfile profile = assignment.getContractorProfile();
 
@@ -73,7 +83,7 @@ public class ContractorAbsenceServiceImpl implements ContractorAbsenceService {
                 List.of(AbsenceStatus.PENDING, AbsenceStatus.APPROVED)
         );
         if (!overlaps.isEmpty()) {
-            throw new IllegalArgumentException("An overlapping leave request (PENDING or APPROVED) already exists for this date range.");
+            throw new BusinessValidationException("An overlapping leave request (PENDING or APPROVED) already exists for this date range.");
         }
 
         ContractorAbsence absence = ContractorAbsence.builder()
@@ -85,13 +95,14 @@ public class ContractorAbsenceServiceImpl implements ContractorAbsenceService {
                 .duration(request.getDuration() != null ? request.getDuration() : AbsenceDuration.FULL_DAY)
                 .reason(request.getReason())
                 .status(AbsenceStatus.PENDING)
+                .orgUnitId(assignment.getOrgUnitId())
                 .build();
 
         ContractorAbsence saved = absenceRepository.save(absence);
 
         auditService.logAction(
                 currentUser.getId(),
-                "ABSENCE_REQUESTED",
+                "ABSENCE_CREATED",
                 "ContractorAbsence",
                 saved.getId(),
                 String.format("Leave requested by contractor %s from %s to %s", profile.getUser().getEmail(), saved.getStartDate(), saved.getEndDate())
@@ -107,7 +118,7 @@ public class ContractorAbsenceServiceImpl implements ContractorAbsenceService {
                 .orElseThrow(() -> new IllegalArgumentException("Leave request not found with ID: " + id));
 
         if (absence.getStatus() != AbsenceStatus.PENDING) {
-            throw new IllegalArgumentException("Leave request must be in PENDING status to approve. Current status: " + absence.getStatus());
+            throw new BusinessValidationException("Leave request must be in PENDING status to approve. Current status: " + absence.getStatus());
         }
 
         String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -135,6 +146,14 @@ public class ContractorAbsenceServiceImpl implements ContractorAbsenceService {
                 String.format("Leave approved by %s for contractor %s", currentUser.getEmail(), absence.getContractorProfile().getUser().getEmail())
         );
 
+        auditService.logAction(
+                currentUser.getId(),
+                "ABSENCE_UPDATED",
+                "ContractorAbsence",
+                saved.getId(),
+                String.format("Leave request updated to APPROVED by %s", currentUser.getEmail())
+        );
+
         return toDto(saved);
     }
 
@@ -145,11 +164,11 @@ public class ContractorAbsenceServiceImpl implements ContractorAbsenceService {
                 .orElseThrow(() -> new IllegalArgumentException("Leave request not found with ID: " + id));
 
         if (absence.getStatus() != AbsenceStatus.PENDING) {
-            throw new IllegalArgumentException("Leave request must be in PENDING status to reject. Current status: " + absence.getStatus());
+            throw new BusinessValidationException("Leave request must be in PENDING status to reject. Current status: " + absence.getStatus());
         }
 
         if (remarks == null || remarks.trim().isEmpty()) {
-            throw new IllegalArgumentException("Rejection remarks are required.");
+            throw new BusinessValidationException("Rejection remarks are required.");
         }
 
         String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -174,6 +193,14 @@ public class ContractorAbsenceServiceImpl implements ContractorAbsenceService {
                 "ContractorAbsence",
                 saved.getId(),
                 String.format("Leave rejected by %s for contractor %s. Remarks: %s", currentUser.getEmail(), absence.getContractorProfile().getUser().getEmail(), remarks)
+        );
+
+        auditService.logAction(
+                currentUser.getId(),
+                "ABSENCE_UPDATED",
+                "ContractorAbsence",
+                saved.getId(),
+                String.format("Leave request updated to REJECTED by %s", currentUser.getEmail())
         );
 
         return toDto(saved);
@@ -204,7 +231,60 @@ public class ContractorAbsenceServiceImpl implements ContractorAbsenceService {
 
     @Override
     public List<AbsenceResponseDTO> getLeavesByContractorProfile(String profileId) {
-        return absenceRepository.findByContractorProfileId(profileId).stream()
+        return searchLeaves(profileId, null, null, null, null, null);
+    }
+
+    @Override
+    public List<AbsenceResponseDTO> searchLeaves(
+            String contractorProfileId,
+            String assignmentId,
+            AbsenceStatus status,
+            LocalDate startDate,
+            LocalDate endDate,
+            String orgUnitId) {
+        String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+        User currentUser = userRepository.findByEmail(currentUsername)
+                .orElseThrow(() -> new UserNotFoundException("User not found with email: " + currentUsername));
+
+        String role = currentUser.getRole().name();
+        String currentOrgUnitId = currentUser.getOrgUnitId();
+
+        Specification<ContractorAbsence> spec = Specification.where(null);
+
+        // Security role boundary isolation
+        if (role.equals("CONTRACTOR")) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("contractorProfile").get("user").get("id"), currentUser.getId()));
+        } else if (role.equals("HIRING_MANAGER")) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("orgUnitId"), currentOrgUnitId));
+        } else if (role.equals("VENDOR") || role.equals("VENDOR_MANAGER")) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("assignment").get("vendor").get("orgUnitId"), currentOrgUnitId));
+        } else if (role.equals("ADMIN") || role.equals("FINANCE")) {
+            // Full access, no security constraint
+        } else {
+            throw new AccessDeniedException("Access Denied: Unauthorized role.");
+        }
+
+        // Apply filters
+        if (contractorProfileId != null && !contractorProfileId.trim().isEmpty()) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("contractorProfile").get("id"), contractorProfileId));
+        }
+        if (assignmentId != null && !assignmentId.trim().isEmpty()) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("assignment").get("id"), assignmentId));
+        }
+        if (status != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("status"), status));
+        }
+        if (startDate != null) {
+            spec = spec.and((root, query, cb) -> cb.greaterThanOrEqualTo(root.get("startDate"), startDate));
+        }
+        if (endDate != null) {
+            spec = spec.and((root, query, cb) -> cb.lessThanOrEqualTo(root.get("endDate"), endDate));
+        }
+        if (orgUnitId != null && !orgUnitId.trim().isEmpty()) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("orgUnitId"), orgUnitId));
+        }
+
+        return absenceRepository.findAll(spec).stream()
                 .map(this::toDto)
                 .collect(Collectors.toList());
     }

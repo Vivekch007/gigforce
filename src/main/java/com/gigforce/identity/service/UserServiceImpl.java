@@ -16,6 +16,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.gigforce.notification.publisher.NotificationPublisher;
+
 @Service
 @Transactional(readOnly = true)
 public class UserServiceImpl implements UserService {
@@ -23,11 +25,13 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final AuditService auditService;
+    private final NotificationPublisher notificationPublisher;
 
-    public UserServiceImpl(UserRepository userRepository, UserMapper userMapper, AuditService auditService) {
+    public UserServiceImpl(UserRepository userRepository, UserMapper userMapper, AuditService auditService, NotificationPublisher notificationPublisher) {
         this.userRepository = userRepository;
         this.userMapper = userMapper;
         this.auditService = auditService;
+        this.notificationPublisher = notificationPublisher;
     }
 
     @Override
@@ -125,6 +129,8 @@ public class UserServiceImpl implements UserService {
                 updatedUser.getId(),
                 String.format("User status changed from %s to SUSPENDED", oldStatus.name()));
 
+        notificationPublisher.publishContractorSuspended(updatedUser);
+
         return userMapper.toUserDto(updatedUser);
     }
 
@@ -172,6 +178,8 @@ public class UserServiceImpl implements UserService {
                 "USER",
                 updatedUser.getId(),
                 String.format("User status changed from %s to ACTIVE", oldStatus.name()));
+
+        notificationPublisher.publishContractorReactivated(updatedUser);
 
         return userMapper.toUserDto(updatedUser);
     }

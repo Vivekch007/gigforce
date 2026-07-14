@@ -14,7 +14,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface AssignmentRepository extends JpaRepository<Assignment, String> {
+public interface AssignmentRepository extends JpaRepository<Assignment, String>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<Assignment> {
 
 
     List<Assignment> findByContractorProfileId(String contractorProfileId);

@@ -26,16 +26,18 @@ import com.gigforce.requisition.repository.VendorSubmissionRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.gigforce.security.CurrentUserContext;
+import com.gigforce.exception.BusinessValidationException;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-import com.gigforce.notification.service.NotificationService;
-import com.gigforce.notification.dto.NotificationRequestDTO;
+import com.gigforce.notification.publisher.NotificationPublisher;
 
 @Service
 @Transactional(readOnly = true)
@@ -48,7 +50,8 @@ public class AssignmentServiceImpl implements AssignmentService {
     private final EngagementHistoryRepository engagementHistoryRepository;
     private final UserRepository userRepository;
     private final AuditService auditService;
-    private final NotificationService notificationService;
+    private final NotificationPublisher notificationPublisher;
+    private final CurrentUserContext currentUserContext;
 
     public AssignmentServiceImpl(
             AssignmentRepository assignmentRepository,
@@ -58,7 +61,8 @@ public class AssignmentServiceImpl implements AssignmentService {
             EngagementHistoryRepository engagementHistoryRepository,
             UserRepository userRepository,
             AuditService auditService,
-            NotificationService notificationService) {
+            NotificationPublisher notificationPublisher,
+            CurrentUserContext currentUserContext) {
         this.assignmentRepository = assignmentRepository;
         this.submissionRepository = submissionRepository;
         this.requisitionRepository = requisitionRepository;
@@ -66,19 +70,25 @@ public class AssignmentServiceImpl implements AssignmentService {
         this.engagementHistoryRepository = engagementHistoryRepository;
         this.userRepository = userRepository;
         this.auditService = auditService;
-        this.notificationService = notificationService;
+        this.notificationPublisher = notificationPublisher;
+        this.currentUserContext = currentUserContext;
     }
 
     @Override
     @Transactional
     public AssignmentResponseDTO createAssignment(AssignmentRequestDTO request) {
         // 1. Basic Request Validations
-        if (request.getAgreedRatePerDay() == null || request.getAgreedRatePerDay().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Agreed daily rate must be positive.");
+        if (request.getStartDate() == null) {
+            throw new BusinessValidationException("Start date is required.");
         }
-
+        if (request.getEndDate() == null) {
+            throw new BusinessValidationException("End date is required.");
+        }
+        if (request.getAgreedRatePerDay() == null || request.getAgreedRatePerDay().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessValidationException("Agreed daily rate must be positive.");
+        }
         if (request.getEndDate().isBefore(request.getStartDate())) {
-            throw new IllegalArgumentException("End date cannot be before start date.");
+            throw new BusinessValidationException("Start date must be on or before end date.");
         }
 
         // 2. Fetch and Validate Submission
@@ -87,28 +97,59 @@ public class AssignmentServiceImpl implements AssignmentService {
                         "Vendor submission not found with ID: " + request.getVendorSubmissionId()));
 
         if (assignmentRepository.existsByVendorSubmissionId(request.getVendorSubmissionId())) {
-            throw new IllegalArgumentException("An assignment has already been created for this submission.");
+            throw new BusinessValidationException("An assignment has already been created for this submission.");
         }
 
         // STRICT BUSINESS RULE: Submission status must be SELECTED
         if (submission.getStatus() != SubmissionStatus.SELECTED) {
-            throw new IllegalArgumentException(
+            throw new BusinessValidationException(
                     "Assignment can only be created from a SELECTED submission. Current status: "
                             + submission.getStatus());
         }
 
-        // 3. Contractor Profile Validations & Status Transition
-        ContractorProfile profile = submission.getContractorProfile();
+        // 3. Requisition & Contractor Profile Validations
+        ResourceRequisition requisition = submission.getRequisition();
+        if (requisition == null) {
+            throw new BusinessValidationException("Requisition does not exist for this submission.");
+        }
 
+        ContractorProfile profile = submission.getContractorProfile();
+        if (profile == null) {
+            throw new BusinessValidationException("Contractor profile does not exist for this submission.");
+        }
+
+        // Validate Requisition Status
+        if (requisition.getStatus() == RequisitionStatus.CLOSED || requisition.getStatus() == RequisitionStatus.CANCELLED) {
+            throw new BusinessValidationException("Assignment cannot be created for a CLOSED or CANCELLED requisition.");
+        }
+
+        // Validate Contractor Availability
+        AvailabilityStatus availability = profile.getAvailabilityStatus();
+        if (availability != AvailabilityStatus.AVAILABLE && availability != AvailabilityStatus.ON_ASSIGNMENT) {
+            throw new BusinessValidationException("Contractor profile is not available for assignment. Current status: " + availability);
+        }
+
+        // Validate Organization Match
+        if (profile.getUser().getOrgUnitId() != null && !profile.getUser().getOrgUnitId().equals(requisition.getOrgUnitId())) {
+            throw new BusinessValidationException("Contractor does not belong to the correct organization.");
+        }
+
+        // Validate Engagement Type
         if (request.getEngagementType() != profile.getPreferredEngagementType()) {
-            throw new IllegalArgumentException(String.format(
+            throw new BusinessValidationException(String.format(
                     "Assignment engagement type %s does not match contractor preferred engagement type %s",
                     request.getEngagementType(), profile.getPreferredEngagementType()));
         }
 
-        // CONSOLIDATED AVAILABILITY CHECK & LOCK
-        if (profile.getAvailabilityStatus() == AvailabilityStatus.ON_ASSIGNMENT) {
-            throw new IllegalArgumentException("Contractor is already on an assignment and cannot be assigned to another requisition.");
+        // Prevent Duplicate Active/Created Assignment
+        boolean hasDuplicateActive = assignmentRepository.findAll().stream()
+                .anyMatch(a -> a.getContractorProfile().getId().equals(profile.getId())
+                        && a.getRequisition().getId().equals(requisition.getId())
+                        && (a.getStatus() == AssignmentStatus.ACTIVE 
+                            || a.getStatus() == AssignmentStatus.EXTENDED 
+                            || a.getStatus() == AssignmentStatus.CREATED));
+        if (hasDuplicateActive) {
+            throw new BusinessValidationException("An active assignment already exists for this contractor and requisition.");
         }
 
         // Safely shift the contractor status to ON_ASSIGNMENT
@@ -120,15 +161,13 @@ public class AssignmentServiceImpl implements AssignmentService {
         User currentUser = userRepository.findByEmail(currentUsername)
                 .orElseThrow(() -> new UserNotFoundException("User not found with email: " + currentUsername));
 
-        ResourceRequisition requisition = submission.getRequisition();
-
         // Log the Contractor Status Change
         auditService.logAction(
                 currentUser.getId(),
                 "CONTRACTOR_PROFILE_UPDATED",
                 "ContractorProfile",
                 profile.getId(),
-                String.format("Contractor status changed to ASSIGNED on assignment creation by %s",
+                String.format("Contractor status changed to ON_ASSIGNMENT on assignment creation by %s",
                         currentUser.getEmail()));
 
         // 5. Determine Vendor Securely
@@ -140,6 +179,12 @@ public class AssignmentServiceImpl implements AssignmentService {
             if ("VENDOR".equalsIgnoreCase(submitterRole) || "VENDOR_MANAGER".equalsIgnoreCase(submitterRole)) {
                 vendorUser = submittedBy;
             }
+        }
+
+        // Set status to ACTIVE if start date is reached, otherwise CREATED (documented for E2E timesheet creation tests)
+        AssignmentStatus initialStatus = AssignmentStatus.CREATED;
+        if (!LocalDate.now().isBefore(request.getStartDate())) {
+            initialStatus = AssignmentStatus.ACTIVE;
         }
 
         // 6. Build and Save Assignment
@@ -154,7 +199,8 @@ public class AssignmentServiceImpl implements AssignmentService {
                 .agreedRatePerDay(request.getAgreedRatePerDay())
                 .engagementType(request.getEngagementType())
                 .sowReference(request.getSowReference())
-                .status(AssignmentStatus.ACTIVE)
+                .status(initialStatus)
+                .orgUnitId(requisition.getOrgUnitId())
                 .build();
 
         Assignment saved = assignmentRepository.save(assignment);
@@ -168,21 +214,13 @@ public class AssignmentServiceImpl implements AssignmentService {
                 String.format("Assignment contract created for contractor %s by manager %s",
                         profile.getUser().getEmail(), currentUser.getEmail()));
 
-        if (saved.getContractorProfile() != null && saved.getContractorProfile().getUser() != null) {
-            notificationService.createNotification(NotificationRequestDTO.builder()
-                    .userId(saved.getContractorProfile().getUser().getId())
-                    .message(String.format("Your assignment %s has been created.", saved.getId()))
-                    .category("ASSIGNMENT")
-                    .notificationType("ASSIGNMENT_CREATED")
-                    .referenceEntityId(saved.getId())
-                    .referenceEntityType("Assignment")
-                    .build());
-        }
+        notificationPublisher.publishAssignmentCreated(saved);
 
         // Auto-fill capacity transition check
         if (requisition != null) {
             long activeAssignmentsCount = assignmentRepository.countByRequisitionIdAndStatus(requisition.getId(), AssignmentStatus.ACTIVE)
-                    + assignmentRepository.countByRequisitionIdAndStatus(requisition.getId(), AssignmentStatus.EXTENDED);
+                    + assignmentRepository.countByRequisitionIdAndStatus(requisition.getId(), AssignmentStatus.EXTENDED)
+                    + assignmentRepository.countByRequisitionIdAndStatus(requisition.getId(), AssignmentStatus.CREATED);
 
             if (activeAssignmentsCount >= requisition.getQuantity() && requisition.getStatus() != RequisitionStatus.FILLED) {
                 requisition.setStatus(RequisitionStatus.FILLED);
@@ -228,32 +266,76 @@ public class AssignmentServiceImpl implements AssignmentService {
 
     @Override
     public Page<AssignmentResponseDTO> searchAssignments(
-            AssignmentStatus status, String contractorProfileId, int page, int size) {
+            String assignmentId,
+            String contractorProfileId,
+            String requisitionId,
+            String vendorId,
+            AssignmentStatus status,
+            String orgUnitId,
+            int page,
+            int size) {
         Pageable pageable = PageRequest.of(page, size);
 
+        Specification<Assignment> spec = Specification.where(null);
+
+        // Fetch join to avoid N+1 select queries
+        spec = spec.and((root, query, cb) -> {
+            if (query.getResultType() != Long.class && query.getResultType() != long.class) {
+                root.fetch("requisition", jakarta.persistence.criteria.JoinType.LEFT);
+                jakarta.persistence.criteria.Fetch<Object, Object> cpFetch = root.fetch("contractorProfile", jakarta.persistence.criteria.JoinType.LEFT);
+                cpFetch.fetch("user", jakarta.persistence.criteria.JoinType.LEFT);
+                root.fetch("hiringManager", jakarta.persistence.criteria.JoinType.LEFT);
+                root.fetch("vendor", jakarta.persistence.criteria.JoinType.LEFT);
+            }
+            return null;
+        });
+
+        // 1. Role-based Security Bounds
         String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
         User currentUser = userRepository.findByEmail(currentUsername)
                 .orElseThrow(() -> new UserNotFoundException("User not found with email: " + currentUsername));
+        String currentRole = currentUser.getRole().name();
+        String currentOrgUnitId = currentUser.getOrgUnitId();
 
-        String role = currentUser.getRole().name();
-
-        Page<Assignment> assignments;
-        if (role.equals("ADMIN") || role.equals("FINANCE")) {
-            assignments = assignmentRepository.searchAssignments(status, contractorProfileId, pageable);
-        } else if (role.equals("HIRING_MANAGER")) {
-            assignments = assignmentRepository.searchAssignmentsByHiringManager(currentUser.getId(), status,
-                    contractorProfileId, pageable);
-        } else if (role.equals("VENDOR") || role.equals("VENDOR_MANAGER")) {
-            assignments = assignmentRepository.searchAssignmentsByVendor(currentUser.getId(), status,
-                    contractorProfileId, pageable);
-        } else if (role.equals("CONTRACTOR")) {
-            assignments = assignmentRepository.searchAssignmentsByContractorUser(currentUser.getId(), status,
-                    contractorProfileId, pageable);
-        } else {
+        if ("HIRING_MANAGER".equals(currentRole)) {
+            // View only assignments related to their organization (matching orgUnitId)
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("orgUnitId"), currentOrgUnitId));
+        } else if ("VENDOR".equals(currentRole) || "VENDOR_MANAGER".equals(currentRole)) {
+            // View only assignments related to their vendor (vendor user shares their orgUnitId)
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("vendor").get("orgUnitId"), currentOrgUnitId));
+        } else if ("CONTRACTOR".equals(currentRole)) {
+            // View only their own assignments
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("contractorProfile").get("user").get("id"), currentUser.getId()));
+        } else if (!"ADMIN".equals(currentRole) && !"FINANCE".equals(currentRole)) {
             throw new AccessDeniedException("Access Denied: You do not have permissions to search assignments.");
         }
 
-        return assignments.map(this::toDto);
+        // 2. Search Criteria
+        if (assignmentId != null && !assignmentId.trim().isEmpty()) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("id"), assignmentId.trim()));
+        }
+
+        if (contractorProfileId != null && !contractorProfileId.trim().isEmpty()) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("contractorProfile").get("id"), contractorProfileId.trim()));
+        }
+
+        if (requisitionId != null && !requisitionId.trim().isEmpty()) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("requisition").get("id"), requisitionId.trim()));
+        }
+
+        if (vendorId != null && !vendorId.trim().isEmpty()) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("vendor").get("id"), vendorId.trim()));
+        }
+
+        if (status != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("status"), status));
+        }
+
+        if (orgUnitId != null && !orgUnitId.trim().isEmpty()) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("orgUnitId"), orgUnitId.trim()));
+        }
+
+        return assignmentRepository.findAll(spec, pageable).map(this::toDto);
     }
 
     private Assignment checkAndCompleteAssignment(Assignment assignment) {
@@ -264,8 +346,9 @@ public class AssignmentServiceImpl implements AssignmentService {
             assignmentRepository.save(assignment);
 
             ContractorProfile profile = assignment.getContractorProfile();
-            profile.setAvailabilityStatus(AvailabilityStatus.AVAILABLE);
-            contractorProfileRepository.save(profile);
+            updateContractorAvailabilityOnCompletion(profile, assignment.getId());
+
+            notificationPublisher.publishAssignmentCompleted(assignment);
 
             EngagementHistory history = EngagementHistory.builder()
                     .contractorProfile(profile)
@@ -329,5 +412,128 @@ public class AssignmentServiceImpl implements AssignmentService {
                 .createdAt(assignment.getCreatedAt())
                 .updatedAt(assignment.getUpdatedAt())
                 .build();
+    }
+
+    @Override
+    @Transactional
+    public AssignmentResponseDTO cancelAssignment(String id) {
+        Assignment assignment = assignmentRepository.findById(id)
+                .orElseThrow(() -> new AssignmentNotFoundException("Assignment not found with ID: " + id));
+
+        String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+        User currentUser = userRepository.findByEmail(currentUsername)
+                .orElseThrow(() -> new UserNotFoundException("User not found with email: " + currentUsername));
+
+        boolean isAdmin = currentUser.getRole().name().equals("ADMIN");
+        if (!isAdmin && !assignment.getHiringManager().getId().equals(currentUser.getId())) {
+            throw new AccessDeniedException("Access Denied: You are not authorized to cancel this assignment.");
+        }
+
+        AssignmentStatus oldStatus = assignment.getStatus();
+        validateAssignmentStatusTransition(oldStatus, AssignmentStatus.CANCELLED);
+        assignment.setStatus(AssignmentStatus.CANCELLED);
+
+        // Also release the contractor back to AVAILABLE!
+        ContractorProfile profile = assignment.getContractorProfile();
+        updateContractorAvailabilityOnCompletion(profile, assignment.getId());
+
+        Assignment saved = assignmentRepository.save(assignment);
+
+        auditService.logAction(
+                currentUser.getId(),
+                "ASSIGNMENT_CANCELLED",
+                "Assignment",
+                saved.getId(),
+                String.format("Assignment cancelled (%s -> CANCELLED) by %s", oldStatus, currentUser.getEmail()));
+
+        return toDto(saved);
+    }
+
+    @Override
+    @Transactional
+    public AssignmentResponseDTO completeAssignment(String id) {
+        Assignment assignment = assignmentRepository.findById(id)
+                .orElseThrow(() -> new AssignmentNotFoundException("Assignment not found with ID: " + id));
+
+        String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+        User currentUser = userRepository.findByEmail(currentUsername)
+                .orElseThrow(() -> new UserNotFoundException("User not found with email: " + currentUsername));
+
+        boolean isAdmin = currentUser.getRole().name().equals("ADMIN");
+        if (!isAdmin && !assignment.getHiringManager().getId().equals(currentUser.getId())) {
+            throw new AccessDeniedException("Access Denied: You are not authorized to complete this assignment.");
+        }
+
+        AssignmentStatus oldStatus = assignment.getStatus();
+        validateAssignmentStatusTransition(oldStatus, AssignmentStatus.COMPLETED);
+        assignment.setStatus(AssignmentStatus.COMPLETED);
+
+        // Also release the contractor back to AVAILABLE!
+        ContractorProfile profile = assignment.getContractorProfile();
+        updateContractorAvailabilityOnCompletion(profile, assignment.getId());
+
+        // Add to Engagement History!
+        EngagementHistory history = EngagementHistory.builder()
+                .contractorProfile(profile)
+                .clientName(assignment.getRequisition() != null
+                        ? "Client Requisition ID: " + assignment.getRequisition().getId()
+                        : "Client Name")
+                .roleTitle(assignment.getRequisition() != null ? assignment.getRequisition().getTitle()
+                        : "Contractor Assignment")
+                .startDate(assignment.getStartDate())
+                .endDate(assignment.getEndDate())
+                .build();
+        engagementHistoryRepository.save(history);
+
+        Assignment saved = assignmentRepository.save(assignment);
+
+        auditService.logAction(
+                currentUser.getId(),
+                "ASSIGNMENT_COMPLETED",
+                "Assignment",
+                saved.getId(),
+                String.format("Assignment completed (%s -> COMPLETED) by %s", oldStatus, currentUser.getEmail()));
+
+        notificationPublisher.publishAssignmentCompleted(saved);
+
+        return toDto(saved);
+    }
+
+    private void validateAssignmentStatusTransition(AssignmentStatus current, AssignmentStatus target) {
+        if (current == target) {
+            return;
+        }
+        boolean valid = false;
+        switch (current) {
+            case CREATED:
+                valid = target == AssignmentStatus.ACTIVE || target == AssignmentStatus.CANCELLED;
+                break;
+            case ACTIVE:
+                valid = target == AssignmentStatus.COMPLETED || target == AssignmentStatus.EXTENDED || target == AssignmentStatus.TERMINATED_EARLY;
+                break;
+            case EXTENDED:
+                valid = target == AssignmentStatus.COMPLETED || target == AssignmentStatus.TERMINATED_EARLY;
+                break;
+            case COMPLETED:
+            case TERMINATED_EARLY:
+            case CANCELLED:
+                valid = false;
+                break;
+        }
+        if (!valid) {
+            throw new BusinessValidationException("Invalid assignment status transition from " + current + " to " + target);
+        }
+    }
+
+    private void updateContractorAvailabilityOnCompletion(ContractorProfile profile, String excludedAssignmentId) {
+        boolean hasOtherActive = assignmentRepository.findByContractorProfileId(profile.getId()).stream()
+                .anyMatch(a -> !a.getId().equals(excludedAssignmentId)
+                        && (a.getStatus() == AssignmentStatus.ACTIVE 
+                            || a.getStatus() == AssignmentStatus.EXTENDED 
+                            || a.getStatus() == AssignmentStatus.CREATED));
+        if (!hasOtherActive) {
+            profile.setAvailabilityStatus(AvailabilityStatus.AVAILABLE);
+            contractorProfileRepository.save(profile);
+        }
     }
 }

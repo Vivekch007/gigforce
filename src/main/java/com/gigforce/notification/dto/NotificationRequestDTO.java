@@ -22,4 +22,7 @@ public class NotificationRequestDTO {
     private String notificationType;
     private String referenceEntityId;
     private String referenceEntityType;
+    private String title;
+    private String orgUnitId;
+    private String priority;
 }

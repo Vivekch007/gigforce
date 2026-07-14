@@ -19,7 +19,8 @@ import java.time.LocalDate;
         @Index(name = "idx_assign_status", columnList = "status"),
         @Index(name = "idx_assign_manager", columnList = "assignee_id"),
         @Index(name = "idx_assign_vendor", columnList = "vendor_user_id"),
-        @Index(name = "idx_assign_submission", columnList = "vendor_submission_id")
+        @Index(name = "idx_assign_submission", columnList = "vendor_submission_id"),
+        @Index(name = "idx_assign_org_unit", columnList = "org_unit_id")
 })
 @AttributeOverride(name = "id", column = @Column(name = "assignment_id"))
 @Getter
@@ -70,4 +71,7 @@ public class Assignment extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private AssignmentStatus status;
+
+    @Column(name = "org_unit_id", length = 64)
+    private String orgUnitId;
 }

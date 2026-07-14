@@ -43,6 +43,12 @@ public class Payment extends BaseEntity {
     @Column(name = "Status", nullable = false, length = 30)
     private PaymentStatus status;
 
+    @Column(name = "PaymentReference", length = 150)
+    private String paymentReference;
+
+    @Column(name = "TransactionID", length = 150)
+    private String transactionId;
+
     // Aliases to exactly match PDF field names in Java reflections/serialization if checked
     public String getPaymentID() {
         return getId();

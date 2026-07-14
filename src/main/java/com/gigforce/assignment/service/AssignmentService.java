@@ -10,5 +10,15 @@ public interface AssignmentService {
 
     AssignmentResponseDTO getAssignmentById(String id);
     Page<AssignmentResponseDTO> searchAssignments(
-            AssignmentStatus status, String contractorProfileId, int page, int size);
+            String assignmentId,
+            String contractorProfileId,
+            String requisitionId,
+            String vendorId,
+            AssignmentStatus status,
+            String orgUnitId,
+            int page,
+            int size);
+    AssignmentResponseDTO cancelAssignment(String id);
+
+    AssignmentResponseDTO completeAssignment(String id);
 }

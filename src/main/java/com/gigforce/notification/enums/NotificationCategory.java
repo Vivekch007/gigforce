@@ -5,5 +5,6 @@ public enum NotificationCategory {
     TIMESHEET,
     INVOICE,
     COMPLIANCE,
-    VENDOR
+    VENDOR,
+    GENERAL
 }

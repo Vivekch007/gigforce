@@ -36,4 +36,12 @@ public class PaymentResponseDTO {
     @JsonProperty("Status")
     @JsonAlias({"status"})
     private String status;
+
+    @JsonProperty("PaymentReference")
+    @JsonAlias({"paymentReference"})
+    private String paymentReference;
+
+    @JsonProperty("TransactionID")
+    @JsonAlias({"transactionId"})
+    private String transactionId;
 }

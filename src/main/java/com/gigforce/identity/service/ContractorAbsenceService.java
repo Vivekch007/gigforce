@@ -11,4 +11,11 @@ public interface ContractorAbsenceService {
     AbsenceResponseDTO rejectLeave(String id, String remarks);
     AbsenceResponseDTO getLeaveById(String id);
     List<AbsenceResponseDTO> getLeavesByContractorProfile(String profileId);
+    List<AbsenceResponseDTO> searchLeaves(
+            String contractorProfileId,
+            String assignmentId,
+            com.gigforce.assignment.enums.AbsenceStatus status,
+            java.time.LocalDate startDate,
+            java.time.LocalDate endDate,
+            String orgUnitId);
 }

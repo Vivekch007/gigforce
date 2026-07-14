@@ -10,6 +10,8 @@ public interface NotificationService {
     NotificationResponseDTO getNotificationById(String id);
     NotificationResponseDTO markRead(String id);
     NotificationResponseDTO dismiss(String id);
-    List<NotificationResponseDTO> getMyNotifications();
+    List<NotificationResponseDTO> getMyNotifications(String status, String category, String priority);
     Long getUnreadCount();
+    void deleteNotification(String id);
+    NotificationResponseDTO sendSystemNotification(NotificationRequestDTO request);
 }

@@ -10,4 +10,8 @@ import java.util.List;
 @Repository
 public interface ContractorCertificationRepository extends JpaRepository<ContractorCertification, String> {
     List<ContractorCertification> findByContractorProfile(ContractorProfile profile);
+
+    boolean existsByContractorProfile(ContractorProfile profile);
+
+    boolean existsByContractorProfileAndName(ContractorProfile profile, String name);
 }

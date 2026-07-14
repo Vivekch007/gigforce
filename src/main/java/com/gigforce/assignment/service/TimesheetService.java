@@ -21,7 +21,14 @@ public interface TimesheetService {
 
     TimesheetResponseDTO getTimesheetById(String id);
 
-    List<TimesheetResponseDTO> searchTimesheets(TimesheetStatus status, String contractorUserId, String assignmentId);
+    List<TimesheetResponseDTO> searchTimesheets(
+            String timesheetId,
+            String contractorProfileId,
+            String assignmentId,
+            TimesheetStatus status,
+            java.time.LocalDate weekStartDate,
+            java.time.LocalDate weekEndDate,
+            String orgUnitId);
 
     List<TimesheetResponseDTO> getPayrollReadyTimesheets();
 

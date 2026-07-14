@@ -100,6 +100,9 @@ public class IdGenerationListener {
         if (entity instanceof com.gigforce.notification.entity.Notification) {
             return "NOT-";
         }
+        if (entity instanceof com.gigforce.identity.entity.PasswordResetToken) {
+            return "prt";
+        }
 
         return "id";
     }

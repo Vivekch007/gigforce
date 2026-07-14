@@ -12,7 +12,7 @@ import org.springframework.stereotype.Repository;
 import java.math.BigDecimal;
 
 @Repository
-public interface ResourceRequisitionRepository extends JpaRepository<ResourceRequisition, String> {
+public interface ResourceRequisitionRepository extends JpaRepository<ResourceRequisition, String>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<ResourceRequisition> {
 
         @Query(value = "SELECT r FROM ResourceRequisition r " +
                         "LEFT JOIN FETCH r.requiredSkill s " +

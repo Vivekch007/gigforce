@@ -4,6 +4,7 @@ import com.gigforce.common.entity.BaseEntity;
 import com.gigforce.identity.entity.User;
 import com.gigforce.notification.enums.NotificationCategory;
 import com.gigforce.notification.enums.NotificationStatus;
+import com.gigforce.notification.enums.NotificationPriority;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -16,7 +17,8 @@ import java.time.LocalDateTime;
         @Index(name = "idx_notification_user", columnList = "user_id"),
         @Index(name = "idx_notification_status", columnList = "status"),
         @Index(name = "idx_notification_category", columnList = "category"),
-        @Index(name = "idx_notification_created", columnList = "created_date")
+        @Index(name = "idx_notification_created", columnList = "created_date"),
+        @Index(name = "idx_notification_org_unit", columnList = "OrgUnitID")
     }
 )
 @AttributeOverrides({
@@ -34,6 +36,12 @@ public class Notification extends BaseEntity {
     @JoinColumn(name = "user_id", nullable = false, foreignKey = @ForeignKey(name = "fk_notifications_user"))
     private User user;
 
+    @Column(name = "OrgUnitID", length = 64)
+    private String orgUnitId;
+
+    @Column(name = "Title", length = 200)
+    private String title;
+
     @Column(name = "message", nullable = false, length = 1000)
     private String message;
 
@@ -44,6 +52,11 @@ public class Notification extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private NotificationStatus status;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "Priority", nullable = false, length = 20)
+    @Builder.Default
+    private NotificationPriority priority = NotificationPriority.MEDIUM;
 
     @Column(name = "notification_type", length = 100)
     private String notificationType;
@@ -79,5 +92,18 @@ public class Notification extends BaseEntity {
 
     public String getUserID() {
         return user != null ? user.getId() : null;
+    }
+
+    // Aliases
+    public String getRelatedEntityId() {
+        return referenceEntityId;
+    }
+
+    public String getRelatedEntityType() {
+        return referenceEntityType;
+    }
+
+    public LocalDateTime getReadAt() {
+        return readDate;
     }
 }

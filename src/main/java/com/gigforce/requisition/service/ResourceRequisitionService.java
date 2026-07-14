@@ -16,8 +16,19 @@ public interface ResourceRequisitionService {
 
     ResourceRequisitionResponseDTO cancelRequisition(String id);
 
+    ResourceRequisitionResponseDTO closeRequisition(String id);
+
+    ResourceRequisitionResponseDTO underReviewRequisition(String id);
+
     ResourceRequisitionResponseDTO getRequisitionById(String id);
 
     Page<ResourceRequisitionResponseDTO> searchRequisitions(
-            RequisitionStatus status, String requiredSkillId, BigDecimal maxRate, String businessUnitId, int page, int size);
+            String requisitionId,
+            String jobTitle,
+            RequisitionStatus status,
+            String requiredSkillId,
+            String hiringManager,
+            String orgUnitId,
+            int page,
+            int size);
 }

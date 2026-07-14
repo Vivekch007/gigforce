@@ -68,8 +68,24 @@ public class ResourceRequisitionController {
         return ResponseEntity.ok(response);
     }
 
+    @PutMapping("/{id}/close")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER')")
+    @Operation(summary = "Close a requisition")
+    public ResponseEntity<ResourceRequisitionResponseDTO> closeRequisition(@PathVariable String id) {
+        ResourceRequisitionResponseDTO response = requisitionService.closeRequisition(id);
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/{id}/under-review")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER')")
+    @Operation(summary = "Put a requisition under review")
+    public ResponseEntity<ResourceRequisitionResponseDTO> underReviewRequisition(@PathVariable String id) {
+        ResourceRequisitionResponseDTO response = requisitionService.underReviewRequisition(id);
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER', 'VENDOR_MANAGER', 'VENDOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER', 'VENDOR_MANAGER', 'VENDOR', 'CONTRACTOR', 'FINANCE')")
     @Operation(summary = "Get requisition details by ID")
     public ResponseEntity<ResourceRequisitionResponseDTO> getRequisitionById(@PathVariable String id) {
         ResourceRequisitionResponseDTO response = requisitionService.getRequisitionById(id);
@@ -77,17 +93,19 @@ public class ResourceRequisitionController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER', 'VENDOR_MANAGER', 'VENDOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER', 'VENDOR_MANAGER', 'VENDOR', 'CONTRACTOR', 'FINANCE')")
     @Operation(summary = "Search and filter requisitions (Paginated)")
     public ResponseEntity<Page<ResourceRequisitionResponseDTO>> searchRequisitions(
+            @RequestParam(required = false) String requisitionId,
+            @RequestParam(required = false) String jobTitle,
             @RequestParam(required = false) RequisitionStatus status,
             @RequestParam(required = false) String requiredSkillId,
-            @RequestParam(required = false) BigDecimal maxRate,
-            @RequestParam(required = false) String businessUnitId,
+            @RequestParam(required = false) String hiringManager,
+            @RequestParam(required = false) String orgUnitId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         Page<ResourceRequisitionResponseDTO> response = requisitionService.searchRequisitions(
-                status, requiredSkillId, maxRate, businessUnitId, page, size);
+                requisitionId, jobTitle, status, requiredSkillId, hiringManager, orgUnitId, page, size);
         return ResponseEntity.ok(response);
     }
 }

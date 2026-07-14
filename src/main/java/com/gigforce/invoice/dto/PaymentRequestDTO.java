@@ -40,4 +40,13 @@ public class PaymentRequestDTO {
     @JsonProperty("Status")
     @JsonAlias({"status"})
     private String status;
+
+    @JsonProperty("PaymentReference")
+    @JsonAlias({"paymentReference", "payment_reference"})
+    @NotBlank(message = "PaymentReference is required")
+    private String paymentReference;
+
+    @JsonProperty("TransactionID")
+    @JsonAlias({"transactionId", "transactionID"})
+    private String transactionId;
 }

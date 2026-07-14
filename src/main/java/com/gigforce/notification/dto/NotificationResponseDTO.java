@@ -40,4 +40,22 @@ public class NotificationResponseDTO {
 
     @JsonProperty("readDate")
     private LocalDateTime readDate;
+
+    @JsonProperty("Title")
+    private String title;
+
+    @JsonProperty("OrgUnitID")
+    private String orgUnitId;
+
+    @JsonProperty("Priority")
+    private String priority;
+
+    @JsonProperty("relatedEntityId")
+    private String relatedEntityId;
+
+    @JsonProperty("relatedEntityType")
+    private String relatedEntityType;
+
+    @JsonProperty("readAt")
+    private LocalDateTime readAt;
 }

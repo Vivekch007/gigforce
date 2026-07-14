@@ -23,12 +23,29 @@ public class CurrentUserContext {
     }
 
     public String getCurrentUserId() {
+        org.springframework.security.core.Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof CustomUserDetails userDetails) {
+            return userDetails.getId();
+        }
         User user = getCurrentUser();
         return user != null ? user.getId() : null;
     }
 
     public String getCurrentUserRole() {
+        org.springframework.security.core.Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof CustomUserDetails userDetails) {
+            return userDetails.getRole().name();
+        }
         User user = getCurrentUser();
         return user != null ? user.getRole().name() : null;
+    }
+
+    public String getCurrentUserOrgUnitId() {
+        org.springframework.security.core.Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof CustomUserDetails userDetails) {
+            return userDetails.getOrgUnitId();
+        }
+        User user = getCurrentUser();
+        return user != null ? user.getOrgUnitId() : null;
     }
 }

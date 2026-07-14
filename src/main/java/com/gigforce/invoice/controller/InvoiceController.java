@@ -26,10 +26,36 @@ public class InvoiceController {
 
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER')")
-    @Operation(summary = "Submit a new Contractor Invoice")
+    @Operation(summary = "Create/Submit a new Contractor Invoice")
     public ResponseEntity<ContractorInvoiceResponseDTO> createInvoice(@Valid @RequestBody ContractorInvoiceRequestDTO request) {
         ContractorInvoiceResponseDTO response = invoiceService.createInvoice(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER')")
+    @Operation(summary = "Update a Contractor Invoice")
+    public ResponseEntity<ContractorInvoiceResponseDTO> updateInvoice(
+            @PathVariable String id,
+            @Valid @RequestBody ContractorInvoiceRequestDTO request) {
+        ContractorInvoiceResponseDTO response = invoiceService.updateInvoice(id, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/{id}/submit")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER')")
+    @Operation(summary = "Submit a Contractor Invoice")
+    public ResponseEntity<ContractorInvoiceResponseDTO> submitInvoice(@PathVariable String id) {
+        ContractorInvoiceResponseDTO response = invoiceService.submitInvoice(id);
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/{id}/cancel")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER')")
+    @Operation(summary = "Cancel a Contractor Invoice")
+    public ResponseEntity<ContractorInvoiceResponseDTO> cancelInvoice(@PathVariable String id) {
+        ContractorInvoiceResponseDTO response = invoiceService.cancelInvoice(id);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{id}")
@@ -42,9 +68,28 @@ public class InvoiceController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'FINANCE', 'HIRING_MANAGER', 'VENDOR', 'VENDOR_MANAGER', 'CONTRACTOR')")
-    @Operation(summary = "Get all Contractor Invoices")
-    public ResponseEntity<List<ContractorInvoiceResponseDTO>> getAllInvoices() {
-        List<ContractorInvoiceResponseDTO> response = invoiceService.getAllInvoices();
+    @Operation(summary = "Get all or search Contractor Invoices")
+    public ResponseEntity<List<ContractorInvoiceResponseDTO>> getAllInvoices(
+            @RequestParam(required = false) String invoiceId,
+            @RequestParam(required = false) String invoiceNumber,
+            @RequestParam(required = false) String assignmentId,
+            @RequestParam(required = false) String contractorProfileId,
+            @RequestParam(required = false) String vendorId,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate billingStartDate,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate billingEndDate,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate invoiceDate,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate paymentDate,
+            @RequestParam(required = false) String orgUnitId) {
+
+        com.gigforce.invoice.enums.InvoiceStatus enumStatus = null;
+        if (status != null && !status.trim().isEmpty()) {
+            enumStatus = com.gigforce.invoice.enums.InvoiceStatus.valueOf(status.toUpperCase());
+        }
+
+        List<ContractorInvoiceResponseDTO> response = invoiceService.searchInvoices(
+                invoiceId, invoiceNumber, assignmentId, contractorProfileId, vendorId,
+                enumStatus, billingStartDate, billingEndDate, invoiceDate, paymentDate, orgUnitId);
         return ResponseEntity.ok(response);
     }
 

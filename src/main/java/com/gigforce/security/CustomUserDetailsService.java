@@ -27,13 +27,13 @@ public class CustomUserDetailsService implements UserDetailsService {
 
         boolean isActive = user.getStatus() == UserStatus.ACTIVE;
 
-        return new org.springframework.security.core.userdetails.User(
+        return new CustomUserDetails(
+                user.getId(),
                 user.getEmail(),
                 user.getPassword(),
-                isActive, // enabled
-                true,     // accountNonExpired
-                true,     // credentialsNonExpired
-                isActive, // accountNonLocked
+                isActive,
+                user.getRole(),
+                user.getOrgUnitId(),
                 Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()))
         );
     }

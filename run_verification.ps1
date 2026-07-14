@@ -1828,7 +1828,7 @@ $createInvoiceBody = @{
     InvoicePeriod = "June 2026"
     TimesheetIDs = @($m5TsId)
 }
-$res = Send-Req "POST" "/invoices" -token $variables["vendorManagerAccessTokenA"] -body $createInvoiceBody
+$res = Send-Req "POST" "/invoices" -token $variables["hiringManagerAccessTokenB"] -body $createInvoiceBody
 $m6InvoiceId = $res.Body.InvoiceID
 if ($res.StatusCode -eq 201 -and $m6InvoiceId -like "INV-*") {
     Log-Test "M6: Submit Contractor Invoice" "PASS" "Submitted Contractor Invoice $m6InvoiceId successfully. Hours Billed: $($res.Body.HoursBilled), Amount: $($res.Body.InvoiceAmount)"
@@ -1851,6 +1851,7 @@ $createPaymentBody = @{
     PaymentDate = "2026-06-13"
     PaymentMode = "BANK_TRANSFER"
     Status = "PENDING"
+    PaymentReference = "PAY-REF-E2E"
 }
 $res = Send-Req "POST" "/payments" -token $variables["financeAccessToken"] -body $createPaymentBody
 $m6PaymentId = $res.Body.PaymentID

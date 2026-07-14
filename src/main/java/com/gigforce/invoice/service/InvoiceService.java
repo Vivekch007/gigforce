@@ -20,4 +20,23 @@ public interface InvoiceService {
     ContractorInvoiceResponseDTO disputeInvoice(String id);
 
     ContractorInvoiceResponseDTO markInvoiceAsPaid(String id);
+
+    ContractorInvoiceResponseDTO submitInvoice(String id);
+
+    ContractorInvoiceResponseDTO cancelInvoice(String id);
+
+    ContractorInvoiceResponseDTO updateInvoice(String id, ContractorInvoiceRequestDTO request);
+
+    List<ContractorInvoiceResponseDTO> searchInvoices(
+            String invoiceId,
+            String invoiceNumber,
+            String assignmentId,
+            String contractorProfileId,
+            String vendorId,
+            com.gigforce.invoice.enums.InvoiceStatus status,
+            java.time.LocalDate billingStartDate,
+            java.time.LocalDate billingEndDate,
+            java.time.LocalDate invoiceDate,
+            java.time.LocalDate paymentDate,
+            String orgUnitId);
 }

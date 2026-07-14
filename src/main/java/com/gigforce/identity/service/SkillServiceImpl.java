@@ -62,13 +62,17 @@ public class SkillServiceImpl implements SkillService {
 
     @Override
     public List<SkillResponseDTO> getAllSkills(String category, String name) {
-        List<Skill> skills = skillRepository.findAll();
+        org.springframework.data.jpa.domain.Specification<Skill> spec = org.springframework.data.jpa.domain.Specification.where(null);
 
-        return skills.stream()
-                .filter(s -> category == null || category.trim().isEmpty()
-                        || s.getCategory().equalsIgnoreCase(category.trim()))
-                .filter(s -> name == null || name.trim().isEmpty()
-                        || s.getName().toLowerCase().contains(name.trim().toLowerCase()))
+        if (category != null && !category.trim().isEmpty()) {
+            spec = spec.and((root, query, cb) -> cb.equal(cb.lower(root.get("category")), category.trim().toLowerCase()));
+        }
+
+        if (name != null && !name.trim().isEmpty()) {
+            spec = spec.and((root, query, cb) -> cb.like(cb.lower(root.get("name")), "%" + name.trim().toLowerCase() + "%"));
+        }
+
+        return skillRepository.findAll(spec).stream()
                 .map(this::toDto)
                 .collect(Collectors.toList());
     }

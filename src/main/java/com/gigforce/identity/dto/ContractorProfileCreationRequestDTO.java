@@ -37,4 +37,7 @@ public class ContractorProfileCreationRequestDTO {
 
     @NotBlank(message = "Preferred engagement type is required")
     private String preferredEngagementType;
+
+    private String phone;
+    private String address;
 }

@@ -12,6 +12,7 @@ import com.gigforce.identity.entity.ContractorProfile;
 import com.gigforce.identity.entity.ContractorSkill;
 import com.gigforce.identity.entity.Skill;
 import com.gigforce.identity.entity.User;
+import com.gigforce.identity.entity.ContractorCertification;
 import com.gigforce.identity.enums.AvailabilityStatus;
 import com.gigforce.identity.enums.ProfileStatus;
 import com.gigforce.identity.enums.ProficiencyLevel;
@@ -21,6 +22,9 @@ import com.gigforce.identity.repository.ContractorProfileRepository;
 import com.gigforce.identity.repository.ContractorSkillRepository;
 import com.gigforce.identity.repository.SkillRepository;
 import com.gigforce.identity.repository.UserRepository;
+import com.gigforce.identity.repository.ContractorCertificationRepository;
+import com.gigforce.exception.BusinessValidationException;
+import com.gigforce.exception.InvalidAvailabilityTransitionException;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -33,6 +37,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.gigforce.notification.publisher.NotificationPublisher;
+
 @Service
 @Transactional(readOnly = true)
 public class ContractorProfileServiceImpl implements ContractorProfileService {
@@ -42,18 +48,24 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
     private final SkillRepository skillRepository;
     private final ContractorSkillRepository contractorSkillRepository;
     private final AuditService auditService;
+    private final ContractorCertificationRepository contractorCertificationRepository;
+    private final NotificationPublisher notificationPublisher;
 
     public ContractorProfileServiceImpl(
             ContractorProfileRepository contractorProfileRepository,
             UserRepository userRepository,
             SkillRepository skillRepository,
             ContractorSkillRepository contractorSkillRepository,
-            AuditService auditService) {
+            AuditService auditService,
+            ContractorCertificationRepository contractorCertificationRepository,
+            NotificationPublisher notificationPublisher) {
         this.contractorProfileRepository = contractorProfileRepository;
         this.userRepository = userRepository;
         this.skillRepository = skillRepository;
         this.contractorSkillRepository = contractorSkillRepository;
         this.auditService = auditService;
+        this.contractorCertificationRepository = contractorCertificationRepository;
+        this.notificationPublisher = notificationPublisher;
     }
 
     @Override
@@ -67,23 +79,25 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
         }
 
         if (user.getRole() != UserRole.CONTRACTOR) {
-            throw new IllegalArgumentException("Only users with CONTRACTOR role can have a profile.");
+            throw new BusinessValidationException("Only users with CONTRACTOR role can have a profile.");
         }
 
-        AvailabilityStatus availability = AvailabilityStatus.AVAILABLE;
-
-
+        AvailabilityStatus availability = AvailabilityStatus.ON_STATUS;
         ProfileStatus profileStatus = ProfileStatus.ACTIVE;
-
 
         EngagementType preferredEngagementType;
         if (request.getPreferredEngagementType() == null || request.getPreferredEngagementType().trim().isEmpty()) {
-            throw new IllegalArgumentException("Preferred engagement type is required.");
+            throw new BusinessValidationException("Preferred engagement type is required.");
         }
         try {
             preferredEngagementType = EngagementType.valueOf(request.getPreferredEngagementType().toUpperCase().trim());
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Invalid preferredEngagementType: " + request.getPreferredEngagementType());
+            throw new BusinessValidationException("Invalid preferredEngagementType: " + request.getPreferredEngagementType());
+        }
+
+        if (request.getPhone() != null && !request.getPhone().trim().isEmpty()) {
+            user.setPhone(request.getPhone().trim());
+            userRepository.save(user);
         }
 
         ContractorProfile profile = ContractorProfile.builder()
@@ -93,22 +107,27 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
             .availabilityStatus(availability)
             .profileStatus(profileStatus)
             .preferredEngagementType(preferredEngagementType)
+            .address(request.getAddress() != null ? request.getAddress().trim() : null)
             .build();
 
         ContractorProfile savedProfile = contractorProfileRepository.save(profile);
+
+        // Update completion
+        updateProfileCompletion(savedProfile.getId());
+        savedProfile = contractorProfileRepository.findById(savedProfile.getId()).get();
 
         // Fetch actor
         String actorEmail = SecurityContextHolder.getContext().getAuthentication().getName();
         User actor = userRepository.findByEmail(actorEmail).orElse(null);
         String actorId = (actor != null) ? actor.getId() : savedProfile.getUser().getId();
 
-        // Log audit event (title removed from profile)
+        // Log audit event
         auditService.logAction(
                 actorId,
                 "CONTRACTOR_PROFILE_CREATED",
                 "ContractorProfile",
                 savedProfile.getId(),
-            "Contractor profile created for user: " + savedProfile.getUser().getEmail());
+                "Contractor profile created for user: " + savedProfile.getUser().getEmail());
 
         return toDto(savedProfile, List.of());
     }
@@ -142,30 +161,38 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
                 .orElseThrow(() -> new ContractorProfileNotFoundException(
                         "Contractor profile not found with ID: " + profileId));
 
-        // title & bio removed per requirements
+        ProfileStatus previousStatus = profile.getProfileStatus();
+        AvailabilityStatus previousAvail = profile.getAvailabilityStatus();
+
+        if (request.getPhone() != null) {
+            profile.getUser().setPhone(request.getPhone().trim());
+            userRepository.save(profile.getUser());
+        }
+        if (request.getAddress() != null) {
+            profile.setAddress(request.getAddress().trim());
+        }
+
         profile.setHourlyRate(request.getHourlyRate());
         profile.setExperienceYears(request.getExperienceYears());
+
         if (request.getAvailabilityStatus() != null && !request.getAvailabilityStatus().trim().isEmpty()) {
             try {
-                AvailabilityStatus avail = AvailabilityStatus.valueOf(request.getAvailabilityStatus().toUpperCase().trim());
-                profile.setAvailabilityStatus(avail);
+                AvailabilityStatus target = AvailabilityStatus.valueOf(request.getAvailabilityStatus().toUpperCase().trim());
+                validateAvailabilityTransition(previousAvail, target);
+                profile.setAvailabilityStatus(target);
             } catch (IllegalArgumentException e) {
-                throw new IllegalArgumentException("Invalid availabilityStatus: " + request.getAvailabilityStatus());
+                throw new BusinessValidationException("Invalid availabilityStatus: " + request.getAvailabilityStatus());
             }
-        }else{
-            throw new IllegalArgumentException("Invalid availabilityStatus: Can't be null or Empty");
         }
 
         if (request.getStatus() != null && !request.getStatus().trim().isEmpty()) {
             try {
-                ProfileStatus pstatus = ProfileStatus.valueOf(request.getStatus().toUpperCase().trim());
-                profile.setProfileStatus(pstatus);
+                ProfileStatus target = ProfileStatus.valueOf(request.getStatus().toUpperCase().trim());
+                validateProfileStatusTransition(previousStatus, target);
+                profile.setProfileStatus(target);
             } catch (IllegalArgumentException e) {
-                throw new IllegalArgumentException("Invalid profile status: " + request.getStatus());
+                throw new BusinessValidationException("Invalid profile status: " + request.getStatus());
             }
-        }
-        else{
-            throw new IllegalArgumentException("Invalid Profile Status: Can't be Empty");
         }
 
         if (request.getPreferredEngagementType() != null && !request.getPreferredEngagementType().trim().isEmpty()) {
@@ -173,14 +200,18 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
                 EngagementType engType = EngagementType.valueOf(request.getPreferredEngagementType().toUpperCase().trim());
                 profile.setPreferredEngagementType(engType);
             } catch (IllegalArgumentException e) {
-                throw new IllegalArgumentException("Invalid preferredEngagementType: " + request.getPreferredEngagementType());
+                throw new BusinessValidationException("Invalid preferredEngagementType: " + request.getPreferredEngagementType());
             }
-        }
-        else{
-            throw new IllegalArgumentException("Invalid Preferred Engagement Type: Can't be Empty");
+        } else {
+            throw new BusinessValidationException("Invalid Preferred Engagement Type: Can't be Empty");
         }
 
         ContractorProfile updatedProfile = contractorProfileRepository.save(profile);
+        
+        // Update completeness
+        updateProfileCompletion(updatedProfile.getId());
+        updatedProfile = contractorProfileRepository.findById(updatedProfile.getId()).get();
+
         List<ContractorSkill> skills = contractorSkillRepository.findByContractorProfile(updatedProfile);
 
         // Fetch actor
@@ -188,13 +219,37 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
         User actor = userRepository.findByEmail(actorEmail).orElse(null);
         String actorId = (actor != null) ? actor.getId() : updatedProfile.getUser().getId();
 
-        // Log audit
+        // Audit Logging
+        String auditAction = "CONTRACTOR_PROFILE_UPDATED";
+        String auditDesc = "Contractor profile updated for user: " + updatedProfile.getUser().getEmail();
+
+        if (request.getStatus() != null) {
+            ProfileStatus newStatus = updatedProfile.getProfileStatus();
+            if (newStatus == ProfileStatus.INACTIVE || newStatus == ProfileStatus.BLACKLISTED) {
+                auditAction = "CONTRACTOR_PROFILE_SUSPENDED";
+                auditDesc = "Contractor profile suspended (Status: " + newStatus + ") for user: " + updatedProfile.getUser().getEmail();
+            } else if ((previousStatus == ProfileStatus.INACTIVE || previousStatus == ProfileStatus.BLACKLISTED)
+                    && (newStatus != ProfileStatus.INACTIVE && newStatus != ProfileStatus.BLACKLISTED)) {
+                auditAction = "CONTRACTOR_PROFILE_ACTIVATED";
+                auditDesc = "Contractor profile activated (Status: " + newStatus + ") for user: " + updatedProfile.getUser().getEmail();
+            }
+        }
+
         auditService.logAction(
                 actorId,
-                "CONTRACTOR_PROFILE_UPDATED",
+                auditAction,
                 "ContractorProfile",
                 updatedProfile.getId(),
-                "Contractor profile updated for user: " + updatedProfile.getUser().getEmail());
+                auditDesc);
+
+        if (request.getAvailabilityStatus() != null && previousAvail != updatedProfile.getAvailabilityStatus()) {
+            auditService.logAction(
+                    actorId,
+                    "CONTRACTOR_AVAILABILITY_CHANGED",
+                    "ContractorProfile",
+                    updatedProfile.getId(),
+                    "Availability changed from " + previousAvail + " to " + updatedProfile.getAvailabilityStatus() + " for user: " + updatedProfile.getUser().getEmail());
+        }
 
         return toDto(updatedProfile, skills);
     }
@@ -205,7 +260,15 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
             int size,
             String skillName,
             Integer minExperience,
-            String status) {
+            String status,
+            String availability,
+            String location,
+            String certification,
+            String name,
+            String email,
+            String phone,
+            String orgUnitId,
+            String preferredEngagementType) {
         Pageable pageable = PageRequest.of(page, size);
         Specification<ContractorProfile> spec = Specification.where(null);
 
@@ -217,35 +280,54 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
             return null;
         });
 
+        // 1. Organization Unit Scope Check
+        String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+        User currentUser = userRepository.findByEmail(currentUsername).orElse(null);
+        if (currentUser != null) {
+            String role = currentUser.getRole().name();
+            if (role.equals("HIRING_MANAGER")) {
+                String userOrg = currentUser.getOrgUnitId();
+                spec = spec.and((root, query, cb) -> cb.equal(root.get("user").get("orgUnitId"), userOrg));
+            } else if (role.equals("VENDOR") || role.equals("VENDOR_MANAGER")) {
+                String vendorOrg = currentUser.getOrgUnitId();
+                spec = spec.and((root, query, cb) -> cb.equal(root.get("user").get("orgUnitId"), vendorOrg));
+            }
+        }
+
+        // 2. Explicit orgUnitId search parameter
+        if (orgUnitId != null && !orgUnitId.trim().isEmpty()) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("user").get("orgUnitId"), orgUnitId.trim()));
+        }
+
+        // 3. Status filter
         if (status != null && !status.trim().isEmpty()) {
             try {
                 String statusUpper = status.toUpperCase().trim();
                 if (statusUpper.equals("ACTIVE") || statusUpper.equals("INACTIVE") || statusUpper.equals("BLACKLISTED")) {
                     ProfileStatus statusEnum = ProfileStatus.valueOf(statusUpper);
                     spec = spec.and((root, query, cb) -> cb.equal(root.get("profileStatus"), statusEnum));
-                } else {
-                    AvailabilityStatus availEnum = null;
-                    if (statusUpper.equals("ONBOARDING")) {
-                        spec = spec.and((root, query, cb) -> cb.equal(root.get("profileStatus"), ProfileStatus.ACTIVE));
-                    } else {
-                        if (statusUpper.equals("ASSIGNED")) {
-                            availEnum = AvailabilityStatus.ON_ASSIGNMENT;
-                        } else {
-                            availEnum = AvailabilityStatus.valueOf(statusUpper);
-                        }
-                        AvailabilityStatus finalAvail = availEnum;
-                        spec = spec.and((root, query, cb) -> cb.equal(root.get("availabilityStatus"), finalAvail));
-                    }
                 }
             } catch (IllegalArgumentException e) {
-                // ignore invalid status filter
+                // ignore
             }
         }
 
+        // 4. Availability filter
+        if (availability != null && !availability.trim().isEmpty()) {
+            try {
+                AvailabilityStatus availEnum = AvailabilityStatus.valueOf(availability.toUpperCase().trim());
+                spec = spec.and((root, query, cb) -> cb.equal(root.get("availabilityStatus"), availEnum));
+            } catch (IllegalArgumentException e) {
+                // ignore
+            }
+        }
+
+        // 5. Min experience (experienceYears)
         if (minExperience != null) {
             spec = spec.and((root, query, cb) -> cb.greaterThanOrEqualTo(root.get("experienceYears"), minExperience));
         }
 
+        // 6. Skill search specification
         if (skillName != null && !skillName.trim().isEmpty()) {
             spec = spec.and((root, query, cb) -> {
                 jakarta.persistence.criteria.Subquery<String> subquery = query.subquery(String.class);
@@ -255,6 +337,48 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
                                 "%" + skillName.trim().toLowerCase() + "%"));
                 return cb.in(root.get("id")).value(subquery);
             });
+        }
+
+        // 7. Location (address) search
+        if (location != null && !location.trim().isEmpty()) {
+            spec = spec.and((root, query, cb) -> cb.like(cb.lower(root.get("address")), "%" + location.trim().toLowerCase() + "%"));
+        }
+
+        // 8. Certification name search
+        if (certification != null && !certification.trim().isEmpty()) {
+            spec = spec.and((root, query, cb) -> {
+                jakarta.persistence.criteria.Subquery<String> subquery = query.subquery(String.class);
+                jakarta.persistence.criteria.Root<ContractorCertification> certRoot = subquery.from(ContractorCertification.class);
+                subquery.select(certRoot.get("contractorProfile").get("id"))
+                        .where(cb.like(cb.lower(certRoot.get("name")),
+                                "%" + certification.trim().toLowerCase() + "%"));
+                return cb.in(root.get("id")).value(subquery);
+            });
+        }
+
+        // 9. Name search
+        if (name != null && !name.trim().isEmpty()) {
+            spec = spec.and((root, query, cb) -> cb.like(cb.lower(root.get("user").get("name")), "%" + name.trim().toLowerCase() + "%"));
+        }
+
+        // 10. Email search
+        if (email != null && !email.trim().isEmpty()) {
+            spec = spec.and((root, query, cb) -> cb.equal(cb.lower(root.get("user").get("email")), email.trim().toLowerCase()));
+        }
+
+        // 11. Phone search
+        if (phone != null && !phone.trim().isEmpty()) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("user").get("phone"), phone.trim()));
+        }
+
+        // 12. Preferred engagement type
+        if (preferredEngagementType != null && !preferredEngagementType.trim().isEmpty()) {
+            try {
+                EngagementType engType = EngagementType.valueOf(preferredEngagementType.toUpperCase().trim());
+                spec = spec.and((root, query, cb) -> cb.equal(root.get("preferredEngagementType"), engType));
+            } catch (IllegalArgumentException e) {
+                // ignore
+            }
         }
 
         Page<ContractorProfile> profilePage = contractorProfileRepository.findAll(spec, pageable);
@@ -287,11 +411,23 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
             throw new DuplicateSkillException("Skill '" + skill.getName() + "' is already mapped to this profile.");
         }
 
+        if (request.getProficiencyLevel() == null || request.getProficiencyLevel().trim().isEmpty()) {
+            throw new BusinessValidationException("Proficiency level is mandatory.");
+        }
+
+        if (request.getYearsOfExperience() == null || request.getYearsOfExperience() < 0) {
+            throw new BusinessValidationException("Years of experience cannot be negative.");
+        }
+
+        if (profile.getExperienceYears() != null && request.getYearsOfExperience() > profile.getExperienceYears()) {
+            throw new BusinessValidationException("Skill experience cannot exceed overall profile experience (" + profile.getExperienceYears() + " years).");
+        }
+
         ProficiencyLevel level;
         try {
             level = ProficiencyLevel.valueOf(request.getProficiencyLevel().toUpperCase().trim());
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Invalid proficiency level: " + request.getProficiencyLevel());
+            throw new BusinessValidationException("Invalid proficiency level: " + request.getProficiencyLevel());
         }
 
         ContractorSkill contractorSkill = ContractorSkill.builder()
@@ -302,6 +438,11 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
                 .build();
 
         contractorSkillRepository.save(contractorSkill);
+        
+        // Update completion
+        updateProfileCompletion(profile.getId());
+        profile = contractorProfileRepository.findById(profile.getId()).get();
+
         List<ContractorSkill> skills = contractorSkillRepository.findByContractorProfile(profile);
 
         // Fetch actor
@@ -334,16 +475,32 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
         ContractorSkill contractorSkill = contractorSkillRepository.findByContractorProfileAndSkill(profile, skill)
                 .orElseThrow(() -> new SkillNotFoundException("Skill association not found on this profile."));
 
+        if (request.getProficiencyLevel() == null || request.getProficiencyLevel().trim().isEmpty()) {
+            throw new BusinessValidationException("Proficiency level is mandatory.");
+        }
+
+        if (request.getYearsOfExperience() == null || request.getYearsOfExperience() < 0) {
+            throw new BusinessValidationException("Years of experience cannot be negative.");
+        }
+
+        if (profile.getExperienceYears() != null && request.getYearsOfExperience() > profile.getExperienceYears()) {
+            throw new BusinessValidationException("Skill experience cannot exceed overall profile experience (" + profile.getExperienceYears() + " years).");
+        }
+
         ProficiencyLevel level;
         try {
             level = ProficiencyLevel.valueOf(request.getProficiencyLevel().toUpperCase().trim());
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Invalid proficiency level: " + request.getProficiencyLevel());
+            throw new BusinessValidationException("Invalid proficiency level: " + request.getProficiencyLevel());
         }
 
         contractorSkill.setProficiencyLevel(level);
         contractorSkill.setYearsOfExperience(request.getYearsOfExperience());
         contractorSkillRepository.save(contractorSkill);
+
+        // Update completion
+        updateProfileCompletion(profile.getId());
+        profile = contractorProfileRepository.findById(profile.getId()).get();
 
         List<ContractorSkill> skills = contractorSkillRepository.findByContractorProfile(profile);
 
@@ -377,6 +534,11 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
                 .orElseThrow(() -> new SkillNotFoundException("Skill association not found on this profile."));
 
         contractorSkillRepository.delete(contractorSkill);
+
+        // Update completion
+        updateProfileCompletion(profile.getId());
+        profile = contractorProfileRepository.findById(profile.getId()).get();
+
         List<ContractorSkill> skills = contractorSkillRepository.findByContractorProfile(profile);
 
         // Fetch actor
@@ -406,24 +568,141 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
                         .build())
                 .collect(Collectors.toList());
 
+        String mappedStatus = "AVAILABLE";
+        if (profile.getProfileStatus() == ProfileStatus.INACTIVE) {
+            mappedStatus = "INACTIVE";
+        } else if (profile.getProfileStatus() == ProfileStatus.BLACKLISTED) {
+            mappedStatus = "BLACKLISTED";
+        } else {
+            if (profile.getAvailabilityStatus() == AvailabilityStatus.ON_STATUS) {
+                mappedStatus = "ON_STATUS";
+            } else if (profile.getAvailabilityStatus() == AvailabilityStatus.ON_ASSIGNMENT) {
+                mappedStatus = "ON_ASSIGNMENT";
+            } else if (profile.getAvailabilityStatus() == AvailabilityStatus.AVAILABLE) {
+                mappedStatus = "AVAILABLE";
+            }
+        }
+
+        int score = 0;
+        if (profile.getHourlyRate() != null && profile.getPreferredEngagementType() != null && profile.getAddress() != null && !profile.getAddress().trim().isEmpty()) {
+            score += 20;
+        }
+        boolean hasSkills = contractorSkillRepository.existsByContractorProfile(profile);
+        if (hasSkills) {
+            score += 20;
+        }
+        if (profile.getExperienceYears() != null && profile.getExperienceYears() > 0) {
+            score += 20;
+        }
+        boolean hasCerts = contractorCertificationRepository.existsByContractorProfile(profile);
+        if (hasCerts) {
+            score += 20;
+        }
+        if (profile.getAvailabilityStatus() != null) {
+            score += 20;
+        }
+
         return ContractorProfileResponseDTO.builder()
                 .id(profile.getId())
                 .userId(profile.getUser().getId())
                 .userName(profile.getUser().getName())
                 .userEmail(profile.getUser().getEmail())
                 .availabilityStatus(profile.getAvailabilityStatus() != null ? profile.getAvailabilityStatus().name() : null)
-//                .status(profile.getProfileStatus() == ProfileStatus.INACTIVE ? "INACTIVE" :
-//                        (profile.getProfileStatus() == ProfileStatus.BLACKLISTED ? "BLACKLISTED" :
-//                         (profile.getAvailabilityStatus() == AvailabilityStatus.ON_ASSIGNMENT ? "ACTIVE" :
-//                          (profile.getAvailabilityStatus() == AvailabilityStatus.ON_STATUS ? "ONBOARDING" : "AVAILABLE"))))
-//
-                .status(profile.getProfileStatus() != null ? profile.getProfileStatus().name() : null)
+                .status(mappedStatus)
                 .hourlyRate(profile.getHourlyRate())
                 .experienceYears(profile.getExperienceYears())
                 .skills(skillDtos)
                 .preferredEngagementType(profile.getPreferredEngagementType() != null ? profile.getPreferredEngagementType().name() : null)
+                .phone(profile.getUser().getPhone())
+                .address(profile.getAddress())
+                .completionScore(score)
+                .orgUnitId(profile.getUser().getOrgUnitId())
                 .createdAt(profile.getCreatedAt())
                 .updatedAt(profile.getUpdatedAt())
                 .build();
+    }
+
+    @Override
+    @Transactional
+    public void updateProfileCompletion(String profileId) {
+        ContractorProfile profile = contractorProfileRepository.findById(profileId)
+                .orElseThrow(() -> new ContractorProfileNotFoundException("Contractor profile not found with ID: " + profileId));
+        
+        int score = 0;
+        if (profile.getHourlyRate() != null && profile.getPreferredEngagementType() != null && profile.getAddress() != null && !profile.getAddress().trim().isEmpty()) {
+            score += 20;
+        }
+        if (contractorSkillRepository.existsByContractorProfile(profile)) {
+            score += 20;
+        }
+        if (profile.getExperienceYears() != null && profile.getExperienceYears() > 0) {
+            score += 20;
+        }
+        if (contractorCertificationRepository.existsByContractorProfile(profile)) {
+            score += 20;
+        }
+        if (profile.getAvailabilityStatus() != null) {
+            score += 20;
+        }
+
+        if (score == 100) {
+            // Publish profile completion notification and audit (do not change profileStatus enum)
+            String actorEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+            User actor = userRepository.findByEmail(actorEmail).orElse(null);
+            String actorId = (actor != null) ? actor.getId() : profile.getUser().getId();
+            auditService.logAction(
+                    actorId,
+                    "CONTRACTOR_PROFILE_COMPLETED",
+                    "ContractorProfile",
+                    profile.getId(),
+                    "Profile completeness reached 100% for user: " + profile.getUser().getEmail());
+
+            notificationPublisher.publishProfileCompletion(profile);
+        }
+    }
+
+    private void validateAvailabilityTransition(AvailabilityStatus current, AvailabilityStatus target) {
+        if (current == target) {
+            return;
+        }
+        boolean valid = false;
+        switch (current) {
+            case AVAILABLE:
+                valid = (target == AvailabilityStatus.ON_ASSIGNMENT) || (target == AvailabilityStatus.ON_STATUS);
+                break;
+            case ON_ASSIGNMENT:
+                valid = (target == AvailabilityStatus.AVAILABLE) || (target == AvailabilityStatus.ON_STATUS);
+                break;
+            case ON_STATUS:
+                valid = true;
+                break;
+            default:
+                valid = false;
+        }
+        if (!valid) {
+            throw new InvalidAvailabilityTransitionException("Invalid availability transition from " + current + " to " + target);
+        }
+    }
+
+    private void validateProfileStatusTransition(ProfileStatus current, ProfileStatus target) {
+        if (current == target) {
+            return;
+        }
+        boolean valid = false;
+        // Only allow transitions between ACTIVE, INACTIVE and BLACKLISTED
+        switch (current) {
+            case ACTIVE:
+                valid = (target == ProfileStatus.INACTIVE) || (target == ProfileStatus.BLACKLISTED);
+                break;
+            case INACTIVE:
+            case BLACKLISTED:
+                valid = (target == ProfileStatus.ACTIVE);
+                break;
+            default:
+                valid = false;
+        }
+        if (!valid) {
+            throw new BusinessValidationException("Invalid profile status transition from " + current + " to " + target);
+        }
     }
 }

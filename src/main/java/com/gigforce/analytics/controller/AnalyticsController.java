@@ -47,7 +47,7 @@ public class AnalyticsController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping({"/executive-dashboard"})
+    @GetMapping("/executive-dashboard")
     @PreAuthorize("hasAnyRole('ADMIN', 'FINANCE')")
     @Operation(summary = "Get Executive Dashboard metrics")
     public ResponseEntity<ExecutiveDashboardResponseDTO> getExecutiveDashboard(
@@ -86,6 +86,31 @@ public class AnalyticsController {
     public ResponseEntity<Long> getComplianceExpiryCount(
             @RequestParam(required = false, defaultValue = "30") Integer days) {
         Long response = analyticsService.getComplianceExpiryCount(days);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/personal-dashboard")
+    @PreAuthorize("hasRole('CONTRACTOR')")
+    @Operation(summary = "Get Contractor Personal Dashboard metrics")
+    public ResponseEntity<PersonalDashboardResponseDTO> getPersonalDashboard() {
+        PersonalDashboardResponseDTO response = analyticsService.getPersonalDashboard();
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/search")
+    @Operation(summary = "Search/Filter workforce metrics dynamically")
+    public ResponseEntity<ExecutiveDashboardResponseDTO> getFilteredReport(
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate startDate,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate endDate,
+            @RequestParam(required = false) String orgUnitId,
+            @RequestParam(required = false) String vendorId,
+            @RequestParam(required = false) String contractorId,
+            @RequestParam(required = false) String skill,
+            @RequestParam(required = false) String assignmentStatus,
+            @RequestParam(required = false) String invoiceStatus,
+            @RequestParam(required = false) String timesheetStatus) {
+        ExecutiveDashboardResponseDTO response = analyticsService.getFilteredReport(
+                startDate, endDate, orgUnitId, vendorId, contractorId, skill, assignmentStatus, invoiceStatus, timesheetStatus);
         return ResponseEntity.ok(response);
     }
 }

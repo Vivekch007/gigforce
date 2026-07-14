@@ -11,7 +11,7 @@ public enum SubmissionStatus {
             case SUBMITTED:
                 return target == SHORTLISTED || target == REJECTED;
             case SHORTLISTED:
-                return target == INTERVIEW_SCHEDULED || target == REJECTED;
+                return target == INTERVIEW_SCHEDULED || target == SELECTED || target == REJECTED;
             case INTERVIEW_SCHEDULED:
                 return target == SELECTED || target == REJECTED;
             case SELECTED:

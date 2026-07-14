@@ -47,8 +47,8 @@ public class  ContractorProfileController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER')")
-    @Operation(summary = "Create profile for a contractor user", description = "Registers a profile for the contractor user specified by userId. Restricted to ADMIN or HIRING_MANAGER.")
+    @PreAuthorize("hasAnyRole('CONTRACTOR')")
+    @Operation(summary = "Create profile for a contractor user", description = "Registers a profile for the contractor user specified by userId. Restricted to CONTRACTOR USER ONLY.")
     public ResponseEntity<ContractorProfileResponseDTO> createProfile(
             @Valid @RequestBody ContractorProfileCreationRequestDTO request) {
         if (request.getUserId() == null) {
@@ -98,9 +98,18 @@ public class  ContractorProfileController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String skill,
             @RequestParam(required = false) Integer minExperience,
-            @RequestParam(required = false) String status) {
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String availability,
+            @RequestParam(required = false) String location,
+            @RequestParam(required = false) String certification,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String email,
+            @RequestParam(required = false) String phone,
+            @RequestParam(required = false) String orgUnitId,
+            @RequestParam(required = false) String preferredEngagementType) {
         Page<ContractorProfileResponseDTO> profiles = contractorProfileService.searchProfiles(
-                page, size, skill, minExperience, status);
+                page, size, skill, minExperience, status, availability, location, certification,
+                name, email, phone, orgUnitId, preferredEngagementType);
         return ResponseEntity.ok(profiles);
     }
 
@@ -252,17 +261,43 @@ public class  ContractorProfileController {
     }
 
     private void validateAccess(ContractorProfileResponseDTO profile) {
-        boolean isAdmin = SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
-                .anyMatch(a -> (a.getAuthority().equals("ROLE_ADMIN") || a.getAuthority().equals("ROLE_HIRING_MANAGER")));
-        if (isAdmin) {
+        String currentUserId = currentUserContext.getCurrentUserId();
+        String currentRole = currentUserContext.getCurrentUserRole();
+        String currentOrgUnitId = currentUserContext.getCurrentUserOrgUnitId();
+
+        if (currentUserId == null) {
+            throw new AccessDeniedException("Access Denied: Unauthenticated user.");
+        }
+
+        // Admin and Finance bypass checks
+        if (currentRole.equals("ADMIN") || currentRole.equals("FINANCE")) {
             return;
         }
 
-        String currentRole = currentUserContext.getCurrentUserRole();
-
-        if ( ! ( "HIRING_MANAGER".equals(currentRole) || "ADMIN".equals(currentRole))) {
-            throw new AccessDeniedException(
-                    "Access Denied: Contractors are not authorized to access profiles by ID.");
+        // Contractor can only view their own profile
+        if (currentRole.equals("CONTRACTOR")) {
+            if (!currentUserId.equals(profile.getUserId())) {
+                throw new AccessDeniedException("Access Denied: Contractors can only view their own profile.");
+            }
+            return;
         }
+
+        // Hiring Manager can only view contractors in their own organization
+        if (currentRole.equals("HIRING_MANAGER")) {
+            if (currentOrgUnitId == null || !currentOrgUnitId.equals(profile.getOrgUnitId())) {
+                throw new AccessDeniedException("Access Denied: Hiring Managers can only view contractors in their own organization.");
+            }
+            return;
+        }
+
+        // Vendor / Vendor Manager can only view contractors belonging to their vendor
+        if (currentRole.equals("VENDOR") || currentRole.equals("VENDOR_MANAGER")) {
+            if (currentOrgUnitId == null || !currentOrgUnitId.equals(profile.getOrgUnitId())) {
+                throw new AccessDeniedException("Access Denied: Vendor Managers can only view contractors belonging to their vendor.");
+            }
+            return;
+        }
+
+        throw new AccessDeniedException("Access Denied: You do not have permission to view this contractor profile.");
     }
 }
