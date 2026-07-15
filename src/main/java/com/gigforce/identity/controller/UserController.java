@@ -81,7 +81,7 @@ public class UserController {
     }
 
     @PutMapping("/{id}/suspend")
-    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Suspend user account", description = "Restricted to ADMIN users.")
     public ResponseEntity<UserResponseDTO> suspendUser(@PathVariable String id) {
         UserResponseDTO suspendedUser = userService.suspendUser(id);
@@ -89,16 +89,16 @@ public class UserController {
     }
 
     @PutMapping("/{id}/deactivate")
-    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER')")
-    @Operation(summary = "Deactivate user account", description = "Restricted to ADMIN and Hiring Manager users.")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Deactivate user account", description = "Restricted to ADMIN users.")
     public ResponseEntity<UserResponseDTO> deactivateUser(@PathVariable String id) {
         UserResponseDTO deactivatedUser = userService.deactivateUser(id);
         return ResponseEntity.ok(deactivatedUser);
     }
 
     @PutMapping("/{id}/activate")
-    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER')")
-    @Operation(summary = "Activate user account", description = "Activates a suspended/inactive user. Restricted to ADMIN and Hiring Manager users.")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Activate user account", description = "Activates a suspended/inactive user. Restricted to ADMIN users.")
     public ResponseEntity<UserResponseDTO> activateUser(@PathVariable String id) {
         UserResponseDTO activatedUser = userService.activateUser(id);
         return ResponseEntity.ok(activatedUser);

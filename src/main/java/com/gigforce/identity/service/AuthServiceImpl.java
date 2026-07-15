@@ -74,6 +74,12 @@ public class AuthServiceImpl implements AuthService {
                     "Registration of ADMIN accounts is not allowed through the public endpoint.");
         }
 
+        if ((request.getRole() == UserRole.HIRING_MANAGER || request.getRole() == UserRole.FINANCE)
+                && (request.getOrgUnitId() == null || request.getOrgUnitId().isBlank())) {
+            throw new IllegalArgumentException(
+                    "orgUnitId is required for " + request.getRole().name() + " accounts.");
+        }
+
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new DuplicateEmailException("Email address already registered: " + request.getEmail());
         }

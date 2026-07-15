@@ -3,6 +3,7 @@ package com.gigforce.audit.service;
 import com.gigforce.audit.entity.AuditLog;
 import com.gigforce.audit.repository.AuditLogRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -18,7 +19,7 @@ public class AuditServiceImpl implements AuditService {
     }
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void logAction(String userId, String action, String entityType, String entityId, String description) {
         AuditLog log = AuditLog.builder()
                 .userId(userId)
