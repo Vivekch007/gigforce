@@ -65,7 +65,7 @@ public class AnalyticsController {
     }
 
     @GetMapping("/business-unit/{businessUnit}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'FINANCE', 'HIRING_MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER')")
     @Operation(summary = "Get Business Unit metrics")
     public ResponseEntity<BusinessUnitDashboardResponseDTO> getBusinessUnitDashboard(@PathVariable String businessUnit) {
         BusinessUnitDashboardResponseDTO response = analyticsService.getBusinessUnitDashboard(businessUnit);
@@ -73,7 +73,7 @@ public class AnalyticsController {
     }
 
     @GetMapping("/skill/{skill}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'FINANCE', 'HIRING_MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER')")
     @Operation(summary = "Get Skill dashboard metrics")
     public ResponseEntity<SkillDashboardResponseDTO> getSkillDashboard(@PathVariable String skill) {
         SkillDashboardResponseDTO response = analyticsService.getSkillDashboard(skill);
@@ -81,7 +81,7 @@ public class AnalyticsController {
     }
 
     @GetMapping("/compliance-expiry")
-    @PreAuthorize("hasAnyRole('ADMIN', 'VENDOR_MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'VENDOR', 'VENDOR_MANAGER')")
     @Operation(summary = "Get compliance expiry counts")
     public ResponseEntity<Long> getComplianceExpiryCount(
             @RequestParam(required = false, defaultValue = "30") Integer days) {
@@ -98,7 +98,8 @@ public class AnalyticsController {
     }
 
     @GetMapping("/search")
-    @Operation(summary = "Search/Filter workforce metrics dynamically")
+    @PreAuthorize("hasAnyRole('ADMIN', 'FINANCE', 'HIRING_MANAGER', 'VENDOR', 'VENDOR_MANAGER', 'CONTRACTOR')")
+    @Operation(summary = "Search/Filter workforce metrics dynamically (results are scoped to the caller's role)")
     public ResponseEntity<ExecutiveDashboardResponseDTO> getFilteredReport(
             @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate startDate,
             @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate endDate,
@@ -112,5 +113,61 @@ public class AnalyticsController {
         ExecutiveDashboardResponseDTO response = analyticsService.getFilteredReport(
                 startDate, endDate, orgUnitId, vendorId, contractorId, skill, assignmentStatus, invoiceStatus, timesheetStatus);
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/skill-distribution")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER')")
+    @Operation(summary = "Get skill-wise contractor distribution")
+    public ResponseEntity<List<SkillDistributionResponseDTO>> getSkillDistribution() {
+        return ResponseEntity.ok(analyticsService.getSkillDistribution());
+    }
+
+    @GetMapping("/contractor-report")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER', 'VENDOR', 'VENDOR_MANAGER')")
+    @Operation(summary = "Contractor Report")
+    public ResponseEntity<List<ContractorReportRowDTO>> getContractorReport() {
+        return ResponseEntity.ok(analyticsService.getContractorReport());
+    }
+
+    @GetMapping("/requisition-report")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER', 'VENDOR', 'VENDOR_MANAGER')")
+    @Operation(summary = "Requisition Report")
+    public ResponseEntity<List<RequisitionReportRowDTO>> getRequisitionReport() {
+        return ResponseEntity.ok(analyticsService.getRequisitionReport());
+    }
+
+    @GetMapping("/assignment-report")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER', 'VENDOR', 'VENDOR_MANAGER')")
+    @Operation(summary = "Assignment Report")
+    public ResponseEntity<List<AssignmentReportRowDTO>> getAssignmentReport() {
+        return ResponseEntity.ok(analyticsService.getAssignmentReport());
+    }
+
+    @GetMapping("/timesheet-report")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER', 'VENDOR', 'VENDOR_MANAGER')")
+    @Operation(summary = "Timesheet Report")
+    public ResponseEntity<List<TimesheetReportRowDTO>> getTimesheetReport() {
+        return ResponseEntity.ok(analyticsService.getTimesheetReport());
+    }
+
+    @GetMapping("/invoice-report")
+    @PreAuthorize("hasAnyRole('ADMIN', 'FINANCE', 'HIRING_MANAGER', 'VENDOR', 'VENDOR_MANAGER')")
+    @Operation(summary = "Invoice Report")
+    public ResponseEntity<List<InvoiceReportRowDTO>> getInvoiceReport() {
+        return ResponseEntity.ok(analyticsService.getInvoiceReport());
+    }
+
+    @GetMapping("/payment-report")
+    @PreAuthorize("hasAnyRole('ADMIN', 'FINANCE')")
+    @Operation(summary = "Payment Report (financial)")
+    public ResponseEntity<List<PaymentReportRowDTO>> getPaymentReport() {
+        return ResponseEntity.ok(analyticsService.getPaymentReport());
+    }
+
+    @GetMapping("/compliance-report")
+    @PreAuthorize("hasAnyRole('ADMIN', 'VENDOR', 'VENDOR_MANAGER')")
+    @Operation(summary = "Compliance Report")
+    public ResponseEntity<List<ComplianceReportRowDTO>> getComplianceReport() {
+        return ResponseEntity.ok(analyticsService.getComplianceReport());
     }
 }

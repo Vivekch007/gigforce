@@ -25,8 +25,8 @@ public class TimesheetController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER', 'CONTRACTOR')")
-    @Operation(summary = "Create weekly timesheet draft")
+    @PreAuthorize("hasRole('CONTRACTOR')")
+    @Operation(summary = "Create weekly timesheet draft (contractor only; backend pre-generates Mon-Fri lines)")
     public ResponseEntity<TimesheetResponseDTO> createTimesheet(@Valid @RequestBody TimesheetRequestDTO request) {
         TimesheetResponseDTO response = timesheetService.createTimesheet(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -44,15 +44,15 @@ public class TimesheetController {
 
     @PostMapping("/{id}/submit")
     @PreAuthorize("hasAnyRole('ADMIN', 'CONTRACTOR')")
-    @Operation(summary = "Submit weekly timesheet for L1 review")
+    @Operation(summary = "Submit weekly timesheet for HR review")
     public ResponseEntity<TimesheetResponseDTO> submitTimesheet(@PathVariable String id) {
         TimesheetResponseDTO response = timesheetService.submitTimesheet(id);
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/{id}/approve")
-    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER', 'FINANCE')")
-    @Operation(summary = "Approve timesheet hours (L1 Manager review or L2 Finance audit)")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER')")
+    @Operation(summary = "Approve timesheet hours (HR / Hiring Manager)")
     public ResponseEntity<TimesheetResponseDTO> approveTimesheet(
             @PathVariable String id,
             @RequestBody(required = false) TimesheetApprovalRequestDTO request) {
@@ -61,8 +61,8 @@ public class TimesheetController {
     }
 
     @PostMapping("/{id}/reject")
-    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER', 'FINANCE')")
-    @Operation(summary = "Reject timesheet hours")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER')")
+    @Operation(summary = "Reject timesheet hours (HR / Hiring Manager)")
     public ResponseEntity<TimesheetResponseDTO> rejectTimesheet(
             @PathVariable String id,
             @RequestBody @Valid TimesheetApprovalRequestDTO request) {

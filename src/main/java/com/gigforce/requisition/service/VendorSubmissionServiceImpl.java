@@ -78,7 +78,7 @@ public class VendorSubmissionServiceImpl implements VendorSubmissionService {
                 .orElseThrow(() -> new ContractorProfileNotFoundException(
                         "Contractor profile not found with ID: " + request.getContractorProfileId()));
 
-        if (profile.getAvailabilityStatus() != AvailabilityStatus.AVAILABLE && profile.getAvailabilityStatus() != AvailabilityStatus.ON_STATUS) {
+        if (profile.getAvailabilityStatus() != AvailabilityStatus.AVAILABLE && profile.getAvailabilityStatus() != AvailabilityStatus.ON_NOTICE) {
             throw new BusinessValidationException(
                 "Contractor profile is not available for submissions (AvailabilityStatus: " + profile.getAvailabilityStatus() + ").");
         }
@@ -137,21 +137,43 @@ public class VendorSubmissionServiceImpl implements VendorSubmissionService {
 
         ResourceRequisition requisition = submission.getRequisition();
 
-        // 2. SECURITY CHECK
+        // Submissions can only be evaluated while the requisition is still active.
+        if (requisition.getStatus() != RequisitionStatus.OPEN
+                && requisition.getStatus() != RequisitionStatus.UNDER_REVIEW) {
+            throw new BusinessValidationException(
+                    "Submissions can only be evaluated while the requisition is OPEN or UNDER_REVIEW (current: "
+                            + requisition.getStatus() + ").");
+        }
+
+        // 2. SECURITY CHECK: requisition creator (HR), Admin, or the submitting vendor may evaluate.
         String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
         User currentUser = userRepository.findByEmail(currentUsername)
                 .orElseThrow(() -> new UserNotFoundException("User not found with email: " + currentUsername));
 
-        boolean isAdmin = currentUser.getRole().name().equals("ADMIN");
-        if (!isAdmin && !requisition.getCreator().getId().equals(currentUser.getId())) {
-            throw new AccessDeniedException("Access Denied: Only the requisition creator can evaluate submissions.");
+        String role = currentUser.getRole().name();
+        boolean isAdmin = role.equals("ADMIN");
+        boolean isCreator = requisition.getCreator().getId().equals(currentUser.getId());
+        // Vendors have no org unit; the submitting vendor is identified as the exact user who submitted.
+        boolean isSubmittingVendor = (role.equals("VENDOR") || role.equals("VENDOR_MANAGER"))
+                && submission.getSubmittedBy().getId().equals(currentUser.getId());
+
+        // SELECTED assigns the contractor and can auto-fill the requisition, so it is reserved for
+        // the requisition owner (HR) or Admin. Vendors may only drive the earlier steps
+        // (shortlist / schedule interview / reject) to avoid selecting their own candidate.
+        if (targetStatus == SubmissionStatus.SELECTED) {
+            if (!isAdmin && !isCreator) {
+                throw new AccessDeniedException(
+                        "Access Denied: Only the requisition owner (HR) or an Admin can select a submission.");
+            }
+        } else if (!isAdmin && !isCreator && !isSubmittingVendor) {
+            throw new AccessDeniedException("Access Denied: You are not authorized to evaluate this submission.");
         }
 
         // 3. TARGET STATUS SPECIFIC LOGIC
         if (targetStatus == SubmissionStatus.SELECTED) {
             ContractorProfile profile = submission.getContractorProfile();
             if (profile.getAvailabilityStatus() != AvailabilityStatus.AVAILABLE
-                    && profile.getAvailabilityStatus() != AvailabilityStatus.ON_STATUS) {
+                    && profile.getAvailabilityStatus() != AvailabilityStatus.ON_NOTICE) {
                 throw new IllegalArgumentException(
                         "Contractor is no longer available (AvailabilityStatus: " + profile.getAvailabilityStatus() + ").");
             }

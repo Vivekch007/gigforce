@@ -9,6 +9,7 @@ public interface ContractorProfileService {
     ContractorProfileResponseDTO getProfileById(String profileId);
     ContractorProfileResponseDTO getProfileByUserId(String userId);
     ContractorProfileResponseDTO updateProfile(String profileId, ContractorProfileUpdateRequestDTO request);
+    ContractorProfileResponseDTO updateProfileStatus(String profileId, String status);
     Page<ContractorProfileResponseDTO> searchProfiles(
             int page, int size, String skillName, Integer minExperience, String status,
             String availability, String location, String certification, String name,

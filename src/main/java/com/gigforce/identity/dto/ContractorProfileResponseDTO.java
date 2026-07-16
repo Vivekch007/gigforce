@@ -18,6 +18,7 @@ import java.util.List;
 public class ContractorProfileResponseDTO {
     private String id;
     private String userId;
+    private String displayName;
     private String userName;
     private String userEmail;
     private BigDecimal hourlyRate;

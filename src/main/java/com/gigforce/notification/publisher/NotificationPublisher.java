@@ -2,6 +2,7 @@ package com.gigforce.notification.publisher;
 
 import com.gigforce.identity.entity.User;
 import com.gigforce.identity.entity.ContractorProfile;
+import com.gigforce.identity.entity.Skill;
 import com.gigforce.identity.repository.UserRepository;
 import com.gigforce.requisition.entity.ResourceRequisition;
 import com.gigforce.assignment.entity.Assignment;
@@ -311,6 +312,97 @@ public class NotificationPublisher {
                 .referenceEntityType("User")
                 .orgUnitId(user.getOrgUnitId())
                 .build());
+    }
+
+    // Module 1: Password Changed
+    public void publishPasswordChanged(User user) {
+        notificationService.createNotification(NotificationRequestDTO.builder()
+                .userId(user.getId())
+                .title("Password Changed")
+                .message("Your password has been changed successfully.")
+                .category("GENERAL")
+                .priority("HIGH")
+                .notificationType("PASSWORD_CHANGED")
+                .referenceEntityId(user.getId())
+                .referenceEntityType("User")
+                .orgUnitId(user.getOrgUnitId())
+                .build());
+    }
+
+    // Module 1: Password Reset (via forgot-password token flow)
+    public void publishPasswordReset(User user) {
+        notificationService.createNotification(NotificationRequestDTO.builder()
+                .userId(user.getId())
+                .title("Password Reset")
+                .message("Your password has been reset successfully.")
+                .category("GENERAL")
+                .priority("HIGH")
+                .notificationType("PASSWORD_RESET")
+                .referenceEntityId(user.getId())
+                .referenceEntityType("User")
+                .orgUnitId(user.getOrgUnitId())
+                .build());
+    }
+
+    // Module 2: Skill Added
+    public void publishSkillAdded(ContractorProfile profile, Skill skill) {
+        notificationService.createNotification(NotificationRequestDTO.builder()
+                .userId(profile.getUser().getId())
+                .title("Skill Added")
+                .message(String.format("New skill added to your profile: %s.", skill.getName()))
+                .category("COMPLIANCE")
+                .priority("LOW")
+                .notificationType("SKILL_ADDED")
+                .referenceEntityId(profile.getId())
+                .referenceEntityType("ContractorProfile")
+                .orgUnitId(profile.getUser().getOrgUnitId())
+                .build());
+    }
+
+    // Module 3: Requisition Closed
+    public void publishRequisitionClosed(ResourceRequisition requisition) {
+        notificationService.createNotification(NotificationRequestDTO.builder()
+                .userId(requisition.getCreator().getId())
+                .title("Requisition Closed")
+                .message(String.format("Your requisition '%s' has been closed.", requisition.getTitle()))
+                .category("ASSIGNMENT")
+                .priority("MEDIUM")
+                .notificationType("REQUISITION_CLOSED")
+                .referenceEntityId(requisition.getId())
+                .referenceEntityType("ResourceRequisition")
+                .orgUnitId(requisition.getOrgUnitId())
+                .build());
+    }
+
+    // Module 4: Assignment Cancelled
+    public void publishAssignmentCancelled(Assignment assignment) {
+        if (assignment.getContractorProfile() != null && assignment.getContractorProfile().getUser() != null) {
+            notificationService.createNotification(NotificationRequestDTO.builder()
+                    .userId(assignment.getContractorProfile().getUser().getId())
+                    .title("Assignment Cancelled")
+                    .message(String.format("Your assignment %s has been cancelled.", assignment.getId()))
+                    .category("ASSIGNMENT")
+                    .priority("HIGH")
+                    .notificationType("ASSIGNMENT_CANCELLED")
+                    .referenceEntityId(assignment.getId())
+                    .referenceEntityType("Assignment")
+                    .orgUnitId(assignment.getOrgUnitId())
+                    .build());
+        }
+
+        if (assignment.getVendor() != null) {
+            notificationService.createNotification(NotificationRequestDTO.builder()
+                    .userId(assignment.getVendor().getId())
+                    .title("Assignment Cancelled")
+                    .message(String.format("Assignment %s has been cancelled.", assignment.getId()))
+                    .category("ASSIGNMENT")
+                    .priority("MEDIUM")
+                    .notificationType("ASSIGNMENT_CANCELLED")
+                    .referenceEntityId(assignment.getId())
+                    .referenceEntityType("Assignment")
+                    .orgUnitId(assignment.getOrgUnitId())
+                    .build());
+        }
     }
 
     public void publishContractorReactivated(User user) {

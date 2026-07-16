@@ -74,11 +74,17 @@ public class AuthServiceImpl implements AuthService {
                     "Registration of ADMIN accounts is not allowed through the public endpoint.");
         }
 
+        // orgUnitId identifies the hiring organization, so it is required only for the org-bound
+        // roles (HR and Finance). Contractors and vendors are not tied to an org unit. When
+        // provided it is normalized (trim + upper-case) so equality checks are reliable.
         if ((request.getRole() == UserRole.HIRING_MANAGER || request.getRole() == UserRole.FINANCE)
                 && (request.getOrgUnitId() == null || request.getOrgUnitId().isBlank())) {
             throw new IllegalArgumentException(
                     "orgUnitId is required for " + request.getRole().name() + " accounts.");
         }
+        String normalizedOrgUnitId = (request.getOrgUnitId() == null || request.getOrgUnitId().isBlank())
+                ? null
+                : request.getOrgUnitId().trim().toUpperCase();
 
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new DuplicateEmailException("Email address already registered: " + request.getEmail());
@@ -91,7 +97,7 @@ public class AuthServiceImpl implements AuthService {
                 .phone(request.getPhone())
                 .role(request.getRole())
                 .status(UserStatus.ACTIVE)
-                .orgUnitId(request.getOrgUnitId())
+                .orgUnitId(normalizedOrgUnitId)
                 .build();
 
         User savedUser = userRepository.save(user);
@@ -170,13 +176,17 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public void forgotPassword(ForgotPasswordRequestDTO request) {
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new UserNotFoundException("User not found with email: " + request.getEmail()));
+        // Do not reveal whether the email is registered (prevents user enumeration).
+        // Silently return so the caller always gets the same 200 response.
+        User user = userRepository.findByEmail(request.getEmail()).orElse(null);
+        if (user == null) {
+            return;
+        }
 
         // Delete existing tokens for user to avoid redundancy
         passwordResetTokenRepository.deleteByUser(user);
 
-        String token = UUID.randomUUID().toString();
+        String token = UUID.randomUUID().toString().replaceAll("[^a-zA-Z0-9]", "").substring(0, 7);
         PasswordResetToken resetToken = PasswordResetToken.builder()
                 .token(token)
                 .user(user)
@@ -221,6 +231,8 @@ public class AuthServiceImpl implements AuthService {
                 "USER",
                 user.getId(),
                 "Password reset successfully via token for email: " + user.getEmail());
+
+        notificationPublisher.publishPasswordReset(user);
     }
 
     @Override
@@ -242,6 +254,8 @@ public class AuthServiceImpl implements AuthService {
                 "USER",
                 user.getId(),
                 "Password changed successfully for user " + user.getEmail());
+
+        notificationPublisher.publishPasswordChanged(user);
     }
 
     @Override

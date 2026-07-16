@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.jpa.domain.Specification;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -135,7 +136,8 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     @Override
-    public List<NotificationResponseDTO> getMyNotifications(String status, String category, String priority) {
+    public List<NotificationResponseDTO> getMyNotifications(String status, String category, String priority,
+            LocalDate fromDate, LocalDate toDate) {
         User currentUser = currentUserContext.getCurrentUser();
         if (currentUser == null) {
             throw new AccessDeniedException("Access Denied: Unauthenticated.");
@@ -173,6 +175,16 @@ public class NotificationServiceImpl implements NotificationService {
             } catch (IllegalArgumentException e) {
                 // Ignore invalid
             }
+        }
+
+        // Date filter: createdAt falls within [fromDate 00:00, toDate 23:59:59.999]
+        if (fromDate != null) {
+            LocalDateTime fromDateTime = fromDate.atStartOfDay();
+            spec = spec.and((root, query, cb) -> cb.greaterThanOrEqualTo(root.get("createdAt"), fromDateTime));
+        }
+        if (toDate != null) {
+            LocalDateTime toDateTime = toDate.plusDays(1).atStartOfDay();
+            spec = spec.and((root, query, cb) -> cb.lessThan(root.get("createdAt"), toDateTime));
         }
 
         Sort sort = Sort.by(Sort.Direction.DESC, "createdAt");

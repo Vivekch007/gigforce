@@ -318,8 +318,8 @@ public class InvoiceServiceImpl implements InvoiceService {
         ContractorInvoice invoice = contractorInvoiceRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Invoice not found with ID: " + id));
 
-        // Workflow Validation: Only SUBMITTED or DISPUTED can be approved
-        if (invoice.getStatus() != InvoiceStatus.SUBMITTED && invoice.getStatus() != InvoiceStatus.DISPUTED) {
+        // Workflow Validation: Only SUBMITTED invoices can be approved
+        if (invoice.getStatus() != InvoiceStatus.SUBMITTED) {
             throw new BusinessValidationException("Invalid workflow transition: Cannot approve invoice in status " + invoice.getStatus());
         }
 
@@ -364,8 +364,8 @@ public class InvoiceServiceImpl implements InvoiceService {
         ContractorInvoice invoice = contractorInvoiceRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Invoice not found with ID: " + id));
 
-        // Workflow Validation: Only SUBMITTED or DISPUTED can be rejected
-        if (invoice.getStatus() != InvoiceStatus.SUBMITTED && invoice.getStatus() != InvoiceStatus.DISPUTED) {
+        // Workflow Validation: Only SUBMITTED invoices can be rejected
+        if (invoice.getStatus() != InvoiceStatus.SUBMITTED) {
             throw new BusinessValidationException("Invalid workflow transition: Cannot reject invoice in status " + invoice.getStatus());
         }
 
@@ -408,64 +408,6 @@ public class InvoiceServiceImpl implements InvoiceService {
         );
 
         notificationPublisher.publishInvoiceRejection(invoice);
-
-        return mapToDto(invoice);
-    }
-
-    @Override
-    @Transactional
-    public ContractorInvoiceResponseDTO disputeInvoice(String id) {
-        User currentUser = currentUserContext.getCurrentUser();
-        if (currentUser == null) {
-            throw new AccessDeniedException("Access Denied: Unauthenticated user.");
-        }
-
-        String role = currentUser.getRole().name();
-        // RBAC: ADMIN, FINANCE allowed to dispute
-        if (!"ADMIN".equals(role) && !"FINANCE".equals(role)) {
-            throw new AccessDeniedException("Access Denied: Only Admin or Finance roles can dispute invoices.");
-        }
-
-        ContractorInvoice invoice = contractorInvoiceRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Invoice not found with ID: " + id));
-
-        // Workflow Validation: Only SUBMITTED can be disputed
-        if (invoice.getStatus() != InvoiceStatus.SUBMITTED) {
-            throw new BusinessValidationException("Invalid workflow transition: Cannot dispute invoice in status " + invoice.getStatus());
-        }
-
-        invoice.setStatus(InvoiceStatus.DISPUTED);
-        invoice = contractorInvoiceRepository.save(invoice);
-
-        auditService.logAction(
-                currentUser.getId(),
-                "INVOICE_UPDATED",
-                "ContractorInvoice",
-                invoice.getId(),
-                "Invoice status updated to DISPUTED."
-        );
-
-        return mapToDto(invoice);
-    }
-
-    @Override
-    @Transactional
-    public ContractorInvoiceResponseDTO markInvoiceAsPaid(String id) {
-        // Handled via PaymentService and processPayment cascade
-        User currentUser = currentUserContext.getCurrentUser();
-        if (currentUser == null) {
-            throw new AccessDeniedException("Access Denied: Unauthenticated user.");
-        }
-
-        ContractorInvoice invoice = contractorInvoiceRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Invoice not found with ID: " + id));
-
-        if (invoice.getStatus() != InvoiceStatus.APPROVED) {
-            throw new BusinessValidationException("Invoice must be APPROVED first. Current status: " + invoice.getStatus());
-        }
-
-        invoice.setStatus(InvoiceStatus.PAID);
-        invoice = contractorInvoiceRepository.save(invoice);
 
         return mapToDto(invoice);
     }

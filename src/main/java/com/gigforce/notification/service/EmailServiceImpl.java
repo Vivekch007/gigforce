@@ -2,6 +2,7 @@ package com.gigforce.notification.service;
 
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
@@ -17,39 +18,39 @@ public class EmailServiceImpl implements EmailService {
     private static final Logger logger = LoggerFactory.getLogger(EmailServiceImpl.class);
     private final JavaMailSender mailSender;
 
+    // Gmail rejects a From address that differs from the authenticated account,
+    // so the sender must match spring.mail.username.
+    @Value("${spring.mail.username}")
+    private String fromAddress;
+
     public EmailServiceImpl(JavaMailSender mailSender) {
         this.mailSender = mailSender;
     }
 
-    @Async
+
     @Override
     public void sendPasswordResetEmail(String toEmail, String token) {
         try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            MimeMessage mimeMessage = mailSender.createMimeMessage();
 
-            // You can replace this link with your actual Frontend URL route
-            String resetToken = token;
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, "utf-8");
 
-            helper.setTo(toEmail);
-            helper.setFrom("chintakrindi.lakshmivivek@cognizant.com", "GigForce");
-            helper.setSubject("Password Reset Request - Gigforce");
-
-            // Using HTML for a cleaner presentation
             String htmlContent = "<h3>Hello,</h3>"
                     + "<p>You requested to reset your password. Use the token below to set a new password:</p>"
-                    + "<p><strong>" + resetToken + "</strong></p>"
+                    + "<p><strong>" + token + "</strong></p>"
                     + "<br>"
                     + "<p><strong>Note:</strong> This token will expire in 15 minutes.</p>"
                     + "<p>If you did not make this request, please ignore this email.</p>";
 
+            helper.setTo(toEmail);
+            helper.setSubject("Forgot Password Token");
             helper.setText(htmlContent, true);
+            mailSender.send(mimeMessage);
 
-            mailSender.send(message);
             logger.info("Password reset email sent successfully to {}", toEmail);
-        } catch (MessagingException | UnsupportedEncodingException e) {
+        } catch (Exception e) {
             logger.error("Failed to send password reset email to {}", toEmail, e);
             throw new RuntimeException("Failed to send password reset email to " + toEmail, e);
         }
-    }
+     }
 }

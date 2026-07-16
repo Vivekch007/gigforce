@@ -29,8 +29,10 @@ public class NotificationController {
     public ResponseEntity<List<NotificationResponseDTO>> getMyNotifications(
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String category,
-            @RequestParam(required = false) String priority) {
-        List<NotificationResponseDTO> response = notificationService.getMyNotifications(status, category, priority);
+            @RequestParam(required = false) String priority,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate fromDate,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate toDate) {
+        List<NotificationResponseDTO> response = notificationService.getMyNotifications(status, category, priority, fromDate, toDate);
         return ResponseEntity.ok(response);
     }
 

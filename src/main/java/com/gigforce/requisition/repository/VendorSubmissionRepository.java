@@ -17,6 +17,9 @@ public interface VendorSubmissionRepository extends JpaRepository<VendorSubmissi
 
         boolean existsByRequisitionIdAndContractorProfileId(String requisitionId, String contractorProfileId);
 
+        // True if any submission on this requisition was made by a user in the given org unit.
+        boolean existsByRequisitionIdAndSubmittedBy_OrgUnitId(String requisitionId, String orgUnitId);
+
         List<VendorSubmission> findByRequisitionId(String requisitionId);
 
         long countByRequisitionIdAndStatus(String requisitionId, SubmissionStatus status);

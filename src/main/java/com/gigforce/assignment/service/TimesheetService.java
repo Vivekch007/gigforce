@@ -33,4 +33,10 @@ public interface TimesheetService {
     List<TimesheetResponseDTO> getPayrollReadyTimesheets();
 
     void sweepPendingApprovals();
+
+    /**
+     * Zeroes out timesheet-line hours that fall within an approved absence range and
+     * recomputes affected (still-editable) timesheets. Invoked when a leave is approved.
+     */
+    void applyApprovedAbsence(String assignmentId, java.time.LocalDate startDate, java.time.LocalDate endDate);
 }

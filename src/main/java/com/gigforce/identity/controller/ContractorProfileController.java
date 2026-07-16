@@ -90,6 +90,16 @@ public class  ContractorProfileController {
         return ResponseEntity.ok(updated);
     }
 
+    @PutMapping("/{id}/status")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER', 'VENDOR', 'VENDOR_MANAGER')")
+    @Operation(summary = "Change contractor profile status", description = "Sets ACTIVE/INACTIVE/BLACKLISTED. Restricted to HR, Vendor, and ADMIN.")
+    public ResponseEntity<ContractorProfileResponseDTO> updateProfileStatus(
+            @PathVariable String id,
+            @Valid @RequestBody ContractorProfileStatusUpdateRequestDTO request) {
+        ContractorProfileResponseDTO updated = contractorProfileService.updateProfileStatus(id, request.getStatus());
+        return ResponseEntity.ok(updated);
+    }
+
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER', 'VENDOR_MANAGER', 'VENDOR', 'FINANCE')")
     @Operation(summary = "Search contractor profiles", description = "Retrieves a paginated list of profiles.")
@@ -195,12 +205,13 @@ public class  ContractorProfileController {
     // --- Engagement History Endpoints ---
 
     @PostMapping("/{id}/engagements")
-    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER')")
-    @Operation(summary = "Add engagement to contractor profile", description = "Restricted to ADMIN or HIRING_MANAGER.")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER', 'CONTRACTOR')")
+    @Operation(summary = "Add engagement to contractor profile", description = "The owning contractor can add their own engagement history; ADMIN and HIRING_MANAGER can add for any profile.")
     public ResponseEntity<EngagementHistoryResponseDTO> addEngagement(
             @PathVariable String id,
             @Valid @RequestBody EngagementHistoryRequestDTO request) {
-        contractorProfileService.getProfileById(id);
+        ContractorProfileResponseDTO profile = contractorProfileService.getProfileById(id);
+        validateOwnerOrManager(profile);
 
         EngagementHistoryResponseDTO eng = engagementHistoryService.addEngagement(id, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(eng);
@@ -215,8 +226,8 @@ public class  ContractorProfileController {
     }
 
     @PutMapping("/{id}/engagements/{engagementId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER')")
-    @Operation(summary = "Update contractor engagement", description = "Restricted to ADMIN or HIRING_MANAGER.")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CONTRACTOR')")
+    @Operation(summary = "Update contractor engagement", description = "Restricted to ADMIN or CONTRACTOR.")
     public ResponseEntity<EngagementHistoryResponseDTO> updateEngagement(
             @PathVariable String id,
             @PathVariable String engagementId,
@@ -228,8 +239,8 @@ public class  ContractorProfileController {
     }
 
     @PutMapping("/{id}/engagements/{engagementId}/feedback")
-    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER')")
-    @Operation(summary = "Submit feedback and rating for a completed engagement", description = "Restricted to ADMIN or HIRING_MANAGER.")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CONTRACTOR')")
+    @Operation(summary = "Submit feedback and rating for a completed engagement", description = "Restricted to ADMIN or CONTRACTOR.")
     public ResponseEntity<EngagementHistoryResponseDTO> submitFeedback(
             @PathVariable String id,
             @PathVariable String engagementId,
@@ -240,8 +251,8 @@ public class  ContractorProfileController {
     }
 
     @DeleteMapping("/{id}/engagements/{engagementId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER')")
-    @Operation(summary = "Remove engagement from contractor profile", description = "Restricted to ADMIN or HIRING_MANAGER.")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CONTRACTOR')")
+    @Operation(summary = "Remove engagement from contractor profile", description = "Restricted to ADMIN or CONTRACTOR.")
     public ResponseEntity<Void> removeEngagement(@PathVariable String id, @PathVariable String engagementId) {
         contractorProfileService.getProfileById(id);
         engagementHistoryService.deleteEngagement(id, engagementId);
@@ -258,6 +269,18 @@ public class  ContractorProfileController {
         if (currentUserId == null || !currentUserId.equals(profile.getUserId())) {
             throw new AccessDeniedException("Access Denied: You do not have permission to modify this profile.");
         }
+    }
+
+    private void validateOwnerOrManager(ContractorProfileResponseDTO profile) {
+        String currentRole = currentUserContext.getCurrentUserRole();
+        if ("ADMIN".equals(currentRole) || "HIRING_MANAGER".equals(currentRole)) {
+            return;
+        }
+        String currentUserId = currentUserContext.getCurrentUserId();
+        if (currentUserId != null && currentUserId.equals(profile.getUserId())) {
+            return; // the owning contractor
+        }
+        throw new AccessDeniedException("Access Denied: You are not permitted to modify engagements for this profile.");
     }
 
     private void validateAccess(ContractorProfileResponseDTO profile) {

@@ -24,10 +24,10 @@ public class PurchaseOrderController {
         this.purchaseOrderService = purchaseOrderService;
     }
 
-    // FIXED: Checks both prefixed and raw roles to guarantee match for all types
+    // PO is raised by the Vendor / Vendor Manager (Admin retains full-access override)
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'FINANCE', 'HIRING_MANAGER') or hasAnyAuthority('ADMIN', 'FINANCE', 'HIRING_MANAGER')")
-    @Operation(summary = "Create a new Purchase Order")
+    @PreAuthorize("hasAnyRole('ADMIN', 'VENDOR', 'VENDOR_MANAGER') or hasAnyAuthority('ADMIN', 'VENDOR', 'VENDOR_MANAGER')")
+    @Operation(summary = "Create a new Purchase Order (Vendor / Vendor Manager)")
     public ResponseEntity<PurchaseOrderResponseDTO> createPurchaseOrder(@Valid @RequestBody PurchaseOrderRequestDTO request) {
         PurchaseOrderResponseDTO response = purchaseOrderService.createPurchaseOrder(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);

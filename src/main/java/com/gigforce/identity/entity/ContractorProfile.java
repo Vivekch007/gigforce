@@ -42,7 +42,8 @@ public class ContractorProfile extends BaseEntity {
     @JoinColumn(name = "user_id", unique = true, nullable = false)
     private User user;
 
-    // Title & bio removed per new requirements
+    @Column(name = "display_name", length = 150)
+    private String displayName;
 
     @Column(name = "hourly_rate", nullable = false, precision = 10, scale = 2)
     private BigDecimal hourlyRate;

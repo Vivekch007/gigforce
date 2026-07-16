@@ -96,6 +96,9 @@ public interface AssignmentRepository extends JpaRepository<Assignment, String>,
 
         boolean existsByVendorSubmissionId(@NotNull String vendorSubmissionId);
 
+        boolean existsByContractorProfileIdAndRequisitionIdAndStatusIn(
+                        String contractorProfileId, String requisitionId, java.util.Collection<AssignmentStatus> statuses);
+
         @Query("SELECT a FROM Assignment a WHERE a.endDate < :now AND a.status IN :statuses")
         java.util.List<Assignment> findExpiredAssignments(
                         @Param("now") java.time.LocalDate now,

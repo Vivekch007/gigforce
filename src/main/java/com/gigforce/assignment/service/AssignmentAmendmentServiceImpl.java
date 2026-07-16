@@ -123,16 +123,17 @@ public class AssignmentAmendmentServiceImpl implements AssignmentAmendmentServic
         User currentUser = userRepository.findByEmail(currentUsername)
                 .orElseThrow(() -> new UserNotFoundException("User not found with email: " + currentUsername));
 
-//        String role = currentUser.getRole().name();
-//        boolean isAdmin = role.equals("ADMIN");
-//        boolean isHiringManager = role.equals("HIRING_MANAGER")
-//                && assignment.getHiringManager().getId().equals(currentUser.getId());
-//        boolean isVendor = (role.equals("VENDOR") || role.equals("VENDOR_MANAGER")) && assignment.getVendor() != null
-//                && assignment.getVendor().getId().equals(currentUser.getId());
-//
-//        if (!isAdmin && !isHiringManager && !isVendor) {
-//            throw new AccessDeniedException("Access Denied: You are not authorized to request amendments for this assignment.");
-//        }
+        // Amendments are raised by the vendor assigned to this assignment (or an admin).
+        // Hiring managers approve amendments; they do not raise them.
+        String role = currentUser.getRole().name();
+        boolean isAdmin = role.equals("ADMIN");
+        boolean isAssignmentVendor = (role.equals("VENDOR") || role.equals("VENDOR_MANAGER"))
+                && assignment.getVendor() != null
+                && assignment.getVendor().getId().equals(currentUser.getId());
+        if (!isAdmin && !isAssignmentVendor) {
+            throw new AccessDeniedException(
+                    "Access Denied: Only the assigned vendor (or an admin) can request amendments for this assignment.");
+        }
 
         AssignmentAmendment amendment = AssignmentAmendment.builder()
                 .assignment(assignment)
@@ -173,13 +174,13 @@ public class AssignmentAmendmentServiceImpl implements AssignmentAmendmentServic
         User currentUser = userRepository.findByEmail(currentUsername)
                 .orElseThrow(() -> new UserNotFoundException("User not found with email: " + currentUsername));
 
-//        // Security check: Only manager of assignment or admin can approve
-//        boolean isAdmin = currentUser.getRole().name().equals("ADMIN");
-//        boolean isHiringManager = assignment.getHiringManager().getId().equals(currentUser.getId());
-//        if (!isAdmin && !isHiringManager) {
-//            throw new AccessDeniedException(
-//                    "Access Denied: Only the hiring manager or an admin can approve amendments.");
-//        }
+        // Security check: only the assignment's hiring manager or an admin can approve.
+        boolean isAdmin = currentUser.getRole().name().equals("ADMIN");
+        boolean isHiringManager = assignment.getHiringManager().getId().equals(currentUser.getId());
+        if (!isAdmin && !isHiringManager) {
+            throw new AccessDeniedException(
+                    "Access Denied: Only the hiring manager or an admin can approve amendments.");
+        }
 
         // Apply amendment to assignment
         switch (amendment.getAmendmentType()) {

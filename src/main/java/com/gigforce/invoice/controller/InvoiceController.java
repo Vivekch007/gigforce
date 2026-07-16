@@ -108,12 +108,4 @@ public class InvoiceController {
         ContractorInvoiceResponseDTO response = invoiceService.rejectInvoice(id);
         return ResponseEntity.ok(response);
     }
-
-    @PutMapping("/{id}/dispute")
-    @PreAuthorize("hasAnyRole('ADMIN', 'FINANCE')")
-    @Operation(summary = "Dispute a Contractor Invoice")
-    public ResponseEntity<ContractorInvoiceResponseDTO> disputeInvoice(@PathVariable String id) {
-        ContractorInvoiceResponseDTO response = invoiceService.disputeInvoice(id);
-        return ResponseEntity.ok(response);
-    }
 }

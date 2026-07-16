@@ -17,10 +17,6 @@ public interface InvoiceService {
 
     ContractorInvoiceResponseDTO rejectInvoice(String id);
 
-    ContractorInvoiceResponseDTO disputeInvoice(String id);
-
-    ContractorInvoiceResponseDTO markInvoiceAsPaid(String id);
-
     ContractorInvoiceResponseDTO submitInvoice(String id);
 
     ContractorInvoiceResponseDTO cancelInvoice(String id);

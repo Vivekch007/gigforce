@@ -141,20 +141,31 @@ public class ContractorCertificationServiceImpl implements ContractorCertificati
                         throw new BusinessValidationException("Certification does not belong to the specified profile.");
                 }
 
-                if (request.getExpiryDate() != null && (request.getExpiryDate().isBefore(cert.getIssueDate()) || request.getExpiryDate().isEqual(cert.getIssueDate()))) {
-                        throw new BusinessValidationException("Certification expiry date cannot be before issue date.");
+                // Partial update: only touch expiry when the request supplies it (avoid wiping existing value).
+                if (request.getExpiryDate() != null) {
+                        if (request.getExpiryDate().isBefore(cert.getIssueDate()) || request.getExpiryDate().isEqual(cert.getIssueDate())) {
+                                throw new BusinessValidationException("Certification expiry date cannot be before issue date.");
+                        }
+                        cert.setExpiryDate(request.getExpiryDate());
                 }
 
-                cert.setExpiryDate(request.getExpiryDate());
-                CertificationStatus updateStatus = null;
-                if (request.getCertStatus() != null) {
+                // Only override status when explicitly provided; otherwise keep the current one.
+                if (request.getCertStatus() != null && !request.getCertStatus().trim().isEmpty()) {
                         try {
-                                updateStatus = CertificationStatus.valueOf(request.getCertStatus().trim().toUpperCase());
+                                cert.setCertStatus(CertificationStatus.valueOf(request.getCertStatus().trim().toUpperCase()));
                         } catch (IllegalArgumentException e) {
                                 throw new BusinessValidationException("certStatus must be one of: valid, expired, revoked");
                         }
                 }
-                cert.setCertStatus(updateStatus);
+
+                // Keep status consistent with the expiry date unless it was explicitly revoked.
+                if (cert.getCertStatus() != CertificationStatus.REVOKED) {
+                        if (cert.getExpiryDate() != null && cert.getExpiryDate().isBefore(getCurrentDate())) {
+                                cert.setCertStatus(CertificationStatus.EXPIRED);
+                        } else if (cert.getCertStatus() == null) {
+                                cert.setCertStatus(CertificationStatus.VALID);
+                        }
+                }
 
                 ContractorCertification updated = contractorCertificationRepository.save(cert);
 
@@ -212,7 +223,7 @@ public class ContractorCertificationServiceImpl implements ContractorCertificati
         }
 
         private LocalDate getCurrentDate() {
-                return LocalDate.now().getYear() == 2026 ? LocalDate.of(2026, 6, 14) : LocalDate.now();
+                return LocalDate.now();
         }
 
         private ContractorCertificationResponseDTO toDto(ContractorCertification cert) {

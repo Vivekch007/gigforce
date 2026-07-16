@@ -10,6 +10,15 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 @Builder
 public class ExecutiveDashboardResponseDTO {
+    @JsonProperty("TotalContractors")
+    private Long totalContractors;
+
+    @JsonProperty("AvailableContractors")
+    private Long availableContractors;
+
+    @JsonProperty("ContractorsOnAssignment")
+    private Long contractorsOnAssignment;
+
     @JsonProperty("ActiveContractors")
     private Long activeContractors;
 
@@ -22,8 +31,14 @@ public class ExecutiveDashboardResponseDTO {
     @JsonProperty("ActiveAssignments")
     private Long activeAssignments;
 
+    @JsonProperty("PendingTimesheets")
+    private Long pendingTimesheets;
+
     @JsonProperty("ApprovedTimesheets")
     private Long approvedTimesheets;
+
+    @JsonProperty("PendingInvoices")
+    private Long pendingInvoices;
 
     @JsonProperty("ApprovedInvoiceAmount")
     private BigDecimal approvedInvoiceAmount;

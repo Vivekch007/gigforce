@@ -82,7 +82,7 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
             throw new BusinessValidationException("Only users with CONTRACTOR role can have a profile.");
         }
 
-        AvailabilityStatus availability = AvailabilityStatus.ON_STATUS;
+        AvailabilityStatus availability = AvailabilityStatus.AVAILABLE;
         ProfileStatus profileStatus = ProfileStatus.ACTIVE;
 
         EngagementType preferredEngagementType;
@@ -102,6 +102,7 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
 
         ContractorProfile profile = ContractorProfile.builder()
             .user(user)
+            .displayName(request.getDisplayName() != null ? request.getDisplayName().trim() : null)
             .hourlyRate(request.getHourlyRate())
             .experienceYears(request.getExperienceYears())
             .availabilityStatus(availability)
@@ -171,6 +172,9 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
         if (request.getAddress() != null) {
             profile.setAddress(request.getAddress().trim());
         }
+        if (request.getDisplayName() != null && !request.getDisplayName().trim().isEmpty()) {
+            profile.setDisplayName(request.getDisplayName().trim());
+        }
 
         profile.setHourlyRate(request.getHourlyRate());
         profile.setExperienceYears(request.getExperienceYears());
@@ -185,15 +189,8 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
             }
         }
 
-        if (request.getStatus() != null && !request.getStatus().trim().isEmpty()) {
-            try {
-                ProfileStatus target = ProfileStatus.valueOf(request.getStatus().toUpperCase().trim());
-                validateProfileStatusTransition(previousStatus, target);
-                profile.setProfileStatus(target);
-            } catch (IllegalArgumentException e) {
-                throw new BusinessValidationException("Invalid profile status: " + request.getStatus());
-            }
-        }
+        // Profile status (Active/Inactive/Blacklisted) is not changed here — it is an
+        // account-control action handled by HR/Vendor/Admin via updateProfileStatus().
 
         if (request.getPreferredEngagementType() != null && !request.getPreferredEngagementType().trim().isEmpty()) {
             try {
@@ -220,27 +217,12 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
         String actorId = (actor != null) ? actor.getId() : updatedProfile.getUser().getId();
 
         // Audit Logging
-        String auditAction = "CONTRACTOR_PROFILE_UPDATED";
-        String auditDesc = "Contractor profile updated for user: " + updatedProfile.getUser().getEmail();
-
-        if (request.getStatus() != null) {
-            ProfileStatus newStatus = updatedProfile.getProfileStatus();
-            if (newStatus == ProfileStatus.INACTIVE || newStatus == ProfileStatus.BLACKLISTED) {
-                auditAction = "CONTRACTOR_PROFILE_SUSPENDED";
-                auditDesc = "Contractor profile suspended (Status: " + newStatus + ") for user: " + updatedProfile.getUser().getEmail();
-            } else if ((previousStatus == ProfileStatus.INACTIVE || previousStatus == ProfileStatus.BLACKLISTED)
-                    && (newStatus != ProfileStatus.INACTIVE && newStatus != ProfileStatus.BLACKLISTED)) {
-                auditAction = "CONTRACTOR_PROFILE_ACTIVATED";
-                auditDesc = "Contractor profile activated (Status: " + newStatus + ") for user: " + updatedProfile.getUser().getEmail();
-            }
-        }
-
         auditService.logAction(
                 actorId,
-                auditAction,
+                "CONTRACTOR_PROFILE_UPDATED",
                 "ContractorProfile",
                 updatedProfile.getId(),
-                auditDesc);
+                "Contractor profile updated for user: " + updatedProfile.getUser().getEmail());
 
         if (request.getAvailabilityStatus() != null && previousAvail != updatedProfile.getAvailabilityStatus()) {
             auditService.logAction(
@@ -251,6 +233,52 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
                     "Availability changed from " + previousAvail + " to " + updatedProfile.getAvailabilityStatus() + " for user: " + updatedProfile.getUser().getEmail());
         }
 
+        return toDto(updatedProfile, skills);
+    }
+
+    @Override
+    @Transactional
+    public ContractorProfileResponseDTO updateProfileStatus(String profileId, String status) {
+        ContractorProfile profile = contractorProfileRepository.findById(profileId)
+                .orElseThrow(() -> new ContractorProfileNotFoundException(
+                        "Contractor profile not found with ID: " + profileId));
+
+        if (status == null || status.trim().isEmpty()) {
+            throw new BusinessValidationException("Profile status is required.");
+        }
+
+        ProfileStatus previousStatus = profile.getProfileStatus();
+        ProfileStatus target;
+        try {
+            target = ProfileStatus.valueOf(status.toUpperCase().trim());
+        } catch (IllegalArgumentException e) {
+            throw new BusinessValidationException("Invalid profile status: " + status);
+        }
+
+        validateProfileStatusTransition(previousStatus, target);
+        profile.setProfileStatus(target);
+        ContractorProfile updatedProfile = contractorProfileRepository.save(profile);
+
+        String actorEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        User actor = userRepository.findByEmail(actorEmail).orElse(null);
+        String actorId = (actor != null) ? actor.getId() : updatedProfile.getUser().getId();
+
+        String auditAction = "CONTRACTOR_PROFILE_UPDATED";
+        if (target == ProfileStatus.INACTIVE || target == ProfileStatus.BLACKLISTED) {
+            auditAction = "CONTRACTOR_PROFILE_SUSPENDED";
+        } else if (previousStatus == ProfileStatus.INACTIVE || previousStatus == ProfileStatus.BLACKLISTED) {
+            auditAction = "CONTRACTOR_PROFILE_ACTIVATED";
+        }
+
+        auditService.logAction(
+                actorId,
+                auditAction,
+                "ContractorProfile",
+                updatedProfile.getId(),
+                "Contractor profile status changed from " + previousStatus + " to " + target
+                        + " for user: " + updatedProfile.getUser().getEmail());
+
+        List<ContractorSkill> skills = contractorSkillRepository.findByContractorProfile(updatedProfile);
         return toDto(updatedProfile, skills);
     }
 
@@ -294,9 +322,10 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
             }
         }
 
-        // 2. Explicit orgUnitId search parameter
+        // 2. Explicit orgUnitId search parameter (normalized to match stored values)
         if (orgUnitId != null && !orgUnitId.trim().isEmpty()) {
-            spec = spec.and((root, query, cb) -> cb.equal(root.get("user").get("orgUnitId"), orgUnitId.trim()));
+            String normalizedOrg = orgUnitId.trim().toUpperCase();
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("user").get("orgUnitId"), normalizedOrg));
         }
 
         // 3. Status filter
@@ -459,6 +488,8 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
                 "Skill " + skill.getName() + " added to profile of user: " + profile.getUser().getEmail()
                         + " with proficiency: " + level.name());
 
+        notificationPublisher.publishSkillAdded(profile, skill);
+
         return toDto(profile, skills);
     }
 
@@ -574,8 +605,8 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
         } else if (profile.getProfileStatus() == ProfileStatus.BLACKLISTED) {
             mappedStatus = "BLACKLISTED";
         } else {
-            if (profile.getAvailabilityStatus() == AvailabilityStatus.ON_STATUS) {
-                mappedStatus = "ON_STATUS";
+            if (profile.getAvailabilityStatus() == AvailabilityStatus.ON_NOTICE) {
+                mappedStatus = "ON_NOTICE";
             } else if (profile.getAvailabilityStatus() == AvailabilityStatus.ON_ASSIGNMENT) {
                 mappedStatus = "ON_ASSIGNMENT";
             } else if (profile.getAvailabilityStatus() == AvailabilityStatus.AVAILABLE) {
@@ -605,6 +636,7 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
         return ContractorProfileResponseDTO.builder()
                 .id(profile.getId())
                 .userId(profile.getUser().getId())
+                .displayName(profile.getDisplayName())
                 .userName(profile.getUser().getName())
                 .userEmail(profile.getUser().getEmail())
                 .availabilityStatus(profile.getAvailabilityStatus() != null ? profile.getAvailabilityStatus().name() : null)
@@ -668,12 +700,12 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
         boolean valid = false;
         switch (current) {
             case AVAILABLE:
-                valid = (target == AvailabilityStatus.ON_ASSIGNMENT) || (target == AvailabilityStatus.ON_STATUS);
+                valid = (target == AvailabilityStatus.ON_ASSIGNMENT) || (target == AvailabilityStatus.ON_NOTICE);
                 break;
             case ON_ASSIGNMENT:
-                valid = (target == AvailabilityStatus.AVAILABLE) || (target == AvailabilityStatus.ON_STATUS);
+                valid = (target == AvailabilityStatus.AVAILABLE) || (target == AvailabilityStatus.ON_NOTICE);
                 break;
-            case ON_STATUS:
+            case ON_NOTICE:
                 valid = true;
                 break;
             default:

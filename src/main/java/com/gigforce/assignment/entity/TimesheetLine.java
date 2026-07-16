@@ -1,7 +1,7 @@
 package com.gigforce.assignment.entity;
 
 import com.gigforce.common.entity.BaseEntity;
-import com.gigforce.identity.entity.ContractorAbsence;
+import com.gigforce.assignment.enums.TimesheetStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -35,10 +35,12 @@ public class TimesheetLine extends BaseEntity {
     @Column(name = "overtime_hours", nullable = false, precision = 4, scale = 2, columnDefinition = "DECIMAL(4,2) CHECK (overtime_hours >= 0.00)")
     private BigDecimal overtimeHours = BigDecimal.ZERO;
 
-    @Column(name = "activity_desc", nullable = false, length = 255)
+    // Nullable: skeleton lines are pre-generated empty and filled in later by the contractor
+    @Column(name = "activity_desc", length = 255)
     private String activityDesc;
 
-//    @ManyToOne(fetch = FetchType.LAZY)
-//    @JoinColumn(name = "absence_id")
-//    private ContractorAbsence absence;
+    // Mirrors the parent timesheet status (kept in sync on every state transition)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 30)
+    private TimesheetStatus status;
 }

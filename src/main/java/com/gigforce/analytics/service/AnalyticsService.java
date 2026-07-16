@@ -34,4 +34,20 @@ public interface AnalyticsService {
             String assignmentStatus,
             String invoiceStatus,
             String timesheetStatus);
+
+    List<SkillDistributionResponseDTO> getSkillDistribution();
+
+    List<ContractorReportRowDTO> getContractorReport();
+
+    List<RequisitionReportRowDTO> getRequisitionReport();
+
+    List<AssignmentReportRowDTO> getAssignmentReport();
+
+    List<TimesheetReportRowDTO> getTimesheetReport();
+
+    List<InvoiceReportRowDTO> getInvoiceReport();
+
+    List<PaymentReportRowDTO> getPaymentReport();
+
+    List<ComplianceReportRowDTO> getComplianceReport();
 }

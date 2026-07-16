@@ -1,9 +1,7 @@
 package com.gigforce.assignment.dto;
 
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
 import lombok.*;
 
 import java.time.LocalDate;
@@ -22,8 +20,8 @@ public class TimesheetRequestDTO {
     @NotNull(message = "Week start date is required")
     private LocalDate weekStartDate;
 
-    @NotEmpty(message = "Timesheet lines cannot be empty")
+    // Optional on create (backend pre-generates the Mon-Fri skeleton).
+    // Required on update: contractor fills hoursWorked + activityDesc per weekday.
     @Valid
-
     private List<TimesheetLineRequestDTO> lines;
 }

@@ -25,8 +25,8 @@ public class AssignmentAmendmentController {
     }
 
     @PostMapping("/assignments/{assignId}/amendments")
-    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER', 'VENDOR_MANAGER', 'VENDOR')")
-    @Operation(summary = "Submit a contract amendment request")
+    @PreAuthorize("hasAnyRole('ADMIN', 'VENDOR_MANAGER', 'VENDOR')")
+    @Operation(summary = "Submit a contract amendment request (assigned vendor or admin)")
     public ResponseEntity<AmendmentResponseDTO> createAmendment(
             @PathVariable String assignId,
             @Valid @RequestBody AmendmentRequestDTO request) {

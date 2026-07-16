@@ -30,7 +30,7 @@ public class SkillController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN') || hasRole('HIRING_MANAGER')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Create master skill", description = "Registers a new skill in the master catalog. Restricted to ADMIN.")
     public ResponseEntity<SkillResponseDTO> createSkill(@Valid @RequestBody SkillRequestDTO request) {
         SkillResponseDTO skill = skillService.createSkill(request);

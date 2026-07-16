@@ -48,5 +48,6 @@ public class PaymentRequestDTO {
 
     @JsonProperty("TransactionID")
     @JsonAlias({"transactionId", "transactionID"})
+    @NotBlank(message = "TransactionID is required")
     private String transactionId;
 }

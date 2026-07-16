@@ -23,6 +23,9 @@ import java.math.BigDecimal;
 public class ContractorProfileUpdateRequestDTO {
 
 
+    @Size(min = 2, max = 150, message = "Display name must be between 2 and 150 characters")
+    private String displayName;
+
     @NotNull(message = "Hourly rate is required")
     @DecimalMin(value = "0.01", message = "Hourly rate must be greater than 0")
     private java.math.BigDecimal hourlyRate;

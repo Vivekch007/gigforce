@@ -134,32 +134,37 @@ public class AssignmentServiceImpl implements AssignmentService {
             throw new BusinessValidationException("Contractor does not belong to the correct organization.");
         }
 
-        // Validate Engagement Type
-        if (request.getEngagementType() != profile.getPreferredEngagementType()) {
+        // Validate Engagement Type against the requisition (the contract is defined by the requisition).
+        if (request.getEngagementType() != requisition.getEngagementType()) {
             throw new BusinessValidationException(String.format(
-                    "Assignment engagement type %s does not match contractor preferred engagement type %s",
-                    request.getEngagementType(), profile.getPreferredEngagementType()));
+                    "Assignment engagement type %s does not match requisition engagement type %s",
+                    request.getEngagementType(), requisition.getEngagementType()));
         }
 
-        // Prevent Duplicate Active/Created Assignment
-        boolean hasDuplicateActive = assignmentRepository.findAll().stream()
-                .anyMatch(a -> a.getContractorProfile().getId().equals(profile.getId())
-                        && a.getRequisition().getId().equals(requisition.getId())
-                        && (a.getStatus() == AssignmentStatus.ACTIVE 
-                            || a.getStatus() == AssignmentStatus.EXTENDED 
-                            || a.getStatus() == AssignmentStatus.CREATED));
+        // Prevent Duplicate Active/Created Assignment (scoped query instead of loading the whole table)
+        boolean hasDuplicateActive = assignmentRepository.existsByContractorProfileIdAndRequisitionIdAndStatusIn(
+                profile.getId(), requisition.getId(),
+                java.util.List.of(AssignmentStatus.ACTIVE, AssignmentStatus.EXTENDED, AssignmentStatus.CREATED));
         if (hasDuplicateActive) {
             throw new BusinessValidationException("An active assignment already exists for this contractor and requisition.");
+        }
+
+        // 4. Context Setup (Current User)
+        String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+        User currentUser = userRepository.findByEmail(currentUsername)
+                .orElseThrow(() -> new UserNotFoundException("User not found with email: " + currentUsername));
+
+        // Only the hiring manager who owns the requisition (or an admin) may create the assignment.
+        boolean isAdmin = currentUser.getRole().name().equals("ADMIN");
+        if (!isAdmin && (requisition.getCreator() == null
+                || !requisition.getCreator().getId().equals(currentUser.getId()))) {
+            throw new AccessDeniedException(
+                    "Access Denied: Only the hiring manager who owns this requisition can create the assignment.");
         }
 
         // Safely shift the contractor status to ON_ASSIGNMENT
         profile.setAvailabilityStatus(AvailabilityStatus.ON_ASSIGNMENT);
         contractorProfileRepository.save(profile);
-
-        // 4. Context Setup (Current User & Requisition)
-        String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
-        User currentUser = userRepository.findByEmail(currentUsername)
-                .orElseThrow(() -> new UserNotFoundException("User not found with email: " + currentUsername));
 
         // Log the Contractor Status Change
         auditService.logAction(
@@ -445,6 +450,8 @@ public class AssignmentServiceImpl implements AssignmentService {
                 "Assignment",
                 saved.getId(),
                 String.format("Assignment cancelled (%s -> CANCELLED) by %s", oldStatus, currentUser.getEmail()));
+
+        notificationPublisher.publishAssignmentCancelled(saved);
 
         return toDto(saved);
     }

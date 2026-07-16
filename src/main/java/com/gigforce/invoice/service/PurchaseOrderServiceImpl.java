@@ -47,26 +47,37 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         // Standardize extraction to strip out standard prefixing if present
         String role = currentUser.getRole().name().replace("ROLE_", "").trim();
 
-        // RBAC Boundary Verification Check
-
+        // RBAC: only Vendor / Vendor Manager raise POs; Admin retains full-access override
+        boolean isVendor = "VENDOR".equals(role) || "VENDOR_MANAGER".equals(role);
+        boolean isAdmin = "ADMIN".equals(role);
+        if (!isVendor && !isAdmin) {
+            throw new AccessDeniedException("Access Denied: Only Vendor, Vendor Manager, or Admin can create Purchase Orders.");
+        }
 
         Assignment assignment = assignmentRepository.findById(request.getAssignmentId())
                 .orElseThrow(() -> new IllegalArgumentException("Assignment not found with ID: " + request.getAssignmentId()));
 
-        // IDOR Validation Rule: Strictly protect Hiring Manager scope boundary constraints
-//        if ("HIRING_MANAGER".equals(role)) {
-//            System.out.println("Current User ID: " + currentUser.getId() + ", Assignment Hiring Manager ID: " + (assignment.getHiringManager() != null ? assignment.getHiringManager().getId() : "null"));
-//            if (assignment.getHiringManager() == null || !assignment.getHiringManager().getId().equals(currentUser.getId())) {
-//                throw new AccessDeniedException("Access Denied: You can only create Purchase Orders for assignments you manage.");
-//            }
-//        }
         List<PurchaseOrder> existingOrders = purchaseOrderRepository.findByAssignmentId(request.getAssignmentId());
         if (!existingOrders.isEmpty()) {
             throw new IllegalStateException("A Purchase Order already exists for this Assignment.");
         }
 
-        User vendor = userRepository.findById(request.getVendorId())
-                .orElseThrow(() -> new IllegalArgumentException("Vendor user not found with ID: " + request.getVendorId()));
+        // Resolve the vendor the PO belongs to.
+        User vendor;
+        if (isVendor) {
+            // A vendor may only raise a PO for an assignment on which they are the assigned vendor.
+            if (assignment.getVendor() == null || !assignment.getVendor().getId().equals(currentUser.getId())) {
+                throw new AccessDeniedException("Access Denied: You can only create Purchase Orders for assignments where you are the vendor.");
+            }
+            vendor = currentUser;
+        } else {
+            // Admin must name the vendor the PO is raised for.
+            if (request.getVendorId() == null || request.getVendorId().trim().isEmpty()) {
+                throw new IllegalArgumentException("Vendor ID is required.");
+            }
+            vendor = userRepository.findById(request.getVendorId())
+                    .orElseThrow(() -> new IllegalArgumentException("Vendor user not found with ID: " + request.getVendorId()));
+        }
 
         String vendorRole = vendor.getRole().name().replace("ROLE_", "").trim();
         if (!"VENDOR".equals(vendorRole) && !"VENDOR_MANAGER".equals(vendorRole)) {

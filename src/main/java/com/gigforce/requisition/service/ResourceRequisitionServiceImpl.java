@@ -17,6 +17,7 @@ import com.gigforce.requisition.enums.RequisitionStatus;
 import com.gigforce.requisition.enums.EngagementType;
 import com.gigforce.requisition.enums.ExperienceLevel;
 import com.gigforce.requisition.repository.ResourceRequisitionRepository;
+import com.gigforce.requisition.repository.VendorSubmissionRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -42,6 +43,7 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
     private final AuditService auditService;
     private final CurrentUserContext currentUserContext;
     private final NotificationPublisher notificationPublisher;
+    private final VendorSubmissionRepository submissionRepository;
 
     public ResourceRequisitionServiceImpl(
             ResourceRequisitionRepository requisitionRepository,
@@ -49,13 +51,15 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
             UserRepository userRepository,
             AuditService auditService,
             CurrentUserContext currentUserContext,
-            NotificationPublisher notificationPublisher) {
+            NotificationPublisher notificationPublisher,
+            VendorSubmissionRepository submissionRepository) {
         this.requisitionRepository = requisitionRepository;
         this.skillRepository = skillRepository;
         this.userRepository = userRepository;
         this.auditService = auditService;
         this.currentUserContext = currentUserContext;
         this.notificationPublisher = notificationPublisher;
+        this.submissionRepository = submissionRepository;
     }
 
     @Override
@@ -152,7 +156,15 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
         requisition.setExperienceLevel(request.getExperienceLevel() != null ? request.getExperienceLevel() : ExperienceLevel.MID);
         requisition.setStartDate(request.getStartDate() != null ? request.getStartDate() : java.time.LocalDate.now());
         requisition.setDuration(request.getDuration() != null ? request.getDuration().trim() : "6 months");
-        requisition.setBusinessUnitId(request.getBusinessUnitId());
+        BusinessUnits businessUnits = null;
+        if (request.getBusinessUnitId() != null) {
+            try {
+                businessUnits = BusinessUnits.valueOf(request.getBusinessUnitId().trim().toUpperCase());
+            } catch (IllegalArgumentException e) {
+                throw new BusinessValidationException("businessUnitId must be one of: IT, FINANCE, HIRING_MANAGER, HR");
+            }
+        }
+        requisition.setBusinessUnitId(businessUnits != null ? businessUnits.name() : null);
 
         ResourceRequisition updated = requisitionRepository.save(requisition);
 
@@ -236,7 +248,46 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
     public ResourceRequisitionResponseDTO getRequisitionById(String id) {
         ResourceRequisition requisition = requisitionRepository.findById(id)
                 .orElseThrow(() -> new RequisitionNotFoundException("Requisition not found with ID: " + id));
+        validateRequisitionViewAccess(requisition);
         return toDto(requisition);
+    }
+
+    /**
+     * Enforces the same visibility rules as search on the single-GET path:
+     * ADMIN/FINANCE see all; HR only their org; Vendors only OPEN requisitions or ones
+     * their org has submitted to; Contractors only OPEN. Prevents reading DRAFT / other-org
+     * requisitions by ID.
+     */
+    private void validateRequisitionViewAccess(ResourceRequisition requisition) {
+        String role = currentUserContext.getCurrentUserRole();
+        if ("ADMIN".equals(role) || "FINANCE".equals(role)) {
+            return;
+        }
+        if ("HIRING_MANAGER".equals(role)) {
+            String org = currentUserContext.getCurrentUserOrgUnitId();
+            if (org != null && org.equals(requisition.getOrgUnitId())) {
+                return;
+            }
+            throw new AccessDeniedException("Access Denied: You can only view requisitions in your own organization.");
+        }
+        if ("VENDOR".equals(role) || "VENDOR_MANAGER".equals(role)) {
+            if (requisition.getStatus() == RequisitionStatus.OPEN) {
+                return;
+            }
+            String org = currentUserContext.getCurrentUserOrgUnitId();
+            if (org != null && submissionRepository.existsByRequisitionIdAndSubmittedBy_OrgUnitId(requisition.getId(), org)) {
+                return;
+            }
+            throw new AccessDeniedException(
+                    "Access Denied: Vendors can only view OPEN requisitions or ones they have submitted to.");
+        }
+        if ("CONTRACTOR".equals(role)) {
+            if (requisition.getStatus() == RequisitionStatus.OPEN) {
+                return;
+            }
+            throw new AccessDeniedException("Access Denied: Contractors can only view OPEN requisitions.");
+        }
+        throw new AccessDeniedException("Access Denied: You are not permitted to view this requisition.");
     }
 
     @Override
@@ -382,6 +433,8 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
                 updated.getId(),
                 String.format("Requisition '%s' closed (%s -> CLOSED) by %s", updated.getTitle(), oldStatus,
                         currentUser.getEmail()));
+
+        notificationPublisher.publishRequisitionClosed(updated);
 
         return toDto(updated);
     }

@@ -17,6 +17,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -79,6 +80,20 @@ public class PaymentServiceImpl implements PaymentService {
             throw new BusinessValidationException("Payment date cannot be in the future.");
         }
 
+        // Transaction ID must exist
+        if (request.getTransactionId() == null || request.getTransactionId().trim().isEmpty()) {
+            throw new BusinessValidationException("Transaction ID is required.");
+        }
+
+        // Paid amount must be positive and match the invoice total exactly
+        if (request.getPaidAmount() == null || request.getPaidAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessValidationException("Paid amount must be greater than zero.");
+        }
+        if (request.getPaidAmount().compareTo(invoice.getTotalAmount()) != 0) {
+            throw new BusinessValidationException("Paid amount (" + request.getPaidAmount()
+                    + ") must match the invoice total amount (" + invoice.getTotalAmount() + ").");
+        }
+
         PaymentMode mode;
         try {
             mode = PaymentMode.valueOf(request.getPaymentMode().toUpperCase());
@@ -86,21 +101,13 @@ public class PaymentServiceImpl implements PaymentService {
             throw new IllegalArgumentException("Invalid PaymentMode: " + request.getPaymentMode());
         }
 
-        PaymentStatus initialStatus = PaymentStatus.PENDING;
-        if (request.getStatus() != null) {
-            try {
-                initialStatus = PaymentStatus.valueOf(request.getStatus().toUpperCase());
-            } catch (IllegalArgumentException e) {
-                throw new IllegalArgumentException("Invalid PaymentStatus: " + request.getStatus());
-            }
-        }
-
+        // Payments always start PENDING; the invoice becomes PAID only through processPayment.
         Payment payment = Payment.builder()
                 .invoice(invoice)
                 .paidAmount(request.getPaidAmount())
                 .paymentDate(request.getPaymentDate())
                 .paymentMode(mode)
-                .status(initialStatus)
+                .status(PaymentStatus.PENDING)
                 .paymentReference(request.getPaymentReference())
                 .transactionId(request.getTransactionId())
                 .build();
@@ -112,26 +119,8 @@ public class PaymentServiceImpl implements PaymentService {
                 "PAYMENT_CREATED",
                 "Payment",
                 payment.getId(),
-                "Payment entry created."
+                "Payment entry created with PENDING status."
         );
-
-        // Cascade invoice PAID status automatically if the payment is processed successfully right away
-        if (payment.getStatus() == PaymentStatus.PROCESSED) {
-            invoice.setStatus(InvoiceStatus.PAID);
-            invoice.setPaymentDate(payment.getPaymentDate());
-            invoice.setPaymentReference(payment.getPaymentReference());
-            contractorInvoiceRepository.save(invoice);
-
-            auditService.logAction(
-                    currentUser.getId(),
-                    "INVOICE_PAID",
-                    "ContractorInvoice",
-                    invoice.getId(),
-                    "Invoice marked as PAID."
-            );
-
-            notificationPublisher.publishPaymentCompletion(payment);
-        }
 
         return mapToDto(payment);
     }

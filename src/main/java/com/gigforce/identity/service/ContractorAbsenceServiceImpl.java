@@ -6,6 +6,7 @@ import com.gigforce.assignment.entity.Assignment;
 import com.gigforce.assignment.repository.AssignmentRepository;
 import com.gigforce.assignment.enums.AbsenceStatus;
 import com.gigforce.assignment.enums.AbsenceDuration;
+import com.gigforce.assignment.service.TimesheetService;
 import com.gigforce.audit.service.AuditService;
 import com.gigforce.exception.AssignmentNotFoundException;
 import com.gigforce.exception.UserNotFoundException;
@@ -35,17 +36,20 @@ public class ContractorAbsenceServiceImpl implements ContractorAbsenceService {
     private final AssignmentRepository assignmentRepository;
     private final UserRepository userRepository;
     private final AuditService auditService;
+    private final TimesheetService timesheetService;
 
     public ContractorAbsenceServiceImpl(
             ContractorAbsenceRepository absenceRepository,
             AssignmentRepository assignmentRepository,
             UserRepository userRepository,
-            AuditService auditService
+            AuditService auditService,
+            TimesheetService timesheetService
     ) {
         this.absenceRepository = absenceRepository;
         this.assignmentRepository = assignmentRepository;
         this.userRepository = userRepository;
         this.auditService = auditService;
+        this.timesheetService = timesheetService;
     }
 
     @Override
@@ -137,6 +141,13 @@ public class ContractorAbsenceServiceImpl implements ContractorAbsenceService {
         absence.setApprovedBy(currentUser);
         absence.setApprovedDate(LocalDateTime.now());
         ContractorAbsence saved = absenceRepository.save(absence);
+
+        // Approved leave => any logged hours on those days are automatically zeroed
+        // on the affected (still-editable) timesheets, with totals recomputed.
+        timesheetService.applyApprovedAbsence(
+                saved.getAssignment().getId(),
+                saved.getStartDate(),
+                saved.getEndDate());
 
         auditService.logAction(
                 currentUser.getId(),
