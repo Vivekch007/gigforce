@@ -30,6 +30,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -73,7 +74,10 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
     public ContractorProfileResponseDTO createProfile(String userId, @Valid ContractorProfileCreationRequestDTO request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException("User not found with ID: " + userId));
-
+        String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+        if(!user.getEmail().equalsIgnoreCase(currentUsername)) {
+            throw new BusinessValidationException("You can only create a profile for your own user account.");
+        }
         if (contractorProfileRepository.existsByUser(user)) {
             throw new DuplicateProfileException("Contractor profile already exists for this user.");
         }
