@@ -35,6 +35,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -74,10 +75,10 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
     public ContractorProfileResponseDTO createProfile(String userId, @Valid ContractorProfileCreationRequestDTO request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException("User not found with ID: " + userId));
-        String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
-        if(!user.getEmail().equalsIgnoreCase(currentUsername)) {
-            throw new BusinessValidationException("You can only create a profile for your own user account.");
-        }
+//        String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+//        if(!user.getEmail().equalsIgnoreCase(currentUsername)) {
+//            throw new BusinessValidationException("You can only create a profile for your own user account.");
+//        }
         if (contractorProfileRepository.existsByUser(user)) {
             throw new DuplicateProfileException("Contractor profile already exists for this user.");
         }
@@ -89,15 +90,15 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
         AvailabilityStatus availability = AvailabilityStatus.AVAILABLE;
         ProfileStatus profileStatus = ProfileStatus.ACTIVE;
 
-        EngagementType preferredEngagementType;
-        if (request.getPreferredEngagementType() == null || request.getPreferredEngagementType().trim().isEmpty()) {
-            throw new BusinessValidationException("Preferred engagement type is required.");
-        }
-        try {
-            preferredEngagementType = EngagementType.valueOf(request.getPreferredEngagementType().toUpperCase().trim());
-        } catch (IllegalArgumentException e) {
-            throw new BusinessValidationException("Invalid preferredEngagementType: " + request.getPreferredEngagementType());
-        }
+//        EngagementType preferredEngagementType;
+//        if (request.getPreferredEngagementType() == null || request.getPreferredEngagementType().trim().isEmpty()) {
+//            throw new BusinessValidationException("Preferred engagement type is required.");
+//        }
+//        try {
+//            preferredEngagementType = EngagementType.valueOf(request.getPreferredEngagementType().toUpperCase().trim());
+//        } catch (IllegalArgumentException e) {
+//            throw new BusinessValidationException("Invalid preferredEngagementType: " + request.getPreferredEngagementType());
+//        }
 
         if (request.getPhone() != null && !request.getPhone().trim().isEmpty()) {
             user.setPhone(request.getPhone().trim());
@@ -107,12 +108,12 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
         ContractorProfile profile = ContractorProfile.builder()
             .user(user)
             .displayName(request.getDisplayName() != null ? request.getDisplayName().trim() : null)
-            .hourlyRate(request.getHourlyRate())
-            .experienceYears(request.getExperienceYears())
+            .hourlyRate(BigDecimal.valueOf(0))
+            .experienceYears(0)
             .availabilityStatus(availability)
             .profileStatus(profileStatus)
-            .preferredEngagementType(preferredEngagementType)
-            .address(request.getAddress() != null ? request.getAddress().trim() : null)
+            .preferredEngagementType(EngagementType.HYBRID) // Default to HYBRID if not provided
+            .address("INDIA")
             .build();
 
         ContractorProfile savedProfile = contractorProfileRepository.save(profile);

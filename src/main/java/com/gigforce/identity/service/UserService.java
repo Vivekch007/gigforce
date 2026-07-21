@@ -10,7 +10,7 @@ public interface UserService {
 
     Page<UserResponseDTO> getAllUsers(int page, int size, String role, String status);
 
-    UserResponseDTO updateUser(String id, String name, String phone);
+    UserResponseDTO updateUser(String id, String phone);
 
     UserResponseDTO suspendUser(String id);
 

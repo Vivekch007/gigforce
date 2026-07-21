@@ -123,7 +123,7 @@ class UserServiceImplTest {
         stubActorLookup();
         when(userMapper.toUserDto(any(User.class))).thenReturn(UserResponseDTO.builder().userId("u1").build());
 
-        userService.updateUser("u1", "New Name", "2222222222");
+        userService.updateUser("u1",  "2222222222");
 
         ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
         verify(userRepository).save(captor.capture());
@@ -136,7 +136,7 @@ class UserServiceImplTest {
     void updateUser_notFound_throws() {
         when(userRepository.findById("missing")).thenReturn(Optional.empty());
         assertThrows(UserNotFoundException.class,
-                () -> userService.updateUser("missing", "X", "3333333333"));
+                () -> userService.updateUser("missing", "3333333333"));
         verify(userRepository, never()).save(any());
     }
 

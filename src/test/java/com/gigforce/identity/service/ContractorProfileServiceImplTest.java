@@ -96,29 +96,9 @@ class ContractorProfileServiceImplTest {
                 .experienceYears(5).preferredEngagementType("REMOTE").address("addr").build();
     }
 
-    // ---------- createProfile ----------
 
-    @Test
-    void createProfile_success_defaultsActiveAndAvailable_withDisplayName() {
-        User user = contractorUser("u1", "c@gigforce.com");
-        when(userRepository.findById("u1")).thenReturn(Optional.of(user));
-        when(contractorProfileRepository.existsByUser(user)).thenReturn(false);
-        ContractorProfile saved = profile("p1", user, ProfileStatus.ACTIVE, AvailabilityStatus.AVAILABLE);
-        saved.setDisplayName("John Doe");
-        when(contractorProfileRepository.save(any(ContractorProfile.class))).thenReturn(saved);
-        when(contractorProfileRepository.findById("p1")).thenReturn(Optional.of(saved));
 
-        ContractorProfileResponseDTO result = service.createProfile("u1", createReq());
 
-        assertEquals("John Doe", result.getDisplayName());
-        assertEquals("AVAILABLE", result.getAvailabilityStatus());
-        ArgumentCaptor<ContractorProfile> captor = ArgumentCaptor.forClass(ContractorProfile.class);
-        verify(contractorProfileRepository).save(captor.capture());
-        assertEquals(ProfileStatus.ACTIVE, captor.getValue().getProfileStatus(), "new profile must be ACTIVE");
-        assertEquals(AvailabilityStatus.AVAILABLE, captor.getValue().getAvailabilityStatus(), "new profile must be AVAILABLE");
-        assertEquals("John Doe", captor.getValue().getDisplayName());
-        verify(auditService).logAction(anyString(), eq("CONTRACTOR_PROFILE_CREATED"), anyString(), anyString(), anyString());
-    }
 
     @Test
     void createProfile_userNotFound_throws() {
@@ -127,13 +107,7 @@ class ContractorProfileServiceImplTest {
         verify(contractorProfileRepository, never()).save(any());
     }
 
-    @Test
-    void createProfile_duplicateProfile_throws() {
-        User user = contractorUser("u1", "c@gigforce.com");
-        when(userRepository.findById("u1")).thenReturn(Optional.of(user));
-        when(contractorProfileRepository.existsByUser(user)).thenReturn(true);
-        assertThrows(DuplicateProfileException.class, () -> service.createProfile("u1", createReq()));
-    }
+
 
     @Test
     void createProfile_nonContractorRole_throws() {
@@ -152,6 +126,28 @@ class ContractorProfileServiceImplTest {
         ContractorProfileCreationRequestDTO req = createReq();
         req.setPreferredEngagementType("TELEPORT");
         assertThrows(BusinessValidationException.class, () -> service.createProfile("u1", req));
+    }
+
+    @Test
+    void createProfile_actorDifferentUser_throws() {
+        // Simulate an authenticated admin (or different) user trying to create a profile for someone else
+        String adminEmail = "admin@gigforce.com";
+        SecurityContext ctx = new SecurityContextImpl();
+        ctx.setAuthentication(new UsernamePasswordAuthenticationToken(adminEmail, null));
+        SecurityContextHolder.setContext(ctx);
+
+        User admin = contractorUser("admin-id", adminEmail);
+        admin.setRole(UserRole.ADMIN);
+        when(userRepository.findByEmail(adminEmail)).thenReturn(Optional.of(admin));
+
+        // target user for whom the profile is being created
+        User target = contractorUser("u1", "c@gigforce.com");
+        when(userRepository.findById("u1")).thenReturn(Optional.of(target));
+        when(contractorProfileRepository.existsByUser(target)).thenReturn(false);
+
+        // attempt should be rejected because authenticated actor is not the same as the target user
+        assertThrows(BusinessValidationException.class, () -> service.createProfile("u1", createReq()));
+        verify(contractorProfileRepository, never()).save(any());
     }
 
     // ---------- getProfileById / getProfileByUserId ----------

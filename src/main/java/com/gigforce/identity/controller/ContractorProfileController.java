@@ -46,17 +46,17 @@ public class  ContractorProfileController {
         this.engagementHistoryService = engagementHistoryService;
     }
 
-    @PostMapping
-    @PreAuthorize("hasAnyRole('CONTRACTOR')")
-    @Operation(summary = "Create profile for a contractor user", description = "Registers a profile for the contractor user specified by userId. Restricted to CONTRACTOR USER ONLY.")
-    public ResponseEntity<ContractorProfileResponseDTO> createProfile(
-            @Valid @RequestBody ContractorProfileCreationRequestDTO request) {
-        if (request.getUserId() == null) {
-            throw new IllegalArgumentException("User ID is required to create a contractor profile.");
-        }
-        ContractorProfileResponseDTO profile = contractorProfileService.createProfile(request.getUserId(), request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(profile);
-    }
+//    @PostMapping
+//    @PreAuthorize("hasAnyRole('CONTRACTOR')")
+//    @Operation(summary = "Create profile for a contractor user", description = "Registers a profile for the contractor user specified by userId. Restricted to CONTRACTOR USER ONLY.")
+//    public ResponseEntity<ContractorProfileResponseDTO> createProfile(
+//            @Valid @RequestBody ContractorProfileCreationRequestDTO request) {
+//        if (request.getUserId() == null) {
+//            throw new IllegalArgumentException("User ID is required to create a contractor profile.");
+//        }
+//        ContractorProfileResponseDTO profile = contractorProfileService.createProfile(request.getUserId(), request);
+//        return ResponseEntity.status(HttpStatus.CREATED).body(profile);
+//    }
 
     @GetMapping("/me")
     @PreAuthorize("hasRole('CONTRACTOR')")

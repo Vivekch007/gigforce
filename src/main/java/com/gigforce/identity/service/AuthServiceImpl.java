@@ -9,6 +9,7 @@ import com.gigforce.identity.entity.User;
 import com.gigforce.identity.entity.PasswordResetToken;
 import com.gigforce.identity.enums.UserRole;
 import com.gigforce.identity.enums.UserStatus;
+import com.gigforce.identity.event.ContractorProfileCreationEvent;
 import com.gigforce.identity.mapper.UserMapper;
 import com.gigforce.identity.repository.UserRepository;
 import com.gigforce.identity.repository.PasswordResetTokenRepository;
@@ -40,8 +41,9 @@ public class AuthServiceImpl implements AuthService {
     private final UserMapper userMapper;
     private final AuditService auditService;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
-
+    private final ContractorProfileService contractorProfileService;
     private final NotificationPublisher notificationPublisher;
+    private final org.springframework.context.ApplicationEventPublisher applicationEventPublisher;
 
     public AuthServiceImpl(
             EmailService emailService,
@@ -52,18 +54,22 @@ public class AuthServiceImpl implements AuthService {
             UserDetailsService userDetailsService,
             UserMapper userMapper,
             AuditService auditService,
+            ContractorProfileService contractorProfileService,
             PasswordResetTokenRepository passwordResetTokenRepository,
-            NotificationPublisher notificationPublisher) {
+            NotificationPublisher notificationPublisher,
+            org.springframework.context.ApplicationEventPublisher applicationEventPublisher) {
         this.userRepository = userRepository;
         this.emailService = emailService;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
+        this.contractorProfileService = contractorProfileService;
         this.userDetailsService = userDetailsService;
         this.userMapper = userMapper;
         this.auditService = auditService;
         this.passwordResetTokenRepository = passwordResetTokenRepository;
         this.notificationPublisher = notificationPublisher;
+        this.applicationEventPublisher = applicationEventPublisher;
     }
 
     @Override
@@ -77,7 +83,7 @@ public class AuthServiceImpl implements AuthService {
         // orgUnitId identifies the hiring organization, so it is required only for the org-bound
         // roles (HR and Finance). Contractors and vendors are not tied to an org unit. When
         // provided it is normalized (trim + upper-case) so equality checks are reliable.
-        if ((request.getRole() == UserRole.HIRING_MANAGER || request.getRole() == UserRole.FINANCE)
+        if ((request.getRole() == UserRole.HIRING_MANAGER || request.getRole() == UserRole.FINANCE || request.getRole() == UserRole.VENDOR || request.getRole()  == UserRole.HIRING_MANAGER)
                 && (request.getOrgUnitId() == null || request.getOrgUnitId().isBlank())) {
             throw new IllegalArgumentException(
                     "orgUnitId is required for " + request.getRole().name() + " accounts.");
@@ -113,6 +119,16 @@ public class AuthServiceImpl implements AuthService {
 
         // Notification alert
         notificationPublisher.publishUserRegistration(savedUser);
+        if (request.getRole() == UserRole.CONTRACTOR) {
+            // publish profile creation event after commit
+            ContractorProfileCreationRequestDTO contractorProfileRequest = ContractorProfileCreationRequestDTO.builder()
+                    .userId(savedUser.getId())
+                    .displayName(savedUser.getName())
+                    .phone(savedUser.getPhone())
+                    .build();
+
+            applicationEventPublisher.publishEvent(new ContractorProfileCreationEvent(this, savedUser.getId(), contractorProfileRequest));
+        }
 
         return userMapper.toUserDto(savedUser);
     }

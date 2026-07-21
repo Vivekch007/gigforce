@@ -14,12 +14,6 @@ import lombok.Setter;
 @AllArgsConstructor
 @Builder
 public class UserUpdateRequestDTO {
-
-    @Size(min = 3, max = 100, message = "Name must be between 3 and 100 characters")
-    private String name;
-
     @Pattern(regexp = "^\\d{10}$", message = "Phone must be exactly 10 digits")
     private String phone;
-
-    private String orgUnitId;
 }

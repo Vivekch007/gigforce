@@ -76,16 +76,13 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public UserResponseDTO updateUser(String id, String name, String phone) {
+    public UserResponseDTO updateUser(String id, String phone) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new UserNotFoundException("User not found with ID: " + id));
 
-        String oldName = user.getName();
+
         String oldPhone = user.getPhone();
 
-        if (name != null && !name.trim().isEmpty()) {
-            user.setName(name);
-        }
         if (phone != null && !phone.trim().isEmpty()) {
             user.setPhone(phone);
         }
@@ -102,8 +99,8 @@ public class UserServiceImpl implements UserService {
                 "USER_UPDATED",
                 "USER",
                 updatedUser.getId(),
-                String.format("User details updated. Name: '%s'->'%s', Phone: '%s'->'%s'",
-                        oldName, updatedUser.getName(), oldPhone, updatedUser.getPhone()));
+                String.format("User details updated. Phone: '%s'->'%s'",
+                        oldPhone, updatedUser.getPhone()));
 
         return userMapper.toUserDto(updatedUser);
     }

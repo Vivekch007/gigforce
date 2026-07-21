@@ -60,7 +60,6 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
-
     @Operation(summary = "Update user details", description = "Updates name and/or phone. Admins can update any user, other roles restricted to updating self.")
     public ResponseEntity<UserResponseDTO> updateUser(
             @PathVariable String id,
@@ -76,7 +75,7 @@ public class UserController {
             throw new AccessDeniedException("Access Denied: You are not authorized to update this user.");
         }
 
-        UserResponseDTO updatedUser = userService.updateUser(id, request.getName(), request.getPhone());
+        UserResponseDTO updatedUser = userService.updateUser(id, request.getPhone());
         return ResponseEntity.ok(updatedUser);
     }
 

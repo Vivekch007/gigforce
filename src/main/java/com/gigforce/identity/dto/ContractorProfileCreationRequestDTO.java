@@ -22,15 +22,13 @@ public class ContractorProfileCreationRequestDTO {
     @NotNull(message = "User ID is required")
     private String userId;
 
-    @NotBlank(message = "Display name is required")
     @Size(min = 2, max = 150, message = "Display name must be between 2 and 150 characters")
     private String displayName;
 
-    @NotNull(message = "Hourly rate is required")
     @DecimalMin(value = "0.01", message = "Hourly rate must be greater than 0")
     private java.math.BigDecimal hourlyRate;
 
-    @NotNull(message = "Experience years is required")
+
     @Min(value = 0, message = "Experience years must be at least 0")
     private Integer experienceYears;
 
@@ -39,7 +37,6 @@ public class ContractorProfileCreationRequestDTO {
 //    private ProfileStatus status; // profile status: ACTIVE, INACTIVE, BLACKLISTED
 
 
-    @NotBlank(message = "Preferred engagement type is required")
     private String preferredEngagementType;
 
     private String phone;
