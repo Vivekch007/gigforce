@@ -246,18 +246,6 @@ public class  ContractorProfileController {
         return ResponseEntity.ok(updated);
     }
 
-    @PutMapping("/{id}/engagements/{engagementId}/feedback")
-    @PreAuthorize("hasAnyRole('ADMIN', 'CONTRACTOR')")
-    @Operation(summary = "Submit feedback and rating for a completed engagement", description = "Restricted to ADMIN or CONTRACTOR.")
-    public ResponseEntity<EngagementHistoryResponseDTO> submitFeedback(
-            @PathVariable String id,
-            @PathVariable String engagementId,
-            @Valid @RequestBody EngagementFeedbackRequestDTO request) {
-        contractorProfileService.getProfileById(id);
-        EngagementHistoryResponseDTO updated = engagementHistoryService.submitFeedback(id, engagementId, request);
-        return ResponseEntity.ok(updated);
-    }
-
     @DeleteMapping("/{id}/engagements/{engagementId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'CONTRACTOR')")
     @Operation(summary = "Remove engagement from contractor profile", description = "Restricted to ADMIN or CONTRACTOR.")

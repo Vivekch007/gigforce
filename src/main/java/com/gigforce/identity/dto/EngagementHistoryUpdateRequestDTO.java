@@ -30,4 +30,6 @@ public class EngagementHistoryUpdateRequestDTO {
     private String Verifyer_name;
     private String Verifyer_email;
     private String Verifyer_phone;
+    private String feedback;
+    private Integer rating;
 }

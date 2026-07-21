@@ -56,6 +56,9 @@ public class EngagementHistoryServiceImpl implements EngagementHistoryService {
                 if(request.getStartDate() != null && request.getStartDate().isAfter(LocalDate.now())) {
                         throw new IllegalArgumentException("Engagement start date cannot be in the future.");
                 }
+                if(request.getEndDate() != null && request.getEndDate().isAfter(LocalDate.now())) {
+                        throw new IllegalArgumentException("Engagement end date cannot be in the future.");
+                }
 
                 if(request.getVerifyer_name() == null || request.getVerifyer_name().trim().isEmpty()) {
                         throw new IllegalArgumentException("Verifyer name is required.");
@@ -123,6 +126,9 @@ public class EngagementHistoryServiceImpl implements EngagementHistoryService {
 
                 if (request.getEndDate() != null && request.getEndDate().isBefore(request.getStartDate())) {
                         throw new IllegalArgumentException("Engagement end date cannot be before start date.");
+                }
+                if(engagement.getCreatedBy() != null && !engagement.getCreatedBy().equals(profile.getUser().getId())) {
+                        throw new IllegalArgumentException("You can update the engagement which are only updated by the user.");
                 }
 
                 if (!engagement.getContractorProfile().getId().equals(profile.getId())) {
@@ -238,58 +244,24 @@ public class EngagementHistoryServiceImpl implements EngagementHistoryService {
                 return toDto(updated);
         }
 
-        @Override
-        @Transactional
-        public EngagementHistoryResponseDTO submitFeedback(String profileId, String engagementId, EngagementFeedbackRequestDTO request) {
-                ContractorProfile profile = contractorProfileRepository.findById(profileId)
-                                .orElseThrow(() -> new ContractorProfileNotFoundException(
-                                                "Contractor profile not found with ID: " + profileId));
 
-                EngagementHistory engagement = engagementHistoryRepository.findById(engagementId)
-                                .orElseThrow(() -> new EngagementNotFoundException(
-                                                "Engagement history not found with ID: " + engagementId));
-
-                if (!engagement.getContractorProfile().getId().equals(profile.getId())) {
-                        throw new IllegalArgumentException("Engagement does not belong to the specified profile.");
-                }
-
-                if (engagement.getEndDate() == null || engagement.getEndDate().isAfter(LocalDate.now())) {
-                        throw new IllegalStateException("Feedback and rating can only be submitted after completing the assignment.");
-                }
-
-                engagement.setFeedback(request.getFeedback().trim());
-                engagement.setRating(request.getRating());
-
-                EngagementHistory updated = engagementHistoryRepository.save(engagement);
-
-                // Audit Logging
-                String actorEmail = SecurityContextHolder.getContext().getAuthentication().getName();
-                User actor = userRepository.findByEmail(actorEmail).orElse(null);
-                String actorId = (actor != null) ? actor.getId() : profile.getUser().getId();
-
-                auditService.logAction(
-                                actorId,
-                                "CONTRACTOR_ENGAGEMENT_FEEDBACK_SUBMITTED",
-                                "ContractorProfile",
-                                profile.getId(),
-                                "Feedback and rating submitted for client '" + engagement.getClientName()
-                                                + "' for contractor: " + profile.getUser().getEmail());
-
-                return toDto(updated);
-        }
 
         private EngagementHistoryResponseDTO toDto(EngagementHistory eng) {
                 return EngagementHistoryResponseDTO.builder()
-                                .id(eng.getId())
-                                .contractorProfileId(eng.getContractorProfile().getId())
-                                .clientName(eng.getClientName())
-                                .roleTitle(eng.getRoleTitle())
-                                .startDate(eng.getStartDate())
-                                .endDate(eng.getEndDate())
-                                .feedback(eng.getFeedback())
-                                .rating(eng.getRating())
-                                .createdAt(eng.getCreatedAt())
-                                .updatedAt(eng.getUpdatedAt())
-                                .build();
+                        .id(eng.getId())
+                        .contractorProfileId(eng.getContractorProfile().getId())
+                        .clientName(eng.getClientName())
+                        .roleTitle(eng.getRoleTitle())
+                        .startDate(eng.getStartDate())
+                        .endDate(eng.getEndDate())
+                        .feedback(eng.getFeedback())
+                        .rating(eng.getRating())
+                        .createdAt(eng.getCreatedAt())
+                        .updatedAt(eng.getUpdatedAt())
+                        .status(eng.getApproval_status())
+                        .verifyerName(eng.getVerifyer_name())
+                        .verifyerEmail(eng.getVerifyer_email())
+                        .verifyerPhone(eng.getVerifyer_phone())
+                        .build();
         }
 }

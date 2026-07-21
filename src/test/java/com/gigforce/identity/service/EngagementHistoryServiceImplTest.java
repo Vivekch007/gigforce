@@ -157,35 +157,6 @@ class EngagementHistoryServiceImplTest {
         assertThrows(EngagementNotFoundException.class, () -> service.updateEngagement("p1", "eng1", req));
     }
 
-    // ---------- submitFeedback ----------
-
-    @Test
-    void submitFeedback_completedEngagement_success() {
-        ContractorProfile p = profile();
-        EngagementHistory e = engagement(p, LocalDate.now().minusMonths(6), LocalDate.now().minusDays(1));
-        when(contractorProfileRepository.findById("p1")).thenReturn(Optional.of(p));
-        when(engagementHistoryRepository.findById("eng1")).thenReturn(Optional.of(e));
-        when(engagementHistoryRepository.save(any(EngagementHistory.class))).thenAnswer(i -> i.getArgument(0));
-        EngagementFeedbackRequestDTO req = EngagementFeedbackRequestDTO.builder().feedback("Great work").rating(5).build();
-
-        service.submitFeedback("p1", "eng1", req);
-
-        assertEquals(5, e.getRating());
-        assertEquals("Great work", e.getFeedback());
-        verify(auditService).logAction(anyString(), eq("CONTRACTOR_ENGAGEMENT_FEEDBACK_SUBMITTED"), anyString(), eq("p1"), anyString());
-    }
-
-    @Test
-    void submitFeedback_notCompleted_throws() {
-        ContractorProfile p = profile();
-        EngagementHistory e = engagement(p, LocalDate.now().minusMonths(1), LocalDate.now().plusMonths(1)); // ends in future
-        when(contractorProfileRepository.findById("p1")).thenReturn(Optional.of(p));
-        when(engagementHistoryRepository.findById("eng1")).thenReturn(Optional.of(e));
-        EngagementFeedbackRequestDTO req = EngagementFeedbackRequestDTO.builder().feedback("x").rating(4).build();
-        assertThrows(IllegalStateException.class, () -> service.submitFeedback("p1", "eng1", req));
-        verify(engagementHistoryRepository, never()).save(any());
-    }
-
     // ---------- delete ----------
 
     @Test

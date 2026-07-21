@@ -1,5 +1,6 @@
 package com.gigforce.identity.dto;
 
+import com.gigforce.identity.enums.VerificationStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -25,8 +26,8 @@ public class EngagementHistoryResponseDTO {
     private Integer rating;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-    private String Verifyer_name;
-    private String Verifyer_email;
-    private String Verifyer_phone;
-    private boolean status;
+    private String verifyerName;
+    private String verifyerEmail;
+    private String verifyerPhone;
+    private VerificationStatus status;
 }

@@ -16,8 +16,6 @@ public interface EngagementHistoryService {
     EngagementHistoryResponseDTO updateEngagement(String profileId, String engagementId,
                                                   @Valid EngagementHistoryUpdateRequestDTO request);
 
-    EngagementHistoryResponseDTO submitFeedback(String profileId, String engagementId, EngagementFeedbackRequestDTO request);
-
     void deleteEngagement(String profileId, String engagementId);
     EngagementHistoryResponseDTO approveEngagement(String profileId, String engagementId);
 }
