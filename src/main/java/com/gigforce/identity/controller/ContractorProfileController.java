@@ -206,7 +206,7 @@ public class  ContractorProfileController {
 
     @PostMapping("/{id}/engagements")
     @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER', 'CONTRACTOR')")
-    @Operation(summary = "Add engagement to contractor profile", description = "The owning contractor can add their own engagement history; ADMIN and HIRING_MANAGER can add for any profile.")
+    @Operation(summary = "Add engagement to contractor profile", description = "The owning contractor can add their own engagement history; ADMIN, CONTRACTOR and HIRING_MANAGER can add for any profile.")
     public ResponseEntity<EngagementHistoryResponseDTO> addEngagement(
             @PathVariable String id,
             @Valid @RequestBody EngagementHistoryRequestDTO request) {
@@ -223,6 +223,14 @@ public class  ContractorProfileController {
 
         List<EngagementHistoryResponseDTO> engs = engagementHistoryService.getEngagementsByProfileId(id);
         return ResponseEntity.ok(engs);
+    }
+
+    @PutMapping("/{id}/engagements/{engagementId}/approve")
+    @PreAuthorize("hasAnyRole('ADMIN', 'VENDOR_MANAGER', 'VENDOR')")
+    @Operation(summary = "Approve contractor engagement", description = "Restricted to ADMIN, VENDOR_MANAGER, or VENDOR.")
+    public ResponseEntity<EngagementHistoryResponseDTO> ApproveEngagement(@PathVariable String id, @PathVariable String engagementId) {
+        EngagementHistoryResponseDTO updated = engagementHistoryService.approveEngagement(id, engagementId);
+        return ResponseEntity.ok(updated);
     }
 
     @PutMapping("/{id}/engagements/{engagementId}")

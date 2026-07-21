@@ -30,4 +30,8 @@ public class EngagementHistoryRequestDTO {
     private LocalDate startDate;
 
     private LocalDate endDate; // Optional
+
+    private String Verifyer_name;
+    private String Verifyer_email;
+    private String Verifyer_phone;
 }

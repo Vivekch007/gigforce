@@ -25,4 +25,8 @@ public class EngagementHistoryResponseDTO {
     private Integer rating;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private String Verifyer_name;
+    private String Verifyer_email;
+    private String Verifyer_phone;
+    private boolean status;
 }

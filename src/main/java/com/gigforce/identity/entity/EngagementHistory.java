@@ -1,6 +1,7 @@
 package com.gigforce.identity.entity;
 
 import com.gigforce.common.entity.BaseEntity;
+import com.gigforce.identity.enums.VerificationStatus;
 import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -52,4 +53,14 @@ public class EngagementHistory extends BaseEntity {
     private String feedback;
 
     private Integer rating; // Rating e.g. 1 to 5
+
+    @Column(name = "verifyer_name")
+    private String Verifyer_name;
+    @Column(name = "verifyer_email")
+    private String Verifyer_email;
+    @Column(name = "verifyer_phone")
+    private String Verifyer_phone;
+
+    @Column(name = "Approval_status")
+    private VerificationStatus Approval_status;
 }
