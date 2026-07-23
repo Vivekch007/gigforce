@@ -1,6 +1,5 @@
 package com.gigforce.identity.service;
 
-import com.gigforce.identity.dto.EngagementFeedbackRequestDTO;
 import com.gigforce.identity.dto.EngagementHistoryRequestDTO;
 import com.gigforce.identity.dto.EngagementHistoryResponseDTO;
 import com.gigforce.identity.dto.EngagementHistoryUpdateRequestDTO;

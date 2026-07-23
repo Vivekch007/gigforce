@@ -2,14 +2,7 @@ package com.gigforce.identity.entity;
 
 import com.gigforce.common.entity.BaseEntity;
 import com.gigforce.identity.enums.VerificationStatus;
-import jakarta.persistence.AttributeOverride;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.Index;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -62,5 +55,6 @@ public class EngagementHistory extends BaseEntity {
     private String Verifyer_phone;
 
     @Column(name = "Approval_status")
+    @Enumerated(EnumType.STRING)
     private VerificationStatus Approval_status;
 }

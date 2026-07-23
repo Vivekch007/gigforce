@@ -60,7 +60,7 @@ public class VendorSubmissionController {
     }
 
     @PutMapping("/{id}/shortlist")
-    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER', 'VENDOR', 'VENDOR_MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER')")
     @Operation(summary = "Transition submission status to SHORTLISTED")
     public ResponseEntity<VendorSubmissionResponseDTO> transitionToShortlisted(@PathVariable String id) {
         VendorSubmissionResponseDTO response = submissionService.transitionStatus(id, SubmissionStatus.SHORTLISTED, null);
@@ -68,7 +68,7 @@ public class VendorSubmissionController {
     }
 
     @PutMapping("/{id}/schedule-interview")
-    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER', 'VENDOR', 'VENDOR_MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER')")
     @Operation(summary = "Transition submission status to INTERVIEW_SCHEDULED")
     public ResponseEntity<VendorSubmissionResponseDTO> transitionToInterviewScheduled(@PathVariable String id) {
         VendorSubmissionResponseDTO response = submissionService.transitionStatus(id, SubmissionStatus.INTERVIEW_SCHEDULED, null);
@@ -87,7 +87,7 @@ public class VendorSubmissionController {
     }
 
     @PutMapping("/{id}/reject")
-    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER', 'VENDOR', 'VENDOR_MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER')")
     @Operation(summary = "Transition submission status to REJECTED")
     public ResponseEntity<VendorSubmissionResponseDTO> transitionToRejected(
             @PathVariable String id,

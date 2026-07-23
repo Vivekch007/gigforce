@@ -3,7 +3,6 @@ package com.gigforce.identity.service;
 import com.gigforce.audit.service.AuditService;
 import com.gigforce.exception.ContractorProfileNotFoundException;
 import com.gigforce.exception.EngagementNotFoundException;
-import com.gigforce.identity.dto.EngagementFeedbackRequestDTO;
 import com.gigforce.identity.dto.EngagementHistoryRequestDTO;
 import com.gigforce.identity.dto.EngagementHistoryResponseDTO;
 import com.gigforce.identity.dto.EngagementHistoryUpdateRequestDTO;
@@ -76,6 +75,8 @@ public class EngagementHistoryServiceImpl implements EngagementHistoryService {
                                 .roleTitle(request.getRoleTitle().trim())
                                 .startDate(request.getStartDate())
                                 .endDate(request.getEndDate())
+                                .feedback(request.getFeedback())
+                                .rating(request.getRating())
                                 .Verifyer_email(request.getVerifyer_email().trim().toLowerCase())
                                 .Verifyer_phone(request.getVerifyer_phone().trim())
                                 .Verifyer_name(request.getVerifyer_name().trim())
@@ -127,40 +128,65 @@ public class EngagementHistoryServiceImpl implements EngagementHistoryService {
                 if (request.getEndDate() != null && request.getEndDate().isBefore(request.getStartDate())) {
                         throw new IllegalArgumentException("Engagement end date cannot be before start date.");
                 }
-                if(engagement.getCreatedBy() != null && !engagement.getCreatedBy().equals(profile.getUser().getId())) {
-                        throw new IllegalArgumentException("You can update the engagement which are only updated by the user.");
+                if(engagement.getCreatedBy() != null && !engagement.getCreatedBy().equals(profile.getUser().getEmail())) {
+                        throw new IllegalArgumentException("You can update the engagement only if you are the creator of the engagement.");
+                }
+                if(request.getStartDate()!=null && request.getStartDate().isAfter(LocalDate.now())) {
+                        throw new IllegalArgumentException("Engagement start date cannot be in the future.");
                 }
 
                 if (!engagement.getContractorProfile().getId().equals(profile.getId())) {
                         throw new IllegalArgumentException("Engagement does not belong to the specified profile.");
                 }
+                if(request.getRoleTitle() == null || request.getRoleTitle().trim().isEmpty()) {
+                        engagement.setRoleTitle(engagementHistoryRepository.findById(engagementId).get().getRoleTitle());
+                }
+                else {
+                        engagement.setRoleTitle(request.getRoleTitle().trim());
+                }
+                if(request.getStartDate() == null) {
+                        engagement.setStartDate(engagementHistoryRepository.findById(engagementId).get().getStartDate());
+                }else{
+                        engagement.setStartDate(request.getStartDate());
+                }
+                if(request.getEndDate() == null) {
+                        engagement.setEndDate(engagementHistoryRepository.findById(engagementId).get().getEndDate());
+                }
+                else{
+                        engagement.setEndDate(request.getEndDate());
+                }
+                if(request.getFeedback() ==  null || request.getFeedback().trim().isEmpty()) {
+                        engagement.setFeedback(engagementHistoryRepository.findById(engagementId).get().getFeedback());
+                }
+                else {
+                        engagement.setFeedback(request.getFeedback().trim());
+                }
+                if(request.getRating() == 0) {
+                        engagement.setRating(engagementHistoryRepository.findById(engagementId).get().getRating());
+                }
+                else {
+                        engagement.setRating(request.getRating());
+                }
 
-
-                engagement.setRoleTitle(request.getRoleTitle().trim());
-                engagement.setStartDate(request.getStartDate());
-                engagement.setEndDate(request.getEndDate());
-                engagement.setApproval_status(VerificationStatus.PENDING);
-                String verifyerEmail = request.getVerifyer_email().trim().toLowerCase();
-                String verifyerPhone = request.getVerifyer_phone().trim().toLowerCase();
-                String verifyerName = request.getVerifyer_name().trim();
-                if(verifyerEmail == null || verifyerEmail.isEmpty()) {
+                if(request.getVerifyer_email() == null || request.getVerifyer_email().trim().isEmpty()) {
                         engagement.setVerifyer_email(engagementHistoryRepository.findById(engagementId).get().getVerifyer_email());
                 }
                 else{
-                        engagement.setVerifyer_email(verifyerEmail);
+                        engagement.setVerifyer_email(request.getVerifyer_email().trim().toLowerCase());
                 }
-                if(verifyerPhone == null || verifyerPhone.isEmpty()) {
+                if(request.getVerifyer_phone() == null || request.getVerifyer_phone().trim().isEmpty()) {
                         engagement.setVerifyer_phone(engagementHistoryRepository.findById(engagementId).get().getVerifyer_phone());
                 }
                 else{
-                        engagement.setVerifyer_phone(verifyerPhone);
+                        engagement.setVerifyer_phone(request.getVerifyer_phone().trim());
                 }
-                if(verifyerName == null || verifyerName.isEmpty()) {
+                if(request.getVerifyer_name() == null || request.getVerifyer_name().trim().isEmpty()) {
                         engagement.setVerifyer_name(engagementHistoryRepository.findById(engagementId).get().getVerifyer_name());
                 }
                 else{
-                        engagement.setVerifyer_name(verifyerName);
+                        engagement.setVerifyer_name(request.getVerifyer_name().trim());
                 }
+
                 engagement.setApproval_status(VerificationStatus.PENDING);
                 EngagementHistory updated = engagementHistoryRepository.save(engagement);
 

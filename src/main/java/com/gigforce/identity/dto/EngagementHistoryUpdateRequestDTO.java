@@ -18,11 +18,9 @@ import java.time.LocalDate;
 @Builder
 public class EngagementHistoryUpdateRequestDTO {
 
-    @NotBlank(message = "Role title is required")
     @Size(max = 150, message = "Role title must be at most 150 characters")
     private String roleTitle;
 
-    @NotNull(message = "Start date is required")
     private LocalDate startDate;
 
     private LocalDate endDate; // Optional
