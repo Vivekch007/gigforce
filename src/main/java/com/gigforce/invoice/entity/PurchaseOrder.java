@@ -38,6 +38,8 @@ public class PurchaseOrder extends BaseEntity {
     @Column(name = "POAmount", nullable = false, precision = 10, scale = 2)
     private BigDecimal poAmount;
 
+    private BigDecimal balanceAmount;
+
     @Column(name = "Currency", nullable = false, length = 10)
     private String currency;
 
@@ -50,6 +52,8 @@ public class PurchaseOrder extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "Status", nullable = false, length = 30)
     private PurchaseOrderStatus status;
+
+
 
     // Aliases to exactly match PDF field names in Java reflections/serialization if checked
     public String getPOID() {

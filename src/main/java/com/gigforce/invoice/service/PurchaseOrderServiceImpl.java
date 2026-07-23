@@ -93,6 +93,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
                 .issuedDate(assignment.getStartDate())
                 .expiryDate(assignment.getEndDate() != null ? assignment.getEndDate().plusDays(10) : assignment.getStartDate().plusDays(30))
                 .status(initialStatus)
+                .balanceAmount(request.getPoAmount())
                 .build();
 
         po = purchaseOrderRepository.save(po);

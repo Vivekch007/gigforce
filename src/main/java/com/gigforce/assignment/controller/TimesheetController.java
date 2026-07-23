@@ -25,9 +25,10 @@ public class TimesheetController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('CONTRACTOR')")
+    @PreAuthorize("hasAnyRole('HIRING_MANAGER', 'VENDOR')")
+//    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER')")
     @Operation(summary = "Create weekly timesheet draft (contractor only; backend pre-generates Mon-Fri lines)")
-    public ResponseEntity<TimesheetResponseDTO> createTimesheet(@Valid @RequestBody TimesheetRequestDTO request) {
+    public ResponseEntity<TimesheetResponseDTO> createTimesheet(@Valid @RequestBody com.gigforce.assignment.dto.TimesheetCreateRequestDTO request) {
         TimesheetResponseDTO response = timesheetService.createTimesheet(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -37,7 +38,7 @@ public class TimesheetController {
     @Operation(summary = "Update weekly timesheet draft")
     public ResponseEntity<TimesheetResponseDTO> updateTimesheet(
             @PathVariable String id,
-            @Valid @RequestBody TimesheetRequestDTO request) {
+            @Valid @RequestBody TimesheetUpdateRequestDTO request) {
         TimesheetResponseDTO response = timesheetService.updateTimesheet(id, request);
         return ResponseEntity.ok(response);
     }

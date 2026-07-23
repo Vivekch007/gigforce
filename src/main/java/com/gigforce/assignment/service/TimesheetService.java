@@ -7,9 +7,9 @@ import com.gigforce.assignment.enums.PayrollStatus;
 import java.util.List;
 
 public interface TimesheetService {
-    TimesheetResponseDTO createTimesheet(TimesheetRequestDTO request);
+    TimesheetResponseDTO createTimesheet(com.gigforce.assignment.dto.TimesheetCreateRequestDTO request);
 
-    TimesheetResponseDTO updateTimesheet(String id, TimesheetRequestDTO request);
+    TimesheetResponseDTO updateTimesheet(String id, com.gigforce.assignment.dto.TimesheetUpdateRequestDTO request);
 
     TimesheetResponseDTO submitTimesheet(String id);
 

@@ -23,8 +23,7 @@ import java.math.RoundingMode;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Value;
 import com.gigforce.exception.BusinessValidationException;
@@ -92,20 +91,22 @@ public class TimesheetServiceImpl implements TimesheetService {
     // ------------------------------------------------------------------
     @Override
     @Transactional
-    public TimesheetResponseDTO createTimesheet(TimesheetRequestDTO request) {
+    public TimesheetResponseDTO createTimesheet(com.gigforce.assignment.dto.TimesheetCreateRequestDTO request) {
         Assignment assignment = assignmentRepository.findById(request.getAssignmentId())
                 .orElseThrow(() -> new AssignmentNotFoundException(
                         "Assignment not found with ID: " + request.getAssignmentId()));
 
         User currentUser = getCurrentUser();
 
-        // Only the contractor who owns the assignment may create their timesheet
-        if (currentUser.getRole().name().equals("CONTRACTOR")) {
-            ContractorProfile cp = contractorProfileRepository.findByUserId(currentUser.getId())
-                    .orElseThrow(() -> new UserNotFoundException("Contractor profile not found."));
-            if (!assignment.getContractorProfile().getId().equals(cp.getId())) {
+        // Authorization: Only Hiring Manager of the assignment (or ADMIN) may create a timesheet
+        String role = currentUser.getRole().name();
+        if (role.equals("HIRING_MANAGER")) {
+            if (assignment.getHiringManager() == null || !assignment.getHiringManager().getId().equals(currentUser.getId())) {
                 throw new AccessDeniedException("You are not authorized to create a timesheet for this assignment.");
             }
+        } else if (!role.equals("ADMIN")) {
+            // All non-admin, non-hiring-manager users are forbidden
+            throw new AccessDeniedException("Access Denied: Only the Hiring Manager or Admin can create timesheets.");
         }
 
         // Assignment status boundary check
@@ -179,7 +180,7 @@ public class TimesheetServiceImpl implements TimesheetService {
     // ------------------------------------------------------------------
     @Override
     @Transactional
-    public TimesheetResponseDTO updateTimesheet(String id, TimesheetRequestDTO request) {
+    public TimesheetResponseDTO updateTimesheet(String id, TimesheetUpdateRequestDTO request) {
         if (request.getLines() == null || request.getLines().isEmpty()) {
             throw new BusinessValidationException("At least one day's hours must be provided to update the timesheet.");
         }
@@ -215,58 +216,80 @@ public class TimesheetServiceImpl implements TimesheetService {
 
         List<TimesheetLine> existingLines = timesheetLineRepository.findByTimesheetId(timesheet.getId());
 
-        // Approved leave days overlapping this week -> those days are forced to 0 hours
+        // Approved leave days overlapping this week
         List<ContractorAbsence> approvedAbsences = absenceRepository.findApprovedAbsencesInRange(
                 timesheet.getContractor().getId(),
                 timesheet.getWeekStartDate(),
                 timesheet.getWeekEndDate(),
                 AbsenceStatus.APPROVED);
 
+        LocalDate weekStart = timesheet.getWeekStartDate();
+        LocalDate weekEnd = timesheet.getWeekEndDate();
+
+        // Map to keep track of total raw hours submitted per date
+        Map<LocalDate, BigDecimal> rawDailyHoursMap = new HashMap<>();
+
         for (TimesheetLineRequestDTO dto : request.getLines()) {
             LocalDate workDate = dto.getWorkDate();
 
-            // Locate the pre-generated skeleton line for this day
-            TimesheetLine line = existingLines.stream()
-                    .filter(l -> l.getWorkDate().equals(workDate))
-                    .findFirst()
-                    .orElseThrow(() -> new BusinessValidationException(
-                            "No timesheet line exists for " + workDate
-                                    + ". Only Mon-Fri days within the timesheet week can be logged."));
+            if (workDate.isBefore(weekStart) || workDate.isAfter(weekEnd)) {
+                throw new BusinessValidationException(
+                        "Work date " + workDate + " falls outside the timesheet week (" + weekStart + " to " + weekEnd + ").");
+            }
 
             if (workDate.isAfter(LocalDate.now())) {
                 throw new BusinessValidationException("Work date " + workDate + " cannot be in the future.");
             }
 
-            BigDecimal hours = dto.getHoursWorked();
-            if (hours == null || hours.compareTo(BigDecimal.ZERO) < 0) {
+            // Locate or dynamically create weekend line if needed
+            TimesheetLine line = existingLines.stream()
+                    .filter(l -> l.getWorkDate().equals(workDate))
+                    .findFirst()
+                    .orElseGet(() -> {
+                        if (isWeekend(workDate)) {
+                            TimesheetLine newLine = TimesheetLine.builder()
+                                    .timesheet(timesheet)
+                                    .workDate(workDate)
+                                    .hoursWorked(BigDecimal.ZERO)
+                                    .overtimeHours(BigDecimal.ZERO)
+                                    .status(TimesheetStatus.DRAFT)
+                                    .build();
+                            existingLines.add(newLine);
+                            return newLine;
+                        }
+                        throw new BusinessValidationException("No timesheet line exists for " + workDate + ".");
+                    });
+
+            BigDecimal totalHours = dto.getHoursWorked();
+            if (totalHours == null || totalHours.compareTo(BigDecimal.ZERO) < 0) {
                 throw new BusinessValidationException("Hours worked cannot be negative on " + workDate + ".");
             }
-            if (hours.compareTo(maxDailyHours) > 0) {
+            if (totalHours.compareTo(maxDailyHours) > 0) {
                 throw new BusinessValidationException(
                         "Daily hours on " + workDate + " cannot exceed " + maxDailyHours + " hours.");
             }
 
-            // Approved leave => hours are automatically zeroed (leave days are non-billable)
+            // Approved leave check => 0 hours
             boolean onApprovedLeave = approvedAbsences.stream()
                     .anyMatch(a -> !workDate.isBefore(a.getStartDate()) && !workDate.isAfter(a.getEndDate()));
             if (onApprovedLeave) {
-                line.setHoursWorked(BigDecimal.ZERO);
-                line.setOvertimeHours(BigDecimal.ZERO);
+                rawDailyHoursMap.put(workDate, BigDecimal.ZERO);
                 line.setActivityDesc("On approved leave");
                 continue;
             }
 
-            if (hours.compareTo(BigDecimal.ZERO) > 0
+            if (totalHours.compareTo(BigDecimal.ZERO) > 0
                     && (dto.getActivityDesc() == null || dto.getActivityDesc().trim().isEmpty())) {
                 throw new BusinessValidationException(
                         "Activity description is required for " + workDate + " when hours are logged.");
             }
 
-            BigDecimal[] split = splitRegularAndOvertime(hours);
-            line.setHoursWorked(split[0]);
-            line.setOvertimeHours(split[1]);
+            rawDailyHoursMap.put(workDate, totalHours);
             line.setActivityDesc(dto.getActivityDesc());
         }
+
+        // Shift regular vs. overtime hours based on the cumulative 40-hour weekly threshold
+        redistributeWeeklyHours(existingLines, rawDailyHoursMap);
 
         recomputeTotals(timesheet, existingLines);
         syncLineStatuses(timesheet, existingLines);
@@ -283,6 +306,40 @@ public class TimesheetServiceImpl implements TimesheetService {
 
         return toDto(saved);
     }
+
+    /**
+     * Distributes regular vs. overtime hours chronologically (Mon -> Sun).
+     * Caps regular hours at 40 total hours per week; all remaining hours become overtime.
+     */
+    private void redistributeWeeklyHours(List<TimesheetLine> existingLines, Map<LocalDate, BigDecimal> rawDailyHoursMap) {
+        // Sort lines chronologically from Monday to Sunday
+        existingLines.sort(Comparator.comparing(TimesheetLine::getWorkDate));
+
+        BigDecimal weeklyCap = BigDecimal.valueOf(40);
+        BigDecimal accumulatedRegularHours = BigDecimal.ZERO;
+
+        for (TimesheetLine line : existingLines) {
+            // Get raw total hours for the day (if not in update payload, preserve total existing hours)
+            BigDecimal dailyTotal = rawDailyHoursMap.getOrDefault(
+                    line.getWorkDate(),
+                    line.getHoursWorked().add(line.getOvertimeHours())
+            );
+
+            // Calculate remaining capacity under the 40-hour weekly cap
+            BigDecimal remainingCapacity = weeklyCap.subtract(accumulatedRegularHours).max(BigDecimal.ZERO);
+
+            // Assign regular hours up to remaining capacity, rest goes to overtime
+            BigDecimal regularHours = dailyTotal.min(remainingCapacity);
+            BigDecimal overtimeHours = dailyTotal.subtract(regularHours);
+
+            line.setHoursWorked(regularHours);
+            line.setOvertimeHours(overtimeHours);
+
+            accumulatedRegularHours = accumulatedRegularHours.add(regularHours);
+        }
+    }
+
+
 
     // ------------------------------------------------------------------
     // SUBMIT — backend stamps submitted date; status DRAFT/REVISED -> SUBMITTED
