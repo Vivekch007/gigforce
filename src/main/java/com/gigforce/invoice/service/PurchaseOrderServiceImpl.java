@@ -49,9 +49,8 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
 
         // RBAC: only Vendor / Vendor Manager raise POs; Admin retains full-access override
         boolean isVendor = "VENDOR".equals(role) || "VENDOR_MANAGER".equals(role);
-        boolean isAdmin = "ADMIN".equals(role);
-        if (!isVendor && !isAdmin) {
-            throw new AccessDeniedException("Access Denied: Only Vendor, Vendor Manager, or Admin can create Purchase Orders.");
+        if (!isVendor) {
+            throw new AccessDeniedException("Access Denied: Only Vendor or Vendor Manager can create Purchase Orders.");
         }
 
         Assignment assignment = assignmentRepository.findById(request.getAssignmentId())
@@ -84,7 +83,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             throw new IllegalArgumentException("Target user is not a Vendor profile.");
         }
 
-        PurchaseOrderStatus initialStatus = PurchaseOrderStatus.ACTIVE;
+        PurchaseOrderStatus initialStatus = PurchaseOrderStatus.PENDING;
 
         PurchaseOrder po = PurchaseOrder.builder()
                 .assignment(assignment)
@@ -159,7 +158,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         }
 
         String role = currentUser.getRole().name().replace("ROLE_", "").trim();
-        if (!"ADMIN".equals(role) && !"FINANCE".equals(role) && !"HIRING_MANAGER".equals(role)) {
+        if (!"HIRING_MANAGER".equals(role)) {
             throw new AccessDeniedException("Access Denied: You are not authorized to cancel Purchase Orders.");
         }
 
@@ -172,11 +171,42 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             }
         }
 
-        if (po.getStatus() != PurchaseOrderStatus.ACTIVE) {
+        if (po.getStatus() != PurchaseOrderStatus.PENDING) {
             throw new IllegalStateException("Invalid workflow transition: Purchase Order in status " + po.getStatus() + " cannot be cancelled.");
         }
 
         po.setStatus(PurchaseOrderStatus.CANCELLED);
+        po = purchaseOrderRepository.save(po);
+        return mapToDto(po);
+    }
+
+    @Override
+    @Transactional
+    public PurchaseOrderResponseDTO  approvePurchaseOrder(String id) {
+        User currentUser = currentUserContext.getCurrentUser();
+        if (currentUser == null) {
+            throw new AccessDeniedException("Access Denied: Unauthenticated user.");
+        }
+
+        String role = currentUser.getRole().name().replace("ROLE_", "").trim();
+        if (!"HIRING_MANAGER".equals(role)) {
+            throw new AccessDeniedException("Access Denied: You are not authorized to cancel Purchase Orders.");
+        }
+
+        PurchaseOrder po = purchaseOrderRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Purchase Order not found with ID: " + id));
+
+        if ("HIRING_MANAGER".equals(role)) {
+            if (po.getAssignment().getHiringManager() == null || !po.getAssignment().getHiringManager().getId().equals(currentUser.getId())) {
+                throw new AccessDeniedException("Access Denied: You can only cancel Purchase Orders for assignments you manage.");
+            }
+        }
+
+        if (po.getStatus() != PurchaseOrderStatus.PENDING) {
+            throw new IllegalStateException("Invalid workflow transition: Purchase Order in status " + po.getStatus() + " cannot be APPROVED.");
+        }
+
+        po.setStatus(PurchaseOrderStatus.ACTIVE);
         po = purchaseOrderRepository.save(po);
         return mapToDto(po);
     }

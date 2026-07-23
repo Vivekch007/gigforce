@@ -50,10 +50,18 @@ public class PurchaseOrderController {
     }
 
     @PutMapping("/{id}/cancel")
-    @PreAuthorize("hasAnyRole('ADMIN', 'FINANCE', 'HIRING_MANAGER') or hasAnyAuthority('ADMIN', 'FINANCE', 'HIRING_MANAGER')")
+    @PreAuthorize("hasAnyRole('HIRING_MANAGER') or hasAnyAuthority('HIRING_MANAGER')")
     @Operation(summary = "Cancel a Purchase Order")
     public ResponseEntity<PurchaseOrderResponseDTO> cancelPurchaseOrder(@PathVariable String id) {
         PurchaseOrderResponseDTO response = purchaseOrderService.cancelPurchaseOrder(id);
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/{id}/approve")
+    @PreAuthorize("hasAnyRole('HIRING_MANAGER') or hasAnyAuthority('HIRING_MANAGER')")
+    @Operation(summary = "Approve the Purchase Order (HIRING_MANAGER)")
+    public ResponseEntity<PurchaseOrderResponseDTO> approvePurchaseOrder(@PathVariable String id) {
+        PurchaseOrderResponseDTO response = purchaseOrderService.approvePurchaseOrder(id);
         return ResponseEntity.ok(response);
     }
 }

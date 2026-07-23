@@ -14,4 +14,6 @@ public interface PurchaseOrderService {
     List<PurchaseOrderResponseDTO> getAllPurchaseOrders();
 
     PurchaseOrderResponseDTO cancelPurchaseOrder(String id);
+
+    PurchaseOrderResponseDTO approvePurchaseOrder(String id);
 }
