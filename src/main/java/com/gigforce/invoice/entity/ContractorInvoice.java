@@ -96,9 +96,6 @@ public class ContractorInvoice extends BaseEntity {
     @Column(name = "PaymentDate")
     private LocalDate paymentDate;
 
-    @Column(name = "PaymentReference", length = 150)
-    private String paymentReference;
-
     @Column(name = "SubmittedDate")
     private LocalDateTime submittedDate;
 

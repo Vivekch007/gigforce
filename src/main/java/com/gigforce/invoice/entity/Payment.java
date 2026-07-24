@@ -43,9 +43,6 @@ public class Payment extends BaseEntity {
     @Column(name = "Status", nullable = false, length = 30)
     private PaymentStatus status;
 
-    @Column(name = "PaymentReference", length = 150)
-    private String paymentReference;
-
     @Column(name = "TransactionID", length = 150)
     private String transactionId;
 

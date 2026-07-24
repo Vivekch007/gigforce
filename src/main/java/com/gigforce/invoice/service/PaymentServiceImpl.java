@@ -221,9 +221,7 @@ public class PaymentServiceImpl implements PaymentService {
             }
         }
 
-        if (request.getPaymentReference() != null) {
-            payment.setPaymentReference(request.getPaymentReference());
-        }
+
 
         payment = paymentRepository.save(payment);
 
@@ -274,7 +272,7 @@ public class PaymentServiceImpl implements PaymentService {
         ContractorInvoice invoice = payment.getInvoice();
         invoice.setStatus(InvoiceStatus.PAID);
         invoice.setPaymentDate(payment.getPaymentDate());
-        invoice.setPaymentReference(payment.getTransactionId()); // Store transactionId as payment reference in invoice
+//        invoice.setPaymentReference(payment.getTransactionId()); // Store transactionId as payment reference in invoice
         contractorInvoiceRepository.save(invoice);
 
         auditService.logAction(
@@ -374,7 +372,6 @@ public class PaymentServiceImpl implements PaymentService {
                 .paidAmount(payment.getPaidAmount())
                 .paymentDate(payment.getPaymentDate())
                 .paymentMode(payment.getPaymentMode().name())
-                .paymentReference(payment.getPaymentReference())
                 .transactionId(payment.getTransactionId())
                 .status(payment.getStatus().name())
                 .build();

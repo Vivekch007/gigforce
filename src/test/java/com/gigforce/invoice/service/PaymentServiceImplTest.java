@@ -10,7 +10,6 @@ import com.gigforce.identity.enums.AvailabilityStatus;
 import com.gigforce.identity.enums.ProfileStatus;
 import com.gigforce.identity.enums.UserRole;
 import com.gigforce.identity.enums.UserStatus;
-import com.gigforce.invoice.dto.PaymentRequestDTO;
 import com.gigforce.invoice.dto.PaymentResponseDTO;
 import com.gigforce.invoice.entity.ContractorInvoice;
 import com.gigforce.invoice.entity.Payment;

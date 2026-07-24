@@ -211,8 +211,8 @@ public class InvoiceServiceImpl implements InvoiceService {
 
         String invoiceNum = generateInvoiceNumber();
 
-        // Status is always managed by the backend; default to SUBMITTED
-        InvoiceStatus initialStatus = InvoiceStatus.SUBMITTED;
+        // Status is always managed by the backend; default to draft
+        InvoiceStatus initialStatus = InvoiceStatus.DRAFT;
 
         ContractorInvoice invoice = ContractorInvoice.builder()
                 .purchaseOrder(po)
@@ -822,7 +822,6 @@ public class InvoiceServiceImpl implements InvoiceService {
                 .taxAmount(invoice.getTaxAmount())
                 .totalAmount(invoice.getTotalAmount())
                 .paymentDate(invoice.getPaymentDate())
-                .paymentReference(invoice.getPaymentReference())
                 .submittedDate(invoice.getSubmittedDate())
                 .status(invoice.getStatus().name())
                 .build();
