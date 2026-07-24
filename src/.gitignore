@@ -1,3 +1,5 @@
 target/
 *.class
 .claude
+.sfdx
+mysql_data/
