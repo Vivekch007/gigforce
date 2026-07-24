@@ -97,6 +97,11 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
                 .build();
 
         po = purchaseOrderRepository.save(po);
+
+        // Update the assignment with the Purchase Order ID for future invoice reference
+        assignment.setPurchaseOrderId(po.getId());
+        assignmentRepository.save(assignment);
+
         return mapToDto(po);
     }
 

@@ -3,6 +3,7 @@ package com.gigforce.invoice.dto;
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
 import java.util.List;
@@ -13,19 +14,10 @@ import java.util.List;
 @Builder
 public class ContractorInvoiceRequestDTO {
 
-    @JsonProperty("POID")
-    @JsonAlias({"poId", "poid", "poID"})
-    private String poId;
-
     @JsonProperty("AssignmentID")
     @JsonAlias({"assignmentId", "assignmentID"})
     @NotBlank(message = "AssignmentID is required")
     private String assignmentId;
-
-    @JsonProperty("ContractorID")
-    @JsonAlias({"contractorId", "contractorID"})
-    @NotBlank(message = "ContractorID is required")
-    private String contractorId;
 
     @JsonProperty("InvoicePeriod")
     @JsonAlias({"invoicePeriod", "invoice_period"})
@@ -38,13 +30,18 @@ public class ContractorInvoiceRequestDTO {
 
     @JsonProperty("BillingStartDate")
     @JsonAlias({"billingStartDate", "billing_start_date"})
+    @NotNull(message = "BillingStartDate is required")
     private java.time.LocalDate billingStartDate;
 
     @JsonProperty("BillingEndDate")
     @JsonAlias({"billingEndDate", "billing_end_date"})
+    @NotNull(message = "BillingEndDate is required")
     private java.time.LocalDate billingEndDate;
 
-    @JsonProperty("Status")
-    @JsonAlias({"status"})
-    private String status;
+    // NOTE: The following fields are managed by the backend and NOT accepted from the request:
+    // - poId: derived from assignment or existing PO relationship
+    // - contractorProfileId: derived from assignment
+    // - status: managed programmatically (defaults to SUBMITTED or DRAFT)
 }
+
+

@@ -74,4 +74,7 @@ public class Assignment extends BaseEntity {
 
     @Column(name = "org_unit_id", length = 64)
     private String orgUnitId;
+
+    @Column(name = "purchase_order_id", length = 64)
+    private String purchaseOrderId;
 }

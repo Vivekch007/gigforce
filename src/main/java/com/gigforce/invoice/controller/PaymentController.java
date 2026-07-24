@@ -1,6 +1,7 @@
 package com.gigforce.invoice.controller;
 
-import com.gigforce.invoice.dto.PaymentRequestDTO;
+import com.gigforce.invoice.dto.PaymentCreateRequestDTO;
+import com.gigforce.invoice.dto.PaymentUpdateRequestDTO;
 import com.gigforce.invoice.dto.PaymentResponseDTO;
 import com.gigforce.invoice.service.PaymentService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -26,8 +27,8 @@ public class PaymentController {
 
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'FINANCE')")
-    @Operation(summary = "Create a new Payment")
-    public ResponseEntity<PaymentResponseDTO> createPayment(@Valid @RequestBody PaymentRequestDTO request) {
+    @Operation(summary = "Create a new Payment with required fields only (invoiceId, paidAmount, paymentDate, paymentMode)")
+    public ResponseEntity<PaymentResponseDTO> createPayment(@Valid @RequestBody PaymentCreateRequestDTO request) {
         PaymentResponseDTO response = paymentService.createPayment(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -48,6 +49,16 @@ public class PaymentController {
         return ResponseEntity.ok(response);
     }
 
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'FINANCE')")
+    @Operation(summary = "Update an existing Payment (only PENDING payments can be updated)")
+    public ResponseEntity<PaymentResponseDTO> updatePayment(
+            @PathVariable String id,
+            @Valid @RequestBody PaymentUpdateRequestDTO request) {
+        PaymentResponseDTO response = paymentService.updatePayment(id, request);
+        return ResponseEntity.ok(response);
+    }
+
     @PutMapping("/{id}/process")
     @PreAuthorize("hasAnyRole('ADMIN', 'FINANCE')")
     @Operation(summary = "Process/Succeed a Payment")
@@ -64,3 +75,5 @@ public class PaymentController {
         return ResponseEntity.ok(response);
     }
 }
+
+

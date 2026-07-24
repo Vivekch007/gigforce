@@ -1,7 +1,8 @@
 package com.gigforce.invoice.service;
 
 import com.gigforce.identity.entity.User;
-import com.gigforce.invoice.dto.PaymentRequestDTO;
+import com.gigforce.invoice.dto.PaymentCreateRequestDTO;
+import com.gigforce.invoice.dto.PaymentUpdateRequestDTO;
 import com.gigforce.invoice.dto.PaymentResponseDTO;
 import com.gigforce.invoice.entity.ContractorInvoice;
 import com.gigforce.invoice.entity.Payment;
@@ -13,6 +14,8 @@ import com.gigforce.invoice.repository.PaymentRepository;
 import com.gigforce.security.CurrentUserContext;
 import com.gigforce.exception.BusinessValidationException;
 import com.gigforce.audit.service.AuditService;
+import com.gigforce.common.id.IdSequenceRepository;
+import com.gigforce.common.id.IdSequence;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,23 +35,26 @@ public class PaymentServiceImpl implements PaymentService {
     private final CurrentUserContext currentUserContext;
     private final AuditService auditService;
     private final NotificationPublisher notificationPublisher;
+    private final IdSequenceRepository idSequenceRepository;
 
     public PaymentServiceImpl(
             PaymentRepository paymentRepository,
             ContractorInvoiceRepository contractorInvoiceRepository,
             CurrentUserContext currentUserContext,
             AuditService auditService,
-            NotificationPublisher notificationPublisher) {
+            NotificationPublisher notificationPublisher,
+            IdSequenceRepository idSequenceRepository) {
         this.paymentRepository = paymentRepository;
         this.contractorInvoiceRepository = contractorInvoiceRepository;
         this.currentUserContext = currentUserContext;
         this.auditService = auditService;
         this.notificationPublisher = notificationPublisher;
+        this.idSequenceRepository = idSequenceRepository;
     }
 
     @Override
     @Transactional
-    public PaymentResponseDTO createPayment(PaymentRequestDTO request) {
+    public PaymentResponseDTO createPayment(PaymentCreateRequestDTO request) {
         User currentUser = currentUserContext.getCurrentUser();
         if (currentUser == null) {
             throw new AccessDeniedException("Access Denied: Unauthenticated user.");
@@ -68,21 +74,12 @@ public class PaymentServiceImpl implements PaymentService {
             throw new BusinessValidationException("Cannot process payment against invoice in status " + invoice.getStatus() + ". Invoice must be APPROVED first.");
         }
 
-        if (request.getPaymentReference() == null || request.getPaymentReference().trim().isEmpty()) {
-            throw new BusinessValidationException("Payment reference is required.");
-        }
-
         if (request.getPaymentDate() == null) {
             throw new BusinessValidationException("Payment date is required.");
         }
 
         if (request.getPaymentDate().isAfter(LocalDate.now())) {
             throw new BusinessValidationException("Payment date cannot be in the future.");
-        }
-
-        // Transaction ID must exist
-        if (request.getTransactionId() == null || request.getTransactionId().trim().isEmpty()) {
-            throw new BusinessValidationException("Transaction ID is required.");
         }
 
         // Paid amount must be positive and match the invoice total exactly
@@ -101,15 +98,17 @@ public class PaymentServiceImpl implements PaymentService {
             throw new IllegalArgumentException("Invalid PaymentMode: " + request.getPaymentMode());
         }
 
-        // Payments always start PENDING; the invoice becomes PAID only through processPayment.
+        // Auto-generate transactionId - internal system-managed identifier
+        String transactionId = generateTransactionId();
+
+        // Payment status is always set to PENDING upon creation; it's managed programmatically
         Payment payment = Payment.builder()
                 .invoice(invoice)
                 .paidAmount(request.getPaidAmount())
                 .paymentDate(request.getPaymentDate())
                 .paymentMode(mode)
                 .status(PaymentStatus.PENDING)
-                .paymentReference(request.getPaymentReference())
-                .transactionId(request.getTransactionId())
+                .transactionId(transactionId)
                 .build();
 
         payment = paymentRepository.save(payment);
@@ -119,7 +118,7 @@ public class PaymentServiceImpl implements PaymentService {
                 "PAYMENT_CREATED",
                 "Payment",
                 payment.getId(),
-                "Payment entry created with PENDING status."
+                "Payment entry created with PENDING status. TransactionID: " + transactionId
         );
 
         return mapToDto(payment);
@@ -177,6 +176,70 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     @Transactional
+    public PaymentResponseDTO updatePayment(String id, PaymentUpdateRequestDTO request) {
+        User currentUser = currentUserContext.getCurrentUser();
+        if (currentUser == null) {
+            throw new AccessDeniedException("Access Denied: Unauthenticated user.");
+        }
+
+        String role = currentUser.getRole().name();
+        if (!"ADMIN".equals(role) && !"FINANCE".equals(role)) {
+            throw new AccessDeniedException("Access Denied: You are not authorized to update payments.");
+        }
+
+        Payment payment = paymentRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Payment not found with ID: " + id));
+
+        // Only PENDING payments can be updated
+        if (payment.getStatus() != PaymentStatus.PENDING) {
+            throw new BusinessValidationException("Only PENDING payments can be updated. Current status: " + payment.getStatus());
+        }
+
+        // Update allowed fields
+        if (request.getPaidAmount() != null && request.getPaidAmount().compareTo(BigDecimal.ZERO) > 0) {
+            ContractorInvoice invoice = payment.getInvoice();
+            if (request.getPaidAmount().compareTo(invoice.getTotalAmount()) != 0) {
+                throw new BusinessValidationException("Paid amount (" + request.getPaidAmount()
+                        + ") must match the invoice total amount (" + invoice.getTotalAmount() + ").");
+            }
+            payment.setPaidAmount(request.getPaidAmount());
+        }
+
+        if (request.getPaymentDate() != null) {
+            if (request.getPaymentDate().isAfter(LocalDate.now())) {
+                throw new BusinessValidationException("Payment date cannot be in the future.");
+            }
+            payment.setPaymentDate(request.getPaymentDate());
+        }
+
+        if (request.getPaymentMode() != null && !request.getPaymentMode().trim().isEmpty()) {
+            try {
+                PaymentMode mode = PaymentMode.valueOf(request.getPaymentMode().toUpperCase());
+                payment.setPaymentMode(mode);
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("Invalid PaymentMode: " + request.getPaymentMode());
+            }
+        }
+
+        if (request.getPaymentReference() != null) {
+            payment.setPaymentReference(request.getPaymentReference());
+        }
+
+        payment = paymentRepository.save(payment);
+
+        auditService.logAction(
+                currentUser.getId(),
+                "PAYMENT_UPDATED",
+                "Payment",
+                payment.getId(),
+                "Payment details updated."
+        );
+
+        return mapToDto(payment);
+    }
+
+    @Override
+    @Transactional
     public PaymentResponseDTO processPayment(String id) {
         User currentUser = currentUserContext.getCurrentUser();
         if (currentUser == null) {
@@ -196,10 +259,6 @@ public class PaymentServiceImpl implements PaymentService {
             throw new BusinessValidationException("Invalid workflow transition: Cannot process payment in status " + payment.getStatus());
         }
 
-        if (payment.getPaymentReference() == null || payment.getPaymentReference().trim().isEmpty()) {
-            throw new BusinessValidationException("Payment reference is required to process payment.");
-        }
-
         payment.setStatus(PaymentStatus.PROCESSED);
         payment = paymentRepository.save(payment);
 
@@ -208,14 +267,14 @@ public class PaymentServiceImpl implements PaymentService {
                 "PAYMENT_UPDATED",
                 "Payment",
                 payment.getId(),
-                "Payment processed successfully."
+                "Payment processed successfully. TransactionID: " + payment.getTransactionId()
         );
 
         // Automatically update the associated invoice to PAID status
         ContractorInvoice invoice = payment.getInvoice();
         invoice.setStatus(InvoiceStatus.PAID);
         invoice.setPaymentDate(payment.getPaymentDate());
-        invoice.setPaymentReference(payment.getPaymentReference());
+        invoice.setPaymentReference(payment.getTransactionId()); // Store transactionId as payment reference in invoice
         contractorInvoiceRepository.save(invoice);
 
         auditService.logAction(
@@ -288,6 +347,24 @@ public class PaymentServiceImpl implements PaymentService {
         }
 
         throw new AccessDeniedException("Access Denied: You do not have permissions to view this Payment.");
+    }
+
+    /**
+     * Generates a unique transaction ID for the payment.
+     * This is an internal system-managed identifier distinct from external payment references.
+     */
+    @Transactional
+    public synchronized String generateTransactionId() {
+        int currentYear = LocalDate.now().getYear();
+        String prefix = "TXN-" + currentYear;
+        IdSequence seq = idSequenceRepository.findById(prefix).orElse(null);
+        if (seq == null) {
+            seq = new IdSequence(prefix, 1L);
+        } else {
+            seq.setLastValue(seq.getLastValue() + 1);
+        }
+        idSequenceRepository.save(seq);
+        return String.format("TXN-%d-%06d", currentYear, seq.getLastValue());
     }
 
     private PaymentResponseDTO mapToDto(Payment payment) {

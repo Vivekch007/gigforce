@@ -193,11 +193,11 @@ public class InvoiceServiceImpl implements InvoiceService {
             throw new BusinessValidationException("Total Amount must be greater than 0.");
         }
 
-        // PO Controls
+        // PO Controls - Derive PO from assignment's purchaseOrderId if available
         PurchaseOrder po = null;
-        if (request.getPoId() != null && !request.getPoId().trim().isEmpty()) {
-            po = purchaseOrderRepository.findById(request.getPoId())
-                    .orElseThrow(() -> new IllegalArgumentException("Purchase Order not found with ID: " + request.getPoId()));
+        if (assignment.getPurchaseOrderId() != null && !assignment.getPurchaseOrderId().trim().isEmpty()) {
+            po = purchaseOrderRepository.findById(assignment.getPurchaseOrderId())
+                    .orElseThrow(() -> new IllegalArgumentException("Purchase Order not found with ID: " + assignment.getPurchaseOrderId()));
 
             if (po.getStatus() != PurchaseOrderStatus.ACTIVE) {
                 throw new IllegalStateException("Cannot generate invoice against a " + po.getStatus() + " Purchase Order.");
@@ -211,10 +211,8 @@ public class InvoiceServiceImpl implements InvoiceService {
 
         String invoiceNum = generateInvoiceNumber();
 
-        InvoiceStatus initialStatus = InvoiceStatus.SUBMITTED; // default to SUBMITTED for E2E tests
-        if (request.getStatus() != null && "DRAFT".equalsIgnoreCase(request.getStatus())) {
-            initialStatus = InvoiceStatus.DRAFT;
-        }
+        // Status is always managed by the backend; default to SUBMITTED
+        InvoiceStatus initialStatus = InvoiceStatus.SUBMITTED;
 
         ContractorInvoice invoice = ContractorInvoice.builder()
                 .purchaseOrder(po)
@@ -647,11 +645,6 @@ public class InvoiceServiceImpl implements InvoiceService {
             invoice.setInvoicePeriod(request.getInvoicePeriod());
         }
 
-        if (request.getPoId() != null) {
-            PurchaseOrder po = purchaseOrderRepository.findById(request.getPoId())
-                    .orElseThrow(() -> new IllegalArgumentException("Purchase Order not found with ID: " + request.getPoId()));
-            invoice.setPurchaseOrder(po);
-        }
 
         for (Timesheet ts : timesheets) {
             ts.setInvoice(invoice);
