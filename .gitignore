@@ -1,8 +1,8 @@
 target/
 *.class
-.claude
-.sfdx
-.vscode
+.claude/
+.sfdx/
+.vscode/
 gigforce-backend.iml
-.idea
+.idea/
 mysql_data/
