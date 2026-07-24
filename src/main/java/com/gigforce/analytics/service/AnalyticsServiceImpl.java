@@ -567,7 +567,9 @@ public class AnalyticsServiceImpl implements AnalyticsService {
 
         var q1 = entityManager.createQuery(acQuery.toString(), Long.class);
         if (assignmentStatus != null && !assignmentStatus.isEmpty()) {
-            try { q1.setParameter("assignmentStatus", AssignmentStatus.valueOf(assignmentStatus.toUpperCase().trim())); } catch(Exception e){}
+            try { q1.setParameter("assignmentStatus", AssignmentStatus.valueOf(assignmentStatus.toUpperCase().trim())); } catch(Exception e){
+
+            }
         } else {
             q1.setParameter("assignmentStatus", AssignmentStatus.ACTIVE);
         }
@@ -854,7 +856,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     }
 
     // ------------------------------------------------------------------
-    // Named Reports (Module 7 section 7): Contractor / Requisition / Assignment /
+    // Named Reports (Module 7, section 7): Contractor / Requisition / Assignment /
     // Timesheet / Invoice / Payment / Compliance
     // ------------------------------------------------------------------
 
@@ -1141,11 +1143,13 @@ public class AnalyticsServiceImpl implements AnalyticsService {
 
     private BigDecimal getTimesheetApprovalRateValue() {
         Double result = entityManager.createQuery(
-                "SELECT (COUNT(CASE WHEN t.status = :approvedStatus THEN 1 END) * 100.0) / COUNT(t.id) " +
-                "FROM Timesheet t WHERE t.status <> :draftStatus", Double.class)
+                        "SELECT (COUNT(CASE WHEN t.status = :approvedStatus THEN 1 ELSE NULL END) * 100.0) / " +
+                                "NULLIF(COUNT(t.id), 0) " +
+                                "FROM Timesheet t WHERE t.status <> :draftStatus", Double.class)
                 .setParameter("approvedStatus", TimesheetStatus.APPROVED)
                 .setParameter("draftStatus", TimesheetStatus.DRAFT)
                 .getSingleResult();
+
         return result != null ? BigDecimal.valueOf(result).setScale(2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
     }
 

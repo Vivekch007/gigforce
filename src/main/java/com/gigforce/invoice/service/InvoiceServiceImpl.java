@@ -86,8 +86,8 @@ public class InvoiceServiceImpl implements InvoiceService {
         }
 
         String role = currentUser.getRole().name();
-        // RBAC: ADMIN, HIRING_MANAGER allowed to create invoices
-        if (!"ADMIN".equals(role) && !"HIRING_MANAGER".equals(role)) {
+        // RBAC: HIRING_MANAGER allowed to create invoices
+        if (!"HIRING_MANAGER".equals(role)) {
             throw new AccessDeniedException("Access Denied: You are not authorized to create invoices.");
         }
 

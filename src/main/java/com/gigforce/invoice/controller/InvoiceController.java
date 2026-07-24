@@ -94,7 +94,7 @@ public class InvoiceController {
     }
 
     @PutMapping("/{id}/approve")
-    @PreAuthorize("hasAnyRole('ADMIN', 'FINANCE')")
+    @PreAuthorize("hasAnyRole('FINANCE')")
     @Operation(summary = "Approve a Contractor Invoice")
     public ResponseEntity<ContractorInvoiceResponseDTO> approveInvoice(@PathVariable String id) {
         ContractorInvoiceResponseDTO response = invoiceService.approveInvoice(id);
@@ -102,7 +102,7 @@ public class InvoiceController {
     }
 
     @PutMapping("/{id}/reject")
-    @PreAuthorize("hasAnyRole('ADMIN', 'FINANCE')")
+    @PreAuthorize("hasAnyRole('FINANCE')")
     @Operation(summary = "Reject a Contractor Invoice")
     public ResponseEntity<ContractorInvoiceResponseDTO> rejectInvoice(@PathVariable String id) {
         ContractorInvoiceResponseDTO response = invoiceService.rejectInvoice(id);
