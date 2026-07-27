@@ -1,7 +1,7 @@
 const ROLE_DASHBOARD_MAP = {
   ADMIN: '/admin/dashboard',
   CONTRACTOR: '/contractor/dashboard',
-  HIRING_MANAGER: '/hiring-manager/dashboard',
+  HIRING_MANAGER: '/manager/dashboard',
   VENDOR: '/vendor/dashboard',
   VENDOR_MANAGER: '/vendor/dashboard',
   FINANCE: '/finance/dashboard',

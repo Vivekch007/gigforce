@@ -510,6 +510,46 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     }
 
     @Override
+    public List<ContractorEarningsResponseDTO> getContractorEarnings() {
+        User currentUser = currentUserContext.getCurrentUser();
+        if (currentUser == null) {
+            throw new AccessDeniedException("Access Denied: Unauthenticated.");
+        }
+
+        String role = currentUser.getRole().name();
+        if (!"CONTRACTOR".equals(role)) {
+            throw new AccessDeniedException("Access Denied: Only Contractors can view earnings summary.");
+        }
+
+        String contractorUserId = currentUser.getId();
+
+        List<ContractorInvoice> invoices = entityManager.createQuery(
+                "SELECT ci FROM ContractorInvoice ci WHERE ci.contractor.user.id = :userId AND ci.status IN (:statuses) ORDER BY ci.invoiceDate DESC", ContractorInvoice.class)
+                .setParameter("userId", contractorUserId)
+                .setParameter("statuses", List.of(InvoiceStatus.PAID, InvoiceStatus.APPROVED, InvoiceStatus.SUBMITTED))
+                .getResultList();
+
+        return invoices.stream().map(ci -> {
+            LocalDate baseDate = ci.getBillingEndDate() != null ? ci.getBillingEndDate() : ci.getInvoiceDate();
+            String monthDisplay = baseDate != null 
+                ? baseDate.getMonth().name().substring(0, 1) + baseDate.getMonth().name().substring(1).toLowerCase() + " " + baseDate.getYear()
+                : "Unknown Period";
+
+            String statusDisplay = "Processing";
+            if (ci.getStatus() == InvoiceStatus.PAID) {
+                statusDisplay = "Paid";
+            }
+
+            return ContractorEarningsResponseDTO.builder()
+                    .month(monthDisplay)
+                    .amountReceived(ci.getInvoiceAmount())
+                    .paymentDate(ci.getPaymentDate())
+                    .status(statusDisplay)
+                    .build();
+        }).collect(Collectors.toList());
+    }
+
+    @Override
     public ExecutiveDashboardResponseDTO getFilteredReport(
             LocalDate startDate,
             LocalDate endDate,

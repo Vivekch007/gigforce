@@ -24,6 +24,8 @@ public interface AnalyticsService {
 
     PersonalDashboardResponseDTO getPersonalDashboard();
 
+    List<ContractorEarningsResponseDTO> getContractorEarnings();
+
     ExecutiveDashboardResponseDTO getFilteredReport(
             java.time.LocalDate startDate,
             java.time.LocalDate endDate,

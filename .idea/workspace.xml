@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="RunManager" selected="Spring Boot.GigForceApplication">
+    <configuration name="PaymentServiceImplTest" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
+      <module name="gigforce-backend" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="com.gigforce.invoice.service.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <option name="PACKAGE_NAME" value="com.gigforce.invoice.service" />
+      <option name="MAIN_CLASS_NAME" value="com.gigforce.invoice.service.PaymentServiceImplTest" />
+      <option name="TEST_OBJECT" value="class" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="GigForceApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" temporary="true" nameIsGenerated="true">
+      <option name="FRAME_DEACTIVATION_UPDATE_POLICY" value="UnknownPolicyInFreeMode" />
+      <module name="gigforce-backend" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="com.gigforce.GigForceApplication" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="com.gigforce.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Spring Boot.GigForceApplication" />
+        <item itemvalue="JUnit.PaymentServiceImplTest" />
+      </list>
+    </recent_temporary>
+  </component>
+</project>

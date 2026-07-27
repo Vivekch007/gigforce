@@ -97,6 +97,14 @@ public class AnalyticsController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/my-earnings")
+    @PreAuthorize("hasRole('CONTRACTOR')")
+    @Operation(summary = "Get Contractor Monthly Earnings summary")
+    public ResponseEntity<List<ContractorEarningsResponseDTO>> getContractorEarnings() {
+        List<ContractorEarningsResponseDTO> response = analyticsService.getContractorEarnings();
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping("/search")
     @PreAuthorize("hasAnyRole('ADMIN', 'FINANCE', 'HIRING_MANAGER', 'VENDOR', 'VENDOR_MANAGER', 'CONTRACTOR')")
     @Operation(summary = "Search/Filter workforce metrics dynamically (results are scoped to the caller's role)")
