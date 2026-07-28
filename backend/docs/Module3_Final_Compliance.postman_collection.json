@@ -1,0 +1,93 @@
+{
+  "info": {
+    "_postman_id": "module3-0001-collection",
+    "name": "GigForce Module 3 - Assignment & Timesheet Compliance Suite",
+    "description": "Postman Collection to verify Module 3 features: Assignments, Amendments, Timesheets and related permissions.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    
+    {
+      "name": "2. Assignment Flows",
+      "item": [
+        {
+          "name": "Create Assignment (Hiring Manager)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{managerToken}}", "type": "string" }] },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Senior Java Contractor\",\n  \"description\": \"Contract for 6 months\",\n  \"orgCode\": \"ORG_ALPHA\",\n  \"startDate\": \"2026-07-01\",\n  \"endDate\": \"2027-01-01\"\n}" },
+            "url": { "raw": "{{baseUrl}}/assignments", "host": ["{{baseUrl}}"], "path": ["assignments"] }
+          }
+        },
+        {
+          "name": "Get Assignment by ID (Authorized)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{managerToken}}", "type": "string" }] },
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/assignments/1", "host": ["{{baseUrl}}"], "path": ["assignments","1"] }
+          }
+        },
+        {
+          "name": "Update Assignment (Hiring Manager)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{managerToken}}", "type": "string" }] },
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Senior Java Contractor (Updated)\"\n}" },
+            "url": { "raw": "{{baseUrl}}/assignments/1", "host": ["{{baseUrl}}"], "path": ["assignments","1"] }
+          }
+        },
+        {
+          "name": "Create Amendment (Contractor/Hiring Manager)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{contractorToken}}", "type": "string" }] },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"assignmentId\": 1,\n  \"reason\": \"Scope change - extend by 1 month\"\n}" },
+            "url": { "raw": "{{baseUrl}}/assignments/1/amendments", "host": ["{{baseUrl}}"], "path": ["assignments","1","amendments"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Timesheet Flows",
+      "item": [
+        {
+          "name": "Create Timesheet (Contractor)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{contractorToken}}", "type": "string" }] },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"assignmentId\": 1,\n  \"weekStartDate\": \"2026-06-07\",\n  \"lines\": [\n    {\n      \"workDate\": \"2026-06-09\",\n      \"hoursWorked\": 8.0,\n      \"activityDesc\": \"Development work\"\n    }\n  ]\n}" },
+            "url": { "raw": "{{baseUrl}}/timesheets", "host": ["{{baseUrl}}"], "path": ["timesheets"] }
+          }
+        },
+        {
+          "name": "Approve Timesheet (Manager)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{managerToken}}", "type": "string" }] },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"note\": \"Approved\"\n}" },
+            "url": { "raw": "{{baseUrl}}/timesheets/1/approve", "host": ["{{baseUrl}}"], "path": ["timesheets","1","approve"] }
+          }
+        },
+        {
+          "name": "Get Timesheets (Self)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{contractorToken}}", "type": "string" }] },
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/timesheets?assignmentId=1", "host": ["{{baseUrl}}"], "path": ["timesheets"], "query": [{ "key": "assignmentId", "value": "1" }] }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080/api/v1", "type": "string" },
+    { "key": "adminToken", "value": "", "type": "string" },
+    { "key": "managerToken", "value": "", "type": "string" },
+    { "key": "contractorToken", "value": "", "type": "string" }
+  ]
+}

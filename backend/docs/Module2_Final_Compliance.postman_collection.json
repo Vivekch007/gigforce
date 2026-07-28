@@ -1,0 +1,1940 @@
+{
+  "info": {
+    "_postman_id": "9a6f3b01-fb2c-47ea-8d4b-22d1a35cc764",
+    "name": "GigForce Module 2 - Contractor Profile & Skill Management (including Certs & Engagements)",
+    "description": "Postman testing collection for verifying GigForce Module 2: Contractor Profile & Skill Management. Includes tests for skills catalog, profile lifecycle, skill mapping, certification registry, engagement placement, tenant-isolation boundary validation, audit logs, and input constraints.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01. Setup & Authentication",
+      "item": [
+        {
+          "name": "Login Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.environment.set(\"adminAccessToken\", jsonData.accessToken);",
+                  "    console.log(\"Admin token successfully captured!\");",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@gigforce.com\",\n  \"password\": \"Admin@123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Register Contractor A (Org A)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Contractor Alice\",\n  \"email\": \"alice@org-a.com\",\n  \"password\": \"Password123!\",\n  \"phone\": \"9111111111\",\n  \"role\": \"CONTRACTOR\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login Contractor A (Alice)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.environment.set(\"contractorAccessTokenA\", jsonData.accessToken);",
+                  "    console.log(\"Contractor Alice token successfully captured!\");",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"alice@org-a.com\",\n  \"password\": \"Password123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Register Vendor Manager A (Org A)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Vendor Manager Victor\",\n  \"email\": \"victor@org-a.com\",\n  \"password\": \"Password123!\",\n  \"phone\": \"9222222222\",\n  \"role\": \"VENDOR_MANAGER\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login Vendor Manager A",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.environment.set(\"vendorManagerAccessTokenA\", jsonData.accessToken);",
+                  "    console.log(\"Vendor Manager Victor token successfully captured!\");",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"victor@org-a.com\",\n  \"password\": \"Password123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Org B (Admin Only)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.environment.set(\"orgBId\", jsonData.id);",
+                  "    console.log(\"Org B successfully created with ID: \" + jsonData.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/organizations?name=Organization B&code=ORG_B",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "organizations"
+              ],
+              "query": [
+                {
+                  "key": "name",
+                  "value": "Organization B"
+                },
+                {
+                  "key": "code",
+                  "value": "ORG_B"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Register Contractor B (Org B)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Contractor Bob\",\n  \"email\": \"bob@org-b.com\",\n  \"password\": \"Password123!\",\n  \"phone\": \"9333333333\",\n  \"role\": \"CONTRACTOR\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Contractor B Org to Org B (Admin)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Contractor Bob\",\n  \"phone\": \"9333333333\",\n  \"orgUnitId\": {{orgBId}}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/4",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "4"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login Contractor B (Bob)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.environment.set(\"contractorAccessTokenB\", jsonData.accessToken);",
+                  "    console.log(\"Contractor Bob token successfully captured!\");",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"bob@org-b.com\",\n  \"password\": \"Password123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Register Hiring Manager B (Org B)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Hiring Manager Harold\",\n  \"email\": \"harold@org-b.com\",\n  \"password\": \"Password123!\",\n  \"phone\": \"9444444444\",\n  \"role\": \"HIRING_MANAGER\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Hiring Manager B Org to Org B (Admin)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Hiring Manager Harold\",\n  \"phone\": \"9444444444\",\n  \"orgUnitId\": {{orgBId}}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/5",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "5"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login Hiring Manager B",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.environment.set(\"hiringManagerAccessTokenB\", jsonData.accessToken);",
+                  "    console.log(\"Hiring Manager Harold token captured!\");",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"harold@org-b.com\",\n  \"password\": \"Password123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "02. Master Skills Catalog",
+      "item": [
+        {
+          "name": "Create Skill - Java (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.environment.set(\"skillJavaId\", jsonData.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Java\",\n  \"category\": \"Backend\",\n  \"description\": \"Java Enterprise Edition Development\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/skills",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "skills"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Skill - React (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.environment.set(\"skillReactId\", jsonData.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"React\",\n  \"category\": \"Frontend\",\n  \"description\": \"Single Page App Development\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/skills",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "skills"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Duplicate Skill - Java (Admin - Fail)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 400\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"java\",\n  \"category\": \"Backend\",\n  \"description\": \"Duplicate Java Skill\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/skills",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "skills"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Skills (Contractor)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{contractorAccessTokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/skills?category=Backend",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "skills"
+              ],
+              "query": [
+                {
+                  "key": "category",
+                  "value": "Backend"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03. Contractor Profiles",
+      "item": [
+        {
+          "name": "Create Profile (Contractor Alice)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.environment.set(\"contractorAProfileId\", jsonData.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{contractorAccessTokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Senior Java Developer\",\n  \"bio\": \"Experienced engineer specializing in Spring Boot microservices.\",\n  \"hourlyRate\": 45.00,\n  \"experienceYears\": 6\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/contractors/profiles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contractors",
+                "profiles"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Profile (Duplicate Block - Fail)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 400\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{contractorAccessTokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Lead Java Engineer\",\n  \"bio\": \"Attempting duplicate profile setup.\",\n  \"hourlyRate\": 60.00,\n  \"experienceYears\": 8\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/contractors/profiles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contractors",
+                "profiles"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Profile Details (Self)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{contractorAccessTokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/contractors/profiles/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contractors",
+                "profiles",
+                "me"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Profile Details (Self)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{contractorAccessTokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Lead Spring Boot Architect\",\n  \"bio\": \"Specializing in distributed systems, Spring Cloud, and API design.\",\n  \"hourlyRate\": 55.00,\n  \"experienceYears\": 7\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/contractors/profiles/{{contractorAProfileId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contractors",
+                "profiles",
+                "{{contractorAProfileId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Profile (Contractor Bob - Org B)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.environment.set(\"contractorBProfileId\", jsonData.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{contractorAccessTokenB}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Fullstack React Developer\",\n  \"bio\": \"Building beautiful frontends with React and custom UI designs.\",\n  \"hourlyRate\": 40.00,\n  \"experienceYears\": 4\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/contractors/profiles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contractors",
+                "profiles"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "04. Contractor Skill Mapping",
+      "item": [
+        {
+          "name": "Add Skill - Java (Contractor Alice)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{contractorAccessTokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"skillId\": {{skillJavaId}},\n  \"proficiencyLevel\": \"EXPERT\",\n  \"yearsOfExperience\": 5\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/contractors/profiles/{{contractorAProfileId}}/skills",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contractors",
+                "profiles",
+                "{{contractorAProfileId}}",
+                "skills"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Add Skill - React (Contractor Alice)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{contractorAccessTokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"skillId\": {{skillReactId}},\n  \"proficiencyLevel\": \"INTERMEDIATE\",\n  \"yearsOfExperience\": 2\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/contractors/profiles/{{contractorAProfileId}}/skills",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contractors",
+                "profiles",
+                "{{contractorAProfileId}}",
+                "skills"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Add Duplicate Skill Mapping (Fail)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 400\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{contractorAccessTokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"skillId\": {{skillJavaId}},\n  \"proficiencyLevel\": \"BEGINNER\",\n  \"yearsOfExperience\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/contractors/profiles/{{contractorAProfileId}}/skills",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contractors",
+                "profiles",
+                "{{contractorAProfileId}}",
+                "skills"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Skill Mapping (Contractor Alice)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{contractorAccessTokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"skillId\": {{skillReactId}},\n  \"proficiencyLevel\": \"EXPERT\",\n  \"yearsOfExperience\": 3\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/contractors/profiles/{{contractorAProfileId}}/skills/{{skillReactId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contractors",
+                "profiles",
+                "{{contractorAProfileId}}",
+                "skills",
+                "{{skillReactId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Add Skill - React (Contractor Bob - Org B)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{contractorAccessTokenB}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"skillId\": {{skillReactId}},\n  \"proficiencyLevel\": \"EXPERT\",\n  \"yearsOfExperience\": 4\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/contractors/profiles/{{contractorBProfileId}}/skills",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contractors",
+                "profiles",
+                "{{contractorBProfileId}}",
+                "skills"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "05. Contractor Certifications",
+      "item": [
+        {
+          "name": "Add Certification (Contractor Alice)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.environment.set(\"certificationId\", jsonData.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{contractorAccessTokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Oracle Certified Professional: Java SE 17 Developer\",\n  \"issuingAuthority\": \"Oracle University\",\n  \"certificateNumber\": \"OCP-17-998822\",\n  \"issueDate\": \"2024-05-15\",\n  \"expiryDate\": \"2029-05-15\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/contractors/profiles/{{contractorAProfileId}}/certifications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contractors",
+                "profiles",
+                "{{contractorAProfileId}}",
+                "certifications"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Certifications (Contractor Alice)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{contractorAccessTokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/contractors/profiles/{{contractorAProfileId}}/certifications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contractors",
+                "profiles",
+                "{{contractorAProfileId}}",
+                "certifications"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Certification (Contractor Alice)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{contractorAccessTokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Oracle Certified Professional: Java SE 17 Developer (Modified)\",\n  \"issuingAuthority\": \"Oracle Corp\",\n  \"certificateNumber\": \"OCP-17-998822-M\",\n  \"issueDate\": \"2024-05-16\",\n  \"expiryDate\": \"2029-05-16\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/contractors/profiles/{{contractorAProfileId}}/certifications/{{certificationId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contractors",
+                "profiles",
+                "{{contractorAProfileId}}",
+                "certifications",
+                "{{certificationId}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "06. Engagement History",
+      "item": [
+        {
+          "name": "Add Engagement (Vendor Manager A)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.environment.set(\"engagementId\", jsonData.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{vendorManagerAccessTokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientOrgId\": 1,\n  \"roleTitle\": \"Contract Software Engineer\",\n  \"startDate\": \"2024-01-10\",\n  \"endDate\": \"2024-05-10\",\n  \"feedback\": \"Excellent contribution to our microservices project.\",\n  \"rating\": 5\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/contractors/profiles/{{contractorAProfileId}}/engagements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contractors",
+                "profiles",
+                "{{contractorAProfileId}}",
+                "engagements"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Engagement History (Contractor Alice)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{contractorAccessTokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/contractors/profiles/{{contractorAProfileId}}/engagements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contractors",
+                "profiles",
+                "{{contractorAProfileId}}",
+                "engagements"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Engagement (Vendor Manager A)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{vendorManagerAccessTokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientOrgId\": 1,\n  \"roleTitle\": \"Senior Lead Software Engineer\",\n  \"startDate\": \"2024-01-10\",\n  \"endDate\": \"2024-05-10\",\n  \"feedback\": \"Outstanding leadership and development skills.\",\n  \"rating\": 5\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/contractors/profiles/{{contractorAProfileId}}/engagements/{{engagementId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contractors",
+                "profiles",
+                "{{contractorAProfileId}}",
+                "engagements",
+                "{{engagementId}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "07. Tenant Isolation Scoping",
+      "item": [
+        {
+          "name": "Search Contractor (Hiring Manager B - Scoped to Org B)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Alice from Org A is not returned to Hiring Manager B\", function () {",
+                  "    var containsAlice = jsonData.content.some(function(prof) {",
+                  "        return prof.id === pm.environment.get(\"contractorAProfileId\");",
+                  "    });",
+                  "    pm.expect(containsAlice).to.be.false;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{hiringManagerAccessTokenB}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/contractors/profiles?skill=React",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contractors",
+                "profiles"
+              ],
+              "query": [
+                {
+                  "key": "skill",
+                  "value": "React"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Cross Org Profile Read (Hiring Manager B -> Contractor Alice - Fail)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 403\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{hiringManagerAccessTokenB}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/contractors/profiles/{{contractorAProfileId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contractors",
+                "profiles",
+                "{{contractorAProfileId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Cross Org Certification Read (Hiring Manager B -> Alice - Fail)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 403\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{hiringManagerAccessTokenB}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/contractors/profiles/{{contractorAProfileId}}/certifications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contractors",
+                "profiles",
+                "{{contractorAProfileId}}",
+                "certifications"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Cross Contractor Profile Update (Contractor B -> Alice - Fail)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 403\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{contractorAccessTokenB}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Malicious Hacker\",\n  \"bio\": \"Attempting to modify someone else's profile.\",\n  \"hourlyRate\": 100.00,\n  \"experienceYears\": 10\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/contractors/profiles/{{contractorAProfileId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contractors",
+                "profiles",
+                "{{contractorAProfileId}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "08. Validations & Constraints",
+      "item": [
+        {
+          "name": "Create Profile - Negative Hourly Rate (Fail)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 400\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{contractorAccessTokenB}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Developer\",\n  \"bio\": \"Negative hourly rate check.\",\n  \"hourlyRate\": -10.00,\n  \"experienceYears\": 3\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/contractors/profiles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contractors",
+                "profiles"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Profile - Empty Title (Fail)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 400\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{contractorAccessTokenB}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"\",\n  \"bio\": \"Empty title check.\",\n  \"hourlyRate\": 25.00,\n  \"experienceYears\": 3\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/contractors/profiles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contractors",
+                "profiles"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "09. Audit Logs",
+      "item": [
+        {
+          "name": "Get Audit Logs (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Audit logs contains Contractor A profile registration\", function () {",
+                  "    var hasProfileCreation = jsonData.some(function(log) {",
+                  "        return log.action === \"CONTRACTOR_PROFILE_CREATED\";",
+                  "    });",
+                  "    pm.expect(hasProfileCreation).to.be.true;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/audit/user/2",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "audit",
+                "user",
+                "2"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "adminAccessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "contractorAccessTokenA",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "vendorManagerAccessTokenA",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "orgBId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "contractorAccessTokenB",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "hiringManagerAccessTokenB",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "skillJavaId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "skillReactId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "contractorAProfileId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "contractorBProfileId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "certificationId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "engagementId",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}
