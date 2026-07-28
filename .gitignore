@@ -1,0 +1,8 @@
+target/
+*.class
+.claude/
+.sfdx/
+.idea/
+gigforce-backend.iml
+node_modules/
+mysql_data/

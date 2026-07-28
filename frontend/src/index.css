@@ -1,0 +1,42 @@
+:root {
+  --gf-primary: #4f46e5;
+  --gf-primary-dark: #4338ca;
+
+  /* Navigation / headers */
+  --gf-slate-900: #0f172a;
+  --gf-slate-800: #1e293b;
+  --gf-light-text: #f8fafc;
+
+  /* Workspace */
+  --gf-bg: #f8fafc;
+  --gf-card: #ffffff;
+  --gf-border: #e2e8f0;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: #1e293b;
+  background-color: var(--gf-bg);
+}
+
+#root {
+  min-height: 100svh;
+}
+
+a {
+  color: inherit;
+}
+
+.btn:focus,
+.btn:focus-visible,
+.form-control:focus,
+.form-select:focus {
+  box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.25);
+  border-color: var(--gf-primary);
+}
