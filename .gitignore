@@ -3,6 +3,8 @@ target/
 .claude/
 .sfdx/
 node_modules/
-gigforce-backend.iml
+backend/gigforce-backend.iml
 
 mysql_data/
+.idea/
+.vscode/
