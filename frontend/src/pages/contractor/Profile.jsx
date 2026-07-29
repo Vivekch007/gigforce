@@ -333,25 +333,25 @@ function Profile() {
           onClick={() => setActiveTab('personal')} 
           className={`gf-nav-tab ${activeTab === 'personal' ? 'active' : ''}`}
         >
-          👤 Personal Info
+          <i className="bi bi-person-fill me-2"></i>Personal Info
         </button>
         <button 
           onClick={() => setActiveTab('skills')} 
           className={`gf-nav-tab ${activeTab === 'skills' ? 'active' : ''}`}
         >
-          ⚡ Skills
+          <i className="bi bi-lightning-fill me-2"></i>Skills
         </button>
         <button 
           onClick={() => setActiveTab('certs')} 
           className={`gf-nav-tab ${activeTab === 'certs' ? 'active' : ''}`}
         >
-          📜 Certifications
+          <i className="bi bi-file-earmark-check-fill me-2"></i>Certifications
         </button>
         <button 
           onClick={() => setActiveTab('engagements')} 
           className={`gf-nav-tab ${activeTab === 'engagements' ? 'active' : ''}`}
         >
-          💼 Engagement History
+          <i className="bi bi-briefcase-fill me-2"></i>Engagement History
         </button>
       </div>
 

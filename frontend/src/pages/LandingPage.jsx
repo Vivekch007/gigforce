@@ -1,69 +1,88 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import './LandingPage.css';
 
 const QUICK_STATS = [
-  { value: '100%', label: 'Automated Timesheet Approvals' },
-  { value: 'Zero', label: 'PO Over-budget Risks' },
-  { value: 'Real-Time', label: 'Audit & Compliance Logging' },
-  { value: 'Multi-Module', label: 'Enterprise Sourcing & Invoicing' },
+  { value: '100%', label: 'Compliance Rate' },
+  { value: '$24M+', label: 'Invoices Settled' },
+  { value: '12k+', label: 'Contractors Engaged' },
+  { value: '< 2hr', label: 'Onboarding Time' },
 ];
 
-const CORE_MODULES = [
+const FEATURES = [
   {
-    icon: 'bi-clipboard-check',
-    accent: 'accent-blue',
+    icon: 'bi-briefcase',
     title: 'Resource Requisitions',
-    description:
-      'Hiring managers raise resource demands with specific skill requirements, max budget rates, and engagement types. Vendors submit qualified worker profiles directly against open requests.',
+    description: 'Hiring managers raise resource demands with specific skill requirements, max budget rates, and engagement types.'
   },
   {
-    icon: 'bi-calendar-week',
-    accent: 'accent-orange',
-    title: 'Timesheets & Leave Tracking',
-    description:
-      'Contractors log weekly regular and overtime hours. Integrated approval queues allow managers to review, comment, approve, or reject time logs and leave requests.',
+    icon: 'bi-people',
+    title: 'Vendor Submissions',
+    description: 'Vendors submit qualified contractor profiles directly against open requests, allowing seamless review and interview loops.'
   },
   {
-    icon: 'bi-receipt-cutoff',
-    accent: 'accent-emerald',
-    title: 'Invoicing & Purchase Orders',
-    description:
-      'Finance teams control budget drawdowns using PO caps. Vendor invoices are submitted against approved timesheets and settled through transparent payment tracking.',
+    icon: 'bi-calendar-check',
+    title: 'Timesheets & Leave Approvals',
+    description: 'Contractors log weekly regular and overtime hours. Integrated queues allow managers to review and approve logs instantly.'
   },
-];
-
-const TRUST_ITEMS = [
+  {
+    icon: 'bi-receipt',
+    title: 'PO & Invoice Controls',
+    description: 'Finance teams control budget drawdowns using PO caps. Vendor invoices are submitted directly against approved timesheets.'
+  },
   {
     icon: 'bi-shield-lock',
-    title: 'Stateless JWT & RBAC',
-    description:
-      'Every request is authenticated with stateless JWT tokens and authorized through strict role-based access control across all modules.',
-  },
-  {
-    icon: 'bi-bell',
-    title: 'Automated Warning Schedulers',
-    description:
-      'Background jobs proactively flag PO exhaustion, certification expiry, and assignments ending soon — before they become a problem.',
+    title: 'RBAC Security & Compliance',
+    description: 'Secure stateless JWT token architecture. Role-based access constraints ensure data privacy across all enterprise workflows.'
   },
   {
     icon: 'bi-journal-check',
-    title: '90-Day Automated Audit Logging',
-    description:
-      'Every mutating operation across the platform is logged automatically, giving compliance teams a full, traceable audit trail.',
-  },
+    title: 'Automated Audit Trails',
+    description: 'Every mutating action across the platform is logged automatically, giving compliance and audit teams a full traceable ledger.'
+  }
 ];
 
+const WORKFLOWS = {
+  admin: {
+    title: 'Enterprise Administrator',
+    badge: 'Control Center',
+    desc: 'Manage the global enterprise configurations, register verified organizations, orchestrate system settings, and trace real-time audit logs across the entire workforce ecosystem.',
+    points: ['Manage organizational units & configurations', 'Access centralized master skill catalog', 'Monitor compliance audit logs', 'Provision system users and role permissions']
+  },
+  manager: {
+    title: 'Hiring Manager',
+    badge: 'Talent Acquisition',
+    desc: 'Create detailed project requisitions, review qualified candidate submissions from vendors, schedule interview rounds, manage active assignments, and approve weekly contractor time logs.',
+    points: ['Raise skill-targeted resource demands', 'Review and screen candidate profiles', 'Approve leaves & weekly hours', 'Initiate timesheet-to-invoice pipelines']
+  },
+  vendor: {
+    title: 'Staffing Vendor',
+    badge: 'Supply Chain',
+    desc: 'Receive real-time requisition alerts, manage candidate databases, submit verified talent profiles against requisitions, track active assignments, and generate timesheets for billing.',
+    points: ['Access direct client requisition streams', 'Track submission pipelines & interviews', 'Monitor contractor placements', 'Reconcile purchase orders and invoices']
+  },
+  contractor: {
+    title: 'Contractor / Gig Worker',
+    badge: 'Workforce Portal',
+    desc: 'Access personal dashboards to track active assignments, log weekly hours and overtime, submit time-off requests, and track payments/invoices from client organizations.',
+    points: ['Access individual assignment details', 'Submit weekly hours and overtime', 'Request leaf / absence approvals', 'Verify payment settlements']
+  }
+};
+
 function LandingPage() {
+  const [activeWorkflow, setActiveWorkflow] = useState('manager');
+
   return (
-    <div>
-      <nav className="navbar navbar-expand-lg gf-navbar sticky-top">
+    <div style={{ backgroundColor: 'var(--gf-bg)' }}>
+      {/* Navigation */}
+      <nav className="navbar navbar-expand-lg landing-nav">
         <div className="container">
-          <Link className="navbar-brand" to="/">
-            GigForce
-            <span className="gf-nav-badge">Workforce Platform</span>
+          <Link className="gf-brand-logo" to="/">
+            <i className="bi bi-briefcase-fill text-primary"></i>
+            <span>GigForce</span>
           </Link>
           <button
-            className="navbar-toggler"
+            className="navbar-toggler border-0"
             type="button"
             data-bs-toggle="collapse"
             data-bs-target="#gfNavCollapse"
@@ -71,88 +90,89 @@ function LandingPage() {
             aria-expanded="false"
             aria-label="Toggle navigation"
           >
-            <span className="navbar-toggler-icon" />
+            <i className="bi bi-list fs-2"></i>
           </button>
           <div className="collapse navbar-collapse" id="gfNavCollapse">
-            <ul className="navbar-nav mx-auto">
+            <ul className="navbar-nav mx-auto gap-1">
               <li className="nav-item">
-                <a className="nav-link" href="#features">
-                  Features
-                </a>
+                <a className="nav-link" href="#features">Features</a>
               </li>
               <li className="nav-item">
-                <a className="nav-link" href="#capabilities">
-                  Capabilities
-                </a>
+                <a className="nav-link" href="#workflows">Workflows</a>
               </li>
               <li className="nav-item">
-                <a className="nav-link" href="#compliance">
-                  Compliance
-                </a>
+                <a className="nav-link" href="#security">Security</a>
               </li>
             </ul>
             <div className="d-flex align-items-center gap-3">
-              <Link to="/login" className="gf-nav-signin">
+              <Link to="/login" className="btn-enterprise-ghost text-decoration-none py-2 px-3">
                 Sign In
               </Link>
-              <Link to="/register" className="btn btn-gf-primary btn-sm px-3">
-                Get Started &rarr;
+              <Link to="/register" className="btn-enterprise-primary text-decoration-none">
+                Get Started
               </Link>
             </div>
           </div>
         </div>
       </nav>
 
-      <header id="features" className="hero-section text-center">
+      {/* Hero Section */}
+      <header className="hero-section">
         <div className="container">
-          <span className="hero-badge">
-            <i className="bi bi-stars" /> End-to-End Contract &amp; Gig Management
-          </span>
-          <h1 className="hero-title">Streamline Your Contingent Workforce Lifecycle</h1>
+          <div className="hero-badge">
+            <i className="bi bi-shield-check"></i>
+            <span>End-to-End Enterprise Contingent Management</span>
+          </div>
+          <h1 className="hero-title mx-auto" style={{ maxWidth: '800px', marginBottom: '20px' }}>
+            Streamline Your Enterprise Workforce Lifecycle
+          </h1>
           <p className="hero-subtitle">
-            GigForce empowers enterprises, staffing agencies, and contractors to seamlessly manage
-            talent sourcing, weekly timesheets, purchase orders, invoicing, and workforce analytics
-            — all in one place.
+            A secure, automated ecosystem for hiring managers, vendors, and contractors to orchestrate resource requisitions, weekly timesheets, compliance audit logs, and invoicing.
           </p>
-          <div className="d-flex justify-content-center gap-3 flex-wrap">
-            <Link to="/register" className="btn btn-gf-primary btn-lg px-4">
-              Register Account
+          <div className="d-flex justify-content-center gap-3 flex-wrap mb-5">
+            <Link to="/register" className="btn-enterprise-primary text-decoration-none px-4 py-2">
+              Create Account
             </Link>
-            <Link to="/login" className="btn btn-gf-outline-hero btn-lg px-4">
+            <Link to="/login" className="btn-enterprise-secondary text-decoration-none px-4 py-2">
               Access Portal
             </Link>
-          </div>
-
-          <div className="row hero-stats g-3">
-            {QUICK_STATS.map((stat) => (
-              <div className="col-6 col-md-3" key={stat.label}>
-                <div className="stat-card">
-                  <div className="stat-value">{stat.value}</div>
-                  <div className="stat-label">{stat.label}</div>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       </header>
 
-      <section id="capabilities" className="gf-section bg-gray-50">
-        <div className="container text-center">
-          <div className="gf-section-eyebrow">Core Modules</div>
-          <h2 className="gf-section-title">What GigForce Provides</h2>
-          <p className="gf-section-subtitle mb-5">
-            Purpose-built modules that mirror how contract and gig workforce programs actually
-            operate, end to end.
-          </p>
+      {/* Client Logos Section */}
+      <section className="logos-section">
+        <div className="container">
+          <div className="row align-items-center justify-content-center gap-5">
+            <div className="col-auto logo-item">Acme Corp</div>
+            <div className="col-auto logo-item">Global Logistics</div>
+            <div className="col-auto logo-item">Stellar Tech</div>
+            <div className="col-auto logo-item">Apex Financial</div>
+            <div className="col-auto logo-item">Nova Biotech</div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section id="features" className="features-section">
+        <div className="container">
+          <div className="text-center mb-5">
+            <span className="text-primary fw-semibold small text-uppercase letter-spacing">Key Capabilities</span>
+            <h2 className="section-title mt-2">Enterprise-Grade Performance</h2>
+            <p className="muted-text mx-auto" style={{ maxWidth: '580px' }}>
+              Built specifically to replace fragmented legacy spreadsheets with a secure unified system.
+            </p>
+          </div>
+
           <div className="row g-4">
-            {CORE_MODULES.map((module) => (
-              <div className="col-md-4" key={module.title}>
-                <div className="module-card text-start">
-                  <div className={`module-icon-badge ${module.accent}`}>
-                    <i className={`bi ${module.icon}`} />
+            {FEATURES.map((feat) => (
+              <div className="col-md-4" key={feat.title}>
+                <div className="feature-card">
+                  <div className="feature-icon-wrapper">
+                    <i className={`bi ${feat.icon}`}></i>
                   </div>
-                  <h3>{module.title}</h3>
-                  <p>{module.description}</p>
+                  <h3>{feat.title}</h3>
+                  <p>{feat.description}</p>
                 </div>
               </div>
             ))}
@@ -160,24 +180,74 @@ function LandingPage() {
         </div>
       </section>
 
-      <section id="compliance" className="trust-section text-center">
+      {/* Workflows Section */}
+      <section id="workflows" className="workflow-section">
         <div className="container">
-          <div className="gf-section-eyebrow">Enterprise Trust</div>
-          <h2 className="gf-section-title" style={{ color: '#f8fafc' }}>
-            Security &amp; Compliance, Built In
-          </h2>
-          <p className="gf-section-subtitle mb-5" style={{ color: '#94a3b8' }}>
-            Every action on the platform is authenticated, authorized, and audited by design.
-          </p>
-          <div className="row g-4">
-            {TRUST_ITEMS.map((item) => (
-              <div className="col-md-4" key={item.title}>
-                <div className="trust-card text-start">
-                  <div className="trust-card-icon">
-                    <i className={`bi ${item.icon}`} />
+          <div className="text-center mb-5">
+            <span className="text-primary fw-semibold small text-uppercase letter-spacing">Product Workflows</span>
+            <h2 className="section-title mt-2">Role-Based Experiences</h2>
+            <p className="muted-text mx-auto" style={{ maxWidth: '580px' }}>
+              Every persona logs into a custom portal designed for their exact daily operational workflows.
+            </p>
+          </div>
+
+          <div className="workflow-tab-container">
+            <div className="workflow-tabs">
+              {Object.keys(WORKFLOWS).map((role) => (
+                <button
+                  key={role}
+                  className={`workflow-tab-btn ${activeWorkflow === role ? 'active' : ''}`}
+                  onClick={() => setActiveWorkflow(role)}
+                >
+                  {WORKFLOWS[role].title}
+                </button>
+              ))}
+            </div>
+
+            <div className="workflow-content-card">
+              <div className="row align-items-center g-4">
+                <div className="col-lg-7">
+                  <span className="badge bg-primary bg-opacity-10 text-primary mb-3 px-3 py-2" style={{ borderRadius: '6px' }}>
+                    {WORKFLOWS[activeWorkflow].badge}
+                  </span>
+                  <h3 className="section-title mb-3">{WORKFLOWS[activeWorkflow].title}</h3>
+                  <p className="body-text mb-4 text-muted">{WORKFLOWS[activeWorkflow].desc}</p>
+                  
+                  <div className="row g-2">
+                    {WORKFLOWS[activeWorkflow].points.map((pt, i) => (
+                      <div key={i} className="col-sm-6 d-flex align-items-center gap-2 small fw-medium text-dark">
+                        <i className="bi bi-check-circle text-success"></i>
+                        <span>{pt}</span>
+                      </div>
+                    ))}
                   </div>
-                  <h3>{item.title}</h3>
-                  <p>{item.description}</p>
+                </div>
+                <div className="col-lg-5 text-center d-none d-lg-block">
+                  <i className="bi bi-window-sidebar text-muted" style={{ fontSize: '120px', opacity: 0.15 }}></i>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Security & Stats Section */}
+      <section id="security" className="stats-section">
+        <div className="container">
+          <div className="text-center mb-5">
+            <span className="text-primary fw-semibold small text-uppercase letter-spacing">Metrics & Impact</span>
+            <h2 className="section-title mt-2">GigForce by the Numbers</h2>
+            <p className="muted-text mx-auto" style={{ maxWidth: '580px' }}>
+              Empowering large companies to eliminate PO overruns, compliance risks, and operational bottleneck.
+            </p>
+          </div>
+
+          <div className="row g-4 justify-content-center">
+            {QUICK_STATS.map((stat) => (
+              <div className="col-6 col-md-3" key={stat.label}>
+                <div className="p-4 border rounded-4 bg-white shadow-sm" style={{ borderColor: 'var(--gf-border)' }}>
+                  <div className="stat-item-val">{stat.value}</div>
+                  <div className="stat-item-lbl">{stat.label}</div>
                 </div>
               </div>
             ))}
@@ -185,28 +255,101 @@ function LandingPage() {
         </div>
       </section>
 
-      <footer className="gf-footer">
+      {/* Testimonials */}
+      <section className="features-section" style={{ borderTop: '1px solid var(--gf-border)' }}>
         <div className="container">
+          <div className="text-center mb-5">
+            <span className="text-primary fw-semibold small text-uppercase letter-spacing">Testimonials</span>
+            <h2 className="section-title mt-2">Loved by Operations Teams</h2>
+          </div>
+
           <div className="row g-4">
             <div className="col-md-6">
-              <h5>GigForce</h5>
-              <p>
-                End-to-end contract &amp; gig workforce management — sourcing, timesheets,
-                invoicing, and compliance, in one secure platform.
-              </p>
+              <div className="feature-card">
+                <p className="body-text text-muted mb-4 italic">
+                  "GigForce cut our external vendor onboarding and timesheet reconciliation time by more than 80%. Having PO guardrails and automatic warning notifications has completely removed invoice overbilling."
+                </p>
+                <div className="d-flex align-items-center gap-3">
+                  <div className="topbar-avatar">HR</div>
+                  <div>
+                    <h5 className="small fw-semibold m-0 text-dark">Director of HR Operations</h5>
+                    <span className="text-muted" style={{ fontSize: '12px' }}>Nova Biotech Group</span>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="col-6 col-md-3">
-              <h5>Account</h5>
-              <Link to="/login">Sign In</Link>
-              <Link to="/register">Get Started</Link>
-            </div>
-            <div className="col-6 col-md-3">
-              <h5>Platform</h5>
-              <a href="#features">Features</a>
-              <a href="#compliance">Compliance</a>
+            <div className="col-md-6">
+              <div className="feature-card">
+                <p className="body-text text-muted mb-4 italic">
+                  "As a vendor, having a direct platform to view client resource requisitions, submit candidates, and track invoices against timesheets has transformed our relations with our main enterprise clients."
+                </p>
+                <div className="d-flex align-items-center gap-3">
+                  <div className="topbar-avatar">VS</div>
+                  <div>
+                    <h5 className="small fw-semibold m-0 text-dark">Managing Director</h5>
+                    <span className="text-muted" style={{ fontSize: '12px' }}>Apex Staffing Solutions</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-          <div className="gf-footer-bottom">&copy; 2026 GigForce. All rights reserved.</div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="cta-section">
+        <div className="container">
+          <h2 className="hero-title mb-3" style={{ fontSize: '40px' }}>Ready to Streamline Your Operations?</h2>
+          <p className="cta-subtitle mx-auto" style={{ maxWidth: '600px' }}>
+            Get started today by registering your organization, or contact our enterprise team to receive a guided workforce workflow demo.
+          </p>
+          <div className="d-flex justify-content-center gap-3">
+            <Link to="/register" className="btn-enterprise-primary text-decoration-none px-4 py-2">
+              Get Started Now
+            </Link>
+            <Link to="/login" className="btn-enterprise-secondary text-decoration-none px-4 py-2">
+              Sign In
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="landing-footer">
+        <div className="container">
+          <div className="row g-4">
+            <div className="col-lg-6">
+              <div className="gf-brand-logo mb-3">
+                <i className="bi bi-briefcase-fill text-primary"></i>
+                <span>GigForce</span>
+              </div>
+              <p className="muted-text" style={{ maxWidth: '420px' }}>
+                A premium, centralized workforce platform orchestrating contract and gig operations with strict compliance, automated timesheets, and finance safeguards.
+              </p>
+            </div>
+            <div className="col-sm-6 col-lg-3">
+              <h5>Product</h5>
+              <ul className="list-unstyled d-flex flex-column gap-2">
+                <li><a href="#features" className="text-decoration-none">Features</a></li>
+                <li><a href="#workflows" className="text-decoration-none">Workflows</a></li>
+                <li><a href="#security" className="text-decoration-none">Security</a></li>
+              </ul>
+            </div>
+            <div className="col-sm-6 col-lg-3">
+              <h5>Account</h5>
+              <ul className="list-unstyled d-flex flex-column gap-2">
+                <li><Link to="/login" className="text-decoration-none">Access Portal</Link></li>
+                <li><Link to="/register" className="text-decoration-none">Get Started</Link></li>
+              </ul>
+            </div>
+          </div>
+          <div className="footer-bottom">
+            <span>&copy; {new Date().getFullYear()} GigForce. All rights reserved.</span>
+            <div className="d-flex gap-4">
+              <a href="#" className="text-decoration-none">Privacy Policy</a>
+              <a href="#" className="text-decoration-none">Terms of Service</a>
+            </div>
+          </div>
         </div>
       </footer>
     </div>

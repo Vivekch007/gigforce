@@ -1,16 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Card, Table, Button, Form, Alert, Modal } from 'react-bootstrap';
+import { Form, Alert, Modal } from 'react-bootstrap';
 import { getRequisitions, getRequisitionDetails } from '../../services/vendorRequisitionService';
 import { getCandidates } from '../../services/candidateService';
 import { submitCandidateToRequisition } from '../../services/submissionService';
 import { getErrorMessage } from '../../services/errorUtils';
+import { useToast } from '../../context/ToastContext';
 
 // Reusable custom components
-import VendorSearchBar from '../../components/vendor/VendorSearchBar';
 import VendorFilters from '../../components/vendor/VendorFilters';
-import LoadingSpinner from '../../components/vendor/LoadingSpinner';
+import Loader from '../../components/Loader';
 import Pagination from '../../components/vendor/Pagination';
+import Table from '../../components/Table';
 
 function OpenRequisitions() {
   const [searchParams] = useSearchParams();
@@ -18,7 +19,7 @@ function OpenRequisitions() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const { showToast } = useToast();
 
   // Requisitions state
   const [requisitions, setRequisitions] = useState([]);
@@ -79,6 +80,7 @@ function OpenRequisitions() {
       setShowDetailModal(true);
     } catch (err) {
       setError(getErrorMessage(err));
+      showToast(getErrorMessage(err), 'error');
     }
   };
 
@@ -93,48 +95,58 @@ function OpenRequisitions() {
       setProposedRate('');
     } catch (err) {
       setError(getErrorMessage(err));
+      showToast(getErrorMessage(err), 'error');
     }
   };
 
   const handleSubmitCandidate = async () => {
     if (!selectedCandId || !proposedRate) {
       setError('Please select a candidate and input proposed rate.');
+      showToast('Please select a candidate and input proposed rate.', 'warning');
       return;
     }
 
     try {
       setSubmitting(true);
       setError('');
-      setSuccess('');
 
       await submitCandidateToRequisition(submitReq.id, {
         contractorProfileId: selectedCandId,
         proposedRate: parseFloat(proposedRate),
       });
 
-      setSuccess(`Candidate successfully submitted for position: ${submitReq.title}!`);
+      showToast(`Candidate successfully submitted for position: ${submitReq.title}!`, 'success');
       setShowSubmitModal(false);
       loadRequisitions();
     } catch (err) {
       setError(getErrorMessage(err));
+      showToast(getErrorMessage(err), 'error');
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const formatRupees = (amount) => {
+    const num = parseFloat(amount || 0);
+    const formatted = num.toLocaleString('en-IN', {
+      maximumFractionDigits: 0,
+      minimumFractionDigits: 0
+    });
+    return `₹ ${formatted}`;
   };
 
   return (
     <div className="container-fluid">
       {/* Header */}
       <div className="mb-4">
-        <h2 className="fw-black text-slate-800 mb-0">Open Job Requisitions</h2>
-        <p className="text-muted small mt-1 mb-0">View open demands posted by clients, check skill criteria, and submit candidate profiles.</p>
+        <h1 className="page-title mb-1">Open Job Requisitions</h1>
+        <p className="muted-text">View open demands posted by clients, check skill criteria, and submit candidate profiles.</p>
       </div>
 
-      {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
-      {success && <Alert variant="success" className="mb-4" onClose={() => setSuccess('')} dismissible>{success}</Alert>}
+      {error && <Alert variant="danger" className="enterprise-alert enterprise-alert-danger mb-4">{error}</Alert>}
 
       {/* Filter Row */}
-      <Card className="gf-card p-3 mb-4 border-0">
+      <div className="enterprise-table-container p-3 mb-4 bg-white" style={{ borderRadius: 'var(--gf-radius)', boxShadow: 'var(--gf-shadow)' }}>
         <div className="d-flex flex-wrap gap-3 justify-content-between align-items-center">
           <div className="d-flex flex-wrap gap-3 align-items-center">
             <VendorFilters
@@ -172,77 +184,62 @@ function OpenRequisitions() {
             />
           </div>
         </div>
-      </Card>
+      </div>
 
       {/* Requisitions Grid */}
       {loading ? (
-        <LoadingSpinner message="Searching open postings..." />
+        <Loader message="Searching open postings..." />
       ) : requisitions.length > 0 ? (
-        <Card className="gf-card p-4 border-0">
-          <div className="table-responsive">
-            <Table className="table table-hover align-middle mb-0">
-              <thead className="table-light">
-                <tr>
-                  <th>Job Title</th>
-                  <th>Client</th>
-                  <th>Core Skill</th>
-                  <th>Experience</th>
-                  <th>Positions</th>
-                  <th>Rate Budget</th>
-                  <th className="text-end">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {requisitions.map(req => (
-                  <tr key={req.id}>
-                    <td>
-                      <span className="fw-semibold text-slate-800 d-block">{req.title || req.jobTitle}</span>
-                      <span className="text-muted text-xs" style={{ fontSize: '0.65rem' }}>ID: {req.id}</span>
-                    </td>
-                    <td>{req.clientName || req.businessUnitId || 'Client BU'}</td>
-                    <td>{req.requiredSkillName || req.requiredSkillId || 'Java'}</td>
-                    <td>{req.minExperienceYears || 3} yrs</td>
-                    <td>{req.quantity} vacant</td>
-                    <td className="text-green-600 fw-semibold">${req.maxHourlyRate || 50}/hr</td>
-                    <td className="text-end">
-                      <div className="d-flex gap-2 justify-content-end">
-                        <Button size="sm" variant="outline-primary" onClick={() => viewDetails(req.id)}>
-                          View Details
-                        </Button>
-                        <Button size="sm" className="btn-gf-primary" onClick={() => openSubmitCandidateModal(req)}>
-                          Submit Candidate
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </Table>
-          </div>
+        <div>
+          <Table headers={['Job Title', 'Client', 'Core Skill', 'Experience', 'Positions', 'Rate Budget', 'Actions']}>
+            {requisitions.map(req => (
+              <tr key={req.id}>
+                <td>
+                  <span className="fw-semibold text-dark d-block">{req.title || req.jobTitle}</span>
+                  <span className="text-muted small" style={{ fontSize: '11px' }}>ID: {req.id}</span>
+                </td>
+                <td>{req.clientName || req.businessUnitId || 'Client BU'}</td>
+                <td>{req.requiredSkillName || req.requiredSkillId || 'Java'}</td>
+                <td>{req.minExperienceYears || 3} yrs</td>
+                <td>{req.quantity} vacant</td>
+                <td className="text-success fw-bold">{formatRupees(req.maxHourlyRate || 500)}/hr</td>
+                <td>
+                  <div className="d-flex gap-2 justify-content-start">
+                    <button className="btn-enterprise-secondary py-1 px-3" onClick={() => viewDetails(req.id)}>
+                      View Details
+                    </button>
+                    <button className="btn-enterprise-primary py-1 px-3" onClick={() => openSubmitCandidateModal(req)}>
+                      Submit Candidate
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </Table>
           <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
-        </Card>
+        </div>
       ) : (
-        <div className="text-center py-5 gf-card bg-white border-0">
-          <span className="fs-1">💼</span>
+        <div className="text-center py-5 gf-card bg-white border-0" style={{ borderRadius: 'var(--gf-radius)', boxShadow: 'var(--gf-shadow)' }}>
+          <i className="bi bi-briefcase fs-1 text-muted"></i>
           <p className="text-muted small mt-2 mb-0">No open job postings found matching criteria.</p>
         </div>
       )}
 
       {/* Detail Modal */}
-      <Modal show={showDetailModal} onHide={() => setShowDetailModal(false)} centered size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title className="fw-bold text-slate-800">Job Specification Details</Modal.Title>
+      <Modal show={showDetailModal} onHide={() => setShowDetailModal(false)} centered size="lg" className="enterprise-modal-content">
+        <Modal.Header closeButton className="enterprise-modal-header">
+          <Modal.Title className="fw-bold text-dark">Job Specification Details</Modal.Title>
         </Modal.Header>
-        <Modal.Body className="p-4">
+        <Modal.Body className="enterprise-modal-body">
           {selectedReq && (
             <div>
               <div className="d-flex justify-content-between align-items-center mb-3">
                 <h4 className="fw-bold text-primary mb-0">{selectedReq.title || selectedReq.jobTitle}</h4>
-                <span className="gf-badge badge-approved">{selectedReq.status}</span>
+                <span className="status-pill success">{selectedReq.status}</span>
               </div>
-              <p className="text-muted">{selectedReq.description || 'No detailed description logged.'}</p>
+              <p className="text-muted small">{selectedReq.description || 'No detailed description logged.'}</p>
               <hr />
-              <div className="row g-3 small">
+              <div className="row g-3 small text-dark">
                 <div className="col-sm-6">
                   <strong>Client Partner:</strong> {selectedReq.clientName || 'Partner Client'}
                 </div>
@@ -256,7 +253,7 @@ function OpenRequisitions() {
                   <strong>Experience Requirement:</strong> {selectedReq.minExperienceYears} Years Minimum
                 </div>
                 <div className="col-sm-6">
-                  <strong>Daily Rate Budget Max:</strong> ${selectedReq.maxHourlyRate || 50}/hr
+                  <strong>Daily Rate Budget Max:</strong> {formatRupees(selectedReq.maxHourlyRate || 500)}/hr
                 </div>
                 <div className="col-sm-6">
                   <strong>Start Date Target:</strong> {selectedReq.startDate}
@@ -265,28 +262,29 @@ function OpenRequisitions() {
             </div>
           )}
         </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowDetailModal(false)}>Close Specifications</Button>
+        <Modal.Footer className="enterprise-modal-footer">
+          <button className="btn-enterprise-secondary" onClick={() => setShowDetailModal(false)}>Close Specifications</button>
         </Modal.Footer>
       </Modal>
 
       {/* Submit Candidate Modal */}
-      <Modal show={showSubmitModal} onHide={() => setShowSubmitModal(false)} centered>
-        <Modal.Header closeButton>
-          <Modal.Title className="fw-bold text-slate-800">Submit Profile to Job</Modal.Title>
+      <Modal show={showSubmitModal} onHide={() => setShowSubmitModal(false)} centered className="enterprise-modal-content">
+        <Modal.Header closeButton className="enterprise-modal-header">
+          <Modal.Title className="fw-bold text-dark">Submit Profile to Job</Modal.Title>
         </Modal.Header>
-        <Modal.Body className="p-4">
+        <Modal.Body className="enterprise-modal-body">
           {submitReq && (
             <div>
               <div className="mb-3">
-                <span className="text-muted text-xs">Role Target</span>
-                <h5 className="fw-bold text-slate-800">{submitReq.title}</h5>
+                <span className="text-muted small">Role Target</span>
+                <h5 className="fw-bold text-dark mt-1">{submitReq.title}</h5>
               </div>
 
               <Form.Group className="mb-3" controlId="selectCandidate">
-                <Form.Label className="uppercase-label">Select Available Candidate</Form.Label>
+                <Form.Label className="enterprise-form-label">Select Available Candidate</Form.Label>
                 <Form.Select 
                   value={selectedCandId}
+                  className="enterprise-form-select"
                   onChange={(e) => setSelectedCandId(e.target.value)}
                 >
                   <option value="">-- Choose Candidate --</option>
@@ -297,10 +295,11 @@ function OpenRequisitions() {
               </Form.Group>
 
               <Form.Group className="mb-3" controlId="proposedRate">
-                <Form.Label className="uppercase-label">Proposed Rate ($/day)</Form.Label>
+                <Form.Label className="enterprise-form-label">Proposed Rate (₹/day)</Form.Label>
                 <Form.Control 
                   type="number"
-                  placeholder="e.g. 450"
+                  placeholder="e.g. 4500"
+                  className="enterprise-form-control"
                   value={proposedRate}
                   onChange={(e) => setProposedRate(e.target.value)}
                 />
@@ -308,11 +307,11 @@ function OpenRequisitions() {
             </div>
           )}
         </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowSubmitModal(false)}>Cancel</Button>
-          <Button className="btn-gf-primary" onClick={handleSubmitCandidate} disabled={submitting}>
+        <Modal.Footer className="enterprise-modal-footer">
+          <button className="btn-enterprise-secondary" onClick={() => setShowSubmitModal(false)}>Cancel</button>
+          <button className="btn-enterprise-primary" onClick={handleSubmitCandidate} disabled={submitting}>
             {submitting ? 'Submitting...' : 'Submit Profile'}
-          </Button>
+          </button>
         </Modal.Footer>
       </Modal>
     </div>

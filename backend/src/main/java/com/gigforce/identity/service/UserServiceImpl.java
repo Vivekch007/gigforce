@@ -18,6 +18,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.gigforce.notification.publisher.NotificationPublisher;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
 @Service
 @Transactional(readOnly = true)
 public class UserServiceImpl implements UserService {
@@ -179,5 +185,34 @@ public class UserServiceImpl implements UserService {
         notificationPublisher.publishContractorReactivated(updatedUser);
 
         return userMapper.toUserDto(updatedUser);
+    }
+
+    @Override
+    public List<Map<String, Object>> getDistinctOrgUnits() {
+        // Aggregate all users, group by orgUnitId to derive organization summaries
+        List<User> allUsers = userRepository.findAll();
+
+        // Collect distinct orgUnitIds with counts
+        Map<String, Long> orgCounts = new LinkedHashMap<>();
+        for (User u : allUsers) {
+            String orgId = u.getOrgUnitId();
+            if (orgId != null && !orgId.trim().isEmpty()) {
+                orgCounts.merge(orgId.trim(), 1L, Long::sum);
+            }
+        }
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Map.Entry<String, Long> entry : orgCounts.entrySet()) {
+            String orgId = entry.getKey();
+            Map<String, Object> orgObj = new HashMap<>();
+            orgObj.put("id", orgId);
+            orgObj.put("code", orgId.toUpperCase());
+            orgObj.put("userCount", entry.getValue());
+            orgObj.put("status", "ACTIVE");
+            orgObj.put("contact", "");
+            orgObj.put("address", "");
+            result.add(orgObj);
+        }
+        return result;
     }
 }

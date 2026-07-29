@@ -1,32 +1,25 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Row, Col, Alert, Button, Card } from 'react-bootstrap';
-import { useAuth } from '../../hooks/useAuth';
+import { Row, Col, Alert } from 'react-bootstrap';
 import { getFinanceDashboardMetrics } from '../../services/financeDashboardService';
 import { getPurchaseOrders } from '../../services/financePurchaseOrderService';
 import { getInvoices } from '../../services/invoiceService';
 import { getPayments } from '../../services/paymentService';
 import { getErrorMessage } from '../../services/errorUtils';
-
-// Reusable components
-import FinanceMetricCard from '../../components/finance/FinanceMetricCard';
 import ActivityTimeline from '../../components/finance/ActivityTimeline';
-import LoadingSpinner from '../../components/finance/LoadingSpinner';
+import KpiCard from '../../components/KpiCard';
+import Table from '../../components/Table';
+import Loader from '../../components/Loader';
 
 function Dashboard() {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const searchQuery = searchParams.get('search') || '';
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-
-  // Dashboard stats
   const [metrics, setMetrics] = useState(null);
 
-
-  // Search states
   const [searchResults, setSearchResults] = useState({
     purchaseOrders: [],
     invoices: [],
@@ -82,162 +75,183 @@ function Dashboard() {
   }, [searchQuery]);
 
   return (
-    <div className="container-fluid">
+    <div>
       {/* Header */}
       <div className="mb-4">
-        <h2 className="fw-black text-slate-800 mb-0">Finance Dashboard</h2>
-        <p className="text-muted small mt-1 mb-0">Track purchase billings, invoice approvals, and banking transaction ledgers.</p>
+        <h1 className="page-title mb-1">Finance Dashboard</h1>
+        <p className="muted-text">Track purchase billings, invoice approvals, and banking transaction ledgers.</p>
       </div>
 
-      {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
+      {error && <Alert variant="danger" className="enterprise-alert enterprise-alert-danger mb-4">{error}</Alert>}
 
       {loading ? (
-        <LoadingSpinner message="Reconciling financial metrics..." />
+        <Loader message="Reconciling financial metrics..." />
       ) : searchQuery.trim() ? (
         /* Global Search panel */
         <div>
-          <div className="alert alert-info py-2 mb-4">
-            🔍 Showing search results for: <strong>"{searchQuery}"</strong>
+          <div className="enterprise-alert enterprise-alert-success py-2 mb-4 d-flex align-items-center gap-2">
+            <i className="bi bi-search text-success"></i>
+            <span>Showing search results for: <strong>"{searchQuery}"</strong></span>
           </div>
 
           <Row className="g-4">
             {/* Purchase Orders */}
             <Col lg={4}>
-              <Card className="gf-card p-4 border-0">
-                <h5 className="fw-bold mb-3 text-slate-800">📋 Matching Purchase Orders ({searchResults.purchaseOrders.length})</h5>
+              <div className="enterprise-table-container p-4">
+                <h5 className="small fw-semibold text-uppercase text-muted mb-3">Matching Purchase Orders ({searchResults.purchaseOrders.length})</h5>
                 {searchResults.purchaseOrders.length > 0 ? (
                   <div className="d-flex flex-column gap-2">
                     {searchResults.purchaseOrders.map(po => (
-                      <div key={po.id} className="p-2 border rounded bg-light">
-                        <div className="small fw-bold text-slate-800">{po.id}</div>
-                        <div className="text-muted text-xs" style={{ fontSize: '0.7rem' }}>Amount: ${parseFloat(po.poAmount || po.amount).toLocaleString()} &bull; {po.status}</div>
+                      <div key={po.id} className="p-3 border rounded-3 bg-light">
+                        <div className="small fw-bold text-dark">{po.id}</div>
+                        <div className="text-muted small mt-1">Amount: ${parseFloat(po.poAmount || po.amount).toLocaleString()} &bull; {po.status}</div>
                       </div>
                     ))}
                   </div>
                 ) : (
                   <p className="text-muted small mb-0">No matching purchase orders found.</p>
                 )}
-              </Card>
+              </div>
             </Col>
 
             {/* Invoices */}
             <Col lg={4}>
-              <Card className="gf-card p-4 border-0">
-                <h5 className="fw-bold mb-3 text-slate-800">💵 Matching Invoices ({searchResults.invoices.length})</h5>
+              <div className="enterprise-table-container p-4">
+                <h5 className="small fw-semibold text-uppercase text-muted mb-3">Matching Invoices ({searchResults.invoices.length})</h5>
                 {searchResults.invoices.length > 0 ? (
                   <div className="d-flex flex-column gap-2">
                     {searchResults.invoices.map(inv => (
-                      <div key={inv.id} className="p-2 border rounded bg-light">
-                        <div className="small fw-bold text-slate-800">{inv.invoiceNumber}</div>
-                        <div className="text-muted text-xs" style={{ fontSize: '0.7rem' }}>Amount: ${parseFloat(inv.invoiceAmount).toLocaleString()} &bull; {inv.status}</div>
+                      <div key={inv.id} className="p-3 border rounded-3 bg-light">
+                        <div className="small fw-bold text-dark">{inv.invoiceNumber}</div>
+                        <div className="text-muted small mt-1">Amount: ${parseFloat(inv.invoiceAmount).toLocaleString()} &bull; {inv.status}</div>
                       </div>
                     ))}
                   </div>
                 ) : (
                   <p className="text-muted small mb-0">No matching invoices found.</p>
                 )}
-              </Card>
+              </div>
             </Col>
 
             {/* Payments */}
             <Col lg={4}>
-              <Card className="gf-card p-4 border-0">
-                <h5 className="fw-bold mb-3 text-slate-800">💳 Matching Payments ({searchResults.payments.length})</h5>
+              <div className="enterprise-table-container p-4">
+                <h5 className="small fw-semibold text-uppercase text-muted mb-3">Matching Payments ({searchResults.payments.length})</h5>
                 {searchResults.payments.length > 0 ? (
                   <div className="d-flex flex-column gap-2">
                     {searchResults.payments.map(p => (
-                      <div key={p.id} className="p-2 border rounded bg-light">
-                        <div className="small fw-bold text-slate-800">{p.id}</div>
-                        <div className="text-muted text-xs" style={{ fontSize: '0.7rem' }}>Amount: ${parseFloat(p.paidAmount).toLocaleString()} &bull; {p.status}</div>
+                      <div key={p.id} className="p-3 border rounded-3 bg-light">
+                        <div className="small fw-bold text-dark">{p.id}</div>
+                        <div className="text-muted small mt-1">Amount: ${parseFloat(p.paidAmount).toLocaleString()} &bull; {p.status}</div>
                       </div>
                     ))}
                   </div>
                 ) : (
                   <p className="text-muted small mb-0">No matching payments found.</p>
                 )}
-              </Card>
+              </div>
             </Col>
           </Row>
         </div>
       ) : (
         /* Normal Dashboard View */
         <div>
-          {/* KPI Cards Row */}
-          <div className="row row-cols-2 row-cols-md-4 row-cols-lg-7 g-3 mb-4">
-            <div className="col">
-              <FinanceMetricCard title="Pending POs" value={metrics?.pendingPOs} desc="Awaiting invoice setup" borderStartClass="border-start border-4 border-primary" />
+          {/* Quick Actions Panel */}
+          <div className="enterprise-table-container p-4 mb-4">
+            <h5 className="small fw-semibold text-uppercase text-muted mb-3">Quick Actions</h5>
+            <div className="row g-3">
+              <div className="col-md-4">
+                <button className="btn-enterprise-secondary w-100 justify-content-center py-3" onClick={() => navigate('/finance/purchase-orders')}>
+                  <i className="bi bi-clipboard-check me-2"></i> Review Purchase Orders
+                </button>
+              </div>
+              <div className="col-md-4">
+                <button className="btn-enterprise-secondary w-100 justify-content-center py-3" onClick={() => navigate('/finance/invoices')}>
+                  <i className="bi bi-file-earmark-plus me-2"></i> Generate Invoice
+                </button>
+              </div>
+              <div className="col-md-4">
+                <button className="btn-enterprise-primary w-100 justify-content-center py-3" onClick={() => navigate('/finance/payments')}>
+                  <i className="bi bi-wallet2 me-2"></i> Process Payments
+                </button>
+              </div>
             </div>
-            <div className="col">
-              <FinanceMetricCard title="Invoices Ready" value={metrics?.invoicesReady} desc="Approved invoices" borderStartClass="border-start border-4 border-warning" />
+          </div>
+
+          {/* KPI Cards Row using shared KpiCard */}
+          <div className="row g-4 mb-5">
+            <div className="col-md-3">
+              <KpiCard
+                label="Total Invoiced"
+                value={`$${Math.round(metrics?.totalInvoiceValue || 0).toLocaleString()}`}
+                icon="bi-receipt"
+                trend={{ value: 'Cumulative', direction: 'up' }}
+              />
             </div>
-            <div className="col">
-              <FinanceMetricCard title="Payments Pending" value={metrics?.paymentsPending} desc="Awaiting bank release" borderStartClass="border-start border-4 border-info" />
+
+            <div className="col-md-3">
+              <KpiCard
+                label="Total Paid Settlements"
+                value={`$${Math.round(metrics?.totalPayments || 0).toLocaleString()}`}
+                icon="bi-check-circle"
+                trend={{ value: 'Paid', direction: 'up' }}
+              />
             </div>
-            <div className="col">
-              <FinanceMetricCard title="Payments Paid" value={metrics?.paymentsCompleted} desc="Completed settlements" borderStartClass="border-start border-4 border-success" />
+
+            <div className="col-md-3">
+              <KpiCard
+                label="Outstanding Balance"
+                value={`$${Math.round(metrics?.outstandingAmount || 0).toLocaleString()}`}
+                icon="bi-cash"
+                trend={{ value: 'Due', direction: 'down' }}
+              />
             </div>
-            <div className="col">
-              <FinanceMetricCard title="Total Invoiced" value={`$${Math.round(metrics?.totalInvoiceValue || 0).toLocaleString()}`} desc="Overall ledger" borderStartClass="border-start border-4 border-dark" />
-            </div>
-            <div className="col">
-              <FinanceMetricCard title="Total Paid" value={`$${Math.round(metrics?.totalPayments || 0).toLocaleString()}`} desc="Disbursed sum" borderStartClass="border-start border-4 border-success" />
-            </div>
-            <div className="col">
-              <FinanceMetricCard title="Outstanding" value={`$${Math.round(metrics?.outstandingAmount || 0).toLocaleString()}`} desc="Approved - Settled" borderStartClass="border-start border-4 border-danger" />
+
+            <div className="col-md-3">
+              <KpiCard
+                label="Payments Pending"
+                value={metrics?.paymentsPending || 0}
+                icon="bi-clock"
+                trend={{ value: 'Unpaid', direction: 'warning' }}
+              />
             </div>
           </div>
 
           <Row className="g-4">
-            {/* Left Column: Quick Actions & Payment statistics summaries */}
+            {/* Left Column: Payment statistics summaries */}
             <Col lg={8}>
-              <Card className="gf-card p-4 border-0 mb-4 bg-white">
-                <h5 className="fw-bold mb-3 text-slate-800">Quick Actions</h5>
-                <div className="d-flex flex-wrap gap-2">
-                  <Button variant="outline-primary" className="py-2 px-3 flex-grow-1" onClick={() => navigate('/finance/purchase-orders')}>
-                    📋 Review Purchase Orders
-                  </Button>
-                  <Button variant="outline-primary" className="py-2 px-3 flex-grow-1" onClick={() => navigate('/finance/invoices')}>
-                    💵 Generate Invoice
-                  </Button>
-                  <Button className="btn-gf-primary py-2 px-3 flex-grow-1" onClick={() => navigate('/finance/payments')}>
-                    💳 Process Payments
-                  </Button>
-                </div>
-              </Card>
-
               {/* Payment Summary statistics panel */}
-              <Card className="gf-card p-4 border-0 bg-white">
-                <h5 className="fw-bold mb-4 text-slate-800">💳 Cash Settlement status summary</h5>
+              <div className="enterprise-table-container p-4 h-100">
+                <h5 className="small fw-semibold text-uppercase text-muted mb-4"><i className="bi bi-credit-card me-2"></i>Cash Settlement status summary</h5>
                 <div className="row g-3 text-center">
                   <div className="col-4">
-                    <div className="border rounded p-3 bg-light">
-                      <span className="small text-muted font-bold text-uppercase d-block mb-1">Pending</span>
-                      <h4 className="fw-black text-slate-800 mb-0">{metrics?.paymentSummary?.pending || 0}</h4>
+                    <div className="p-3 border rounded-3 bg-light">
+                      <span className="small text-muted fw-semibold text-uppercase d-block mb-1">Pending</span>
+                      <h4 className="fw-bold text-dark mb-0">{metrics?.paymentSummary?.pending || 0}</h4>
                     </div>
                   </div>
                   <div className="col-4">
-                    <div className="border rounded p-3 bg-light">
-                      <span className="small text-muted font-bold text-uppercase d-block mb-1">Failed</span>
-                      <h4 className="fw-black text-danger mb-0">{metrics?.paymentSummary?.failed || 0}</h4>
+                    <div className="p-3 border rounded-3 bg-light">
+                      <span className="small text-muted fw-semibold text-uppercase d-block mb-1">Failed</span>
+                      <h4 className="fw-bold text-danger mb-0">{metrics?.paymentSummary?.failed || 0}</h4>
                     </div>
                   </div>
                   <div className="col-4">
-                    <div className="border rounded p-3 bg-light">
-                      <span className="small text-muted font-bold text-uppercase d-block mb-1">Completed</span>
-                      <h4 className="fw-black text-green-600 mb-0">{metrics?.paymentSummary?.paid || 0}</h4>
+                    <div className="p-3 border rounded-3 bg-light">
+                      <span className="small text-muted fw-semibold text-uppercase d-block mb-1">Completed</span>
+                      <h4 className="fw-bold text-success mb-0">{metrics?.paymentSummary?.paid || 0}</h4>
                     </div>
                   </div>
                 </div>
-
-              </Card>
+              </div>
             </Col>
 
             {/* Right Column: Activity Timeline */}
             <Col lg={4}>
-              <Card className="gf-card p-4 border-0 bg-white h-100">
-                <h5 className="fw-bold mb-3 text-slate-800">🔔 Recent Financial Activity</h5>
+              <div className="enterprise-table-container p-4 h-100">
+                <h5 className="small fw-semibold text-uppercase text-muted mb-3"><i className="bi bi-bell me-2"></i>Recent Financial Activity</h5>
                 <ActivityTimeline activities={metrics?.recentActivities} />
-              </Card>
+              </div>
             </Col>
           </Row>
         </div>

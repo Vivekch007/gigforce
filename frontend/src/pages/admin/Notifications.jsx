@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Alert, Card, Button, ButtonGroup } from 'react-bootstrap';
-import { getAdminNotifications, getMockAdminAlerts } from '../../services/adminNotificationService';
+import { getAdminNotifications } from '../../services/adminNotificationService';
 import { getErrorMessage } from '../../services/errorUtils';
 
 // Reusable components
@@ -24,15 +24,9 @@ function Notifications() {
     try {
       setLoading(true);
       setError('');
-      
-      const data = await getAdminNotifications().catch(() => null);
 
-      if (data && data.length > 0) {
-        setNotifications(data);
-      } else {
-        const mockData = await getMockAdminAlerts();
-        setNotifications(mockData);
-      }
+      const data = await getAdminNotifications();
+      setNotifications(data || []);
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -85,6 +79,14 @@ function Notifications() {
 
   const { today, yesterday, earlier } = groupNotifications(filteredNotifications);
 
+  const getCategoryIcon = (category) => {
+    const cat = category?.toUpperCase() || '';
+    if (cat === 'SECURITY') return 'bi-shield-exclamation';
+    if (cat === 'USERS') return 'bi-people';
+    if (cat === 'SYSTEM') return 'bi-gear';
+    return 'bi-bell';
+  };
+
   const renderGroupSection = (title, items) => {
     if (items.length === 0) return null;
     return (
@@ -94,10 +96,8 @@ function Notifications() {
           {items.map((notif) => (
             <Card key={notif.NotificationID} className={`gf-card p-3 mb-0 border-0 ${notif.Status === 'UNREAD' ? 'bg-light border-start border-4 border-primary' : 'bg-white'}`}>
               <div className="d-flex gap-3">
-                <span className="fs-4">
-                  {notif.Category?.toUpperCase() === 'SECURITY' ? '🚨' :
-                   notif.Category?.toUpperCase() === 'USERS' ? '👤' :
-                   notif.Category?.toUpperCase() === 'SYSTEM' ? '⚙️' : '🔔'}
+                <span className="fs-4 d-inline-flex align-items-center justify-content-center bg-light border rounded text-muted" style={{ width: '40px', height: '40px' }}>
+                  <i className={`bi ${getCategoryIcon(notif.Category)}`}></i>
                 </span>
                 <div>
                   <h6 className={`mb-1 fw-bold ${notif.Status === 'UNREAD' ? 'text-slate-900' : 'text-slate-700'}`}>
@@ -150,7 +150,7 @@ function Notifications() {
         </div>
       ) : (
         <div className="text-center py-5 gf-card bg-white border-0">
-          <span className="fs-1">🔔</span>
+          <i className="bi bi-bell-slash fs-1 text-muted"></i>
           <p className="text-muted small mt-2 mb-0">No active security alerts.</p>
         </div>
       )}

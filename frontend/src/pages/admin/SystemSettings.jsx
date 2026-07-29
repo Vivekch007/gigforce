@@ -62,7 +62,7 @@ function SystemSettings() {
             {/* Authentication security policy */}
             <Col lg={6}>
               <Card className="gf-card p-4 border-0 bg-white h-100">
-                <h5 className="fw-bold mb-4 text-slate-800">🔐 Authentication & Access Security</h5>
+                <h5 className="fw-bold mb-4 text-slate-800"><i className="bi bi-shield-lock me-2"></i>Authentication & Access Security</h5>
                 
                 <Form.Group className="mb-3" controlId="pwdPolicy">
                   <Form.Label className="uppercase-label">Minimum Password Policy</Form.Label>
@@ -100,7 +100,7 @@ function SystemSettings() {
             {/* Notification triggers settings */}
             <Col lg={6}>
               <Card className="gf-card p-4 border-0 bg-white h-100">
-                <h5 className="fw-bold mb-4 text-slate-800">🔔 Global Notification Toggles</h5>
+                <h5 className="fw-bold mb-4 text-slate-800"><i className="bi bi-bell me-2"></i>Global Notification Toggles</h5>
 
                 <Form.Group className="mb-3" controlId="emailNotif">
                   <Form.Check 
@@ -134,7 +134,7 @@ function SystemSettings() {
             {/* General parameters */}
             <Col lg={12}>
               <Card className="gf-card p-4 border-0 bg-white">
-                <h5 className="fw-bold mb-4 text-slate-800">⚙️ General Company Branding</h5>
+                <h5 className="fw-bold mb-4 text-slate-800"><i className="bi bi-gear me-2"></i>General Company Branding</h5>
                 <Row className="g-3">
                   <Col md={4}>
                     <Form.Group controlId="company">

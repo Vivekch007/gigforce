@@ -85,4 +85,25 @@ public class SkillServiceImpl implements SkillService {
                 .description(skill.getDescription())
                 .build();
     }
+
+    @Override
+    @Transactional
+    public void deleteSkill(String id) {
+        Skill skill = skillRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Skill not found with ID: " + id));
+
+        String skillName = skill.getName();
+        skillRepository.deleteById(id);
+
+        String actorEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        User actor = userRepository.findByEmail(actorEmail).orElse(null);
+        String actorId = (actor != null) ? actor.getId() : null;
+
+        auditService.logAction(
+                actorId,
+                "SKILL_DELETED",
+                "Skill",
+                id,
+                "Master skill deleted: " + skillName);
+    }
 }

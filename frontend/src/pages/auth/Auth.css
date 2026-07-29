@@ -1,3 +1,5 @@
+/* Rebuilt Notion-like Auth CSS Page Styles */
+
 .auth-split-screen {
   min-height: 100vh;
   display: flex;
@@ -7,16 +9,25 @@
 .auth-image-frame {
   width: 50%;
   position: relative;
-  background-size: cover;
-  background-position: center;
+  background-color: var(--gf-primary);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 80px;
+  color: #FFFFFF;
 }
 
-.auth-brand {
-  font-size: 1.5rem;
+.auth-image-frame h2 {
+  font-size: 32px;
   font-weight: 700;
-  color: var(--gf-primary);
-  text-decoration: none;
   letter-spacing: -0.02em;
+  margin-bottom: 16px;
+}
+
+.auth-image-frame p {
+  font-size: 16px;
+  opacity: 0.85;
+  line-height: 1.6;
 }
 
 .auth-form-frame {
@@ -25,7 +36,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2.5rem 1.5rem;
+  padding: 40px 24px;
 }
 
 @media (min-width: 992px) {
@@ -36,44 +47,54 @@
 
 .auth-form-container {
   width: 100%;
-  max-width: 450px;
+  max-width: 420px;
+}
+
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--gf-text);
+  margin-bottom: 40px;
 }
 
 .auth-title {
   font-weight: 700;
-  font-size: 1.75rem;
-  color: var(--gf-slate-900);
-  margin-bottom: 0.35rem;
+  font-size: 28px;
+  letter-spacing: -0.02em;
+  color: var(--gf-text);
+  margin-bottom: 8px;
 }
 
 .auth-subtitle {
-  color: #64748b;
-  margin-bottom: 1.75rem;
-  font-size: 0.95rem;
+  color: var(--gf-muted);
+  margin-bottom: 32px;
+  font-size: 15px;
+  line-height: 1.5;
 }
 
 .uppercase-label {
-  text-transform: uppercase;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  color: #475569;
-  margin-bottom: 0.35rem;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gf-muted);
+  margin-bottom: 6px;
+  display: block;
 }
 
 .auth-footer-note {
-  margin-top: 1.75rem;
-  padding-top: 1.25rem;
+  margin-top: 32px;
+  padding-top: 20px;
   border-top: 1px solid var(--gf-border);
-  font-size: 0.8rem;
-  color: #64748b;
-  line-height: 1.5;
+  font-size: 14px;
+  color: var(--gf-muted);
+  text-align: center;
 }
 
 .auth-footer-note a {
   color: var(--gf-primary);
   font-weight: 600;
-  text-decoration: none;
 }
 
 .auth-footer-note a:hover {

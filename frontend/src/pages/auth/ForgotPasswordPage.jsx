@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Alert, Button, Form, Spinner } from 'react-bootstrap';
+import { Alert, Spinner } from 'react-bootstrap';
 import AuthLayout from './AuthLayout';
 import { forgotPassword } from '../../services/authService';
 import { getErrorMessage } from '../../services/errorUtils';
@@ -42,10 +42,6 @@ function ForgotPasswordPage() {
     setSubmitting(true);
     try {
       await sendCode();
-      // The backend always returns 200 here regardless of whether the email
-      // is registered, so we show the same neutral confirmation either way -
-      // this is intentional (it stops an attacker from using this form to
-      // find out which emails have accounts).
       setSubmitted(true);
     } catch (err) {
       setError(getErrorMessage(err));
@@ -69,6 +65,7 @@ function ForgotPasswordPage() {
   return (
     <AuthLayout
       title="Forgot your password?"
+      subtitle="Enter your email to receive a password reset code."
       footer={
         <>
           <Link to="/forgot-password">Need a new code?</Link>{' '}
@@ -77,61 +74,60 @@ function ForgotPasswordPage() {
       }
     >
       {error && (
-        <Alert variant="danger" className="py-2">
+        <Alert variant="danger" className="enterprise-alert enterprise-alert-danger py-2">
           {error}
         </Alert>
       )}
 
       {submitted ? (
         <>
-          <Alert variant="success" className="py-2">
-            If an account exists for <strong>{email}</strong>, a password reset code has been
-            sent to that address.
+          <Alert variant="success" className="enterprise-alert enterprise-alert-success py-2">
+            If an account exists for <strong>{email}</strong>, a password reset code has been sent.
           </Alert>
           {resendInfo && (
-            <Alert variant="info" className="py-2">
+            <Alert variant="info" className="enterprise-alert enterprise-alert-success py-2">
               {resendInfo}
             </Alert>
           )}
-          <Button
-            variant="outline-secondary"
-            className="w-100 mb-2"
+          <button
+            className="btn-enterprise-secondary w-100 mb-3 justify-content-center"
             onClick={handleResend}
             disabled={cooldown > 0}
           >
             {cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend Code'}
-          </Button>
-          <Button
-            className="btn-gf-primary w-100"
+          </button>
+          <button
+            className="btn-enterprise-primary w-100 justify-content-center"
             onClick={() => navigate('/reset-password')}
           >
             I have my reset code
-          </Button>
+          </button>
         </>
       ) : (
-        <Form onSubmit={handleSubmit} noValidate>
-          <Form.Group className="mb-3" controlId="forgotEmail">
-            <Form.Label className="uppercase-label">
+        <form onSubmit={handleSubmit} noValidate>
+          <div className="enterprise-form-group">
+            <label className="enterprise-form-label" htmlFor="forgotEmail">
               Email Address <span className="text-danger">*</span>
-            </Form.Label>
-            <Form.Control
+            </label>
+            <input
+              id="forgotEmail"
               type="email"
+              className={`enterprise-form-control ${emailError ? 'is-invalid' : ''}`}
               value={email}
               onChange={(event) => {
                 setEmail(event.target.value);
                 setEmailError('');
               }}
-              isInvalid={!!emailError}
-              placeholder="Enter email address"
+              placeholder="name@company.com"
               required
             />
-            <Form.Control.Feedback type="invalid">{emailError}</Form.Control.Feedback>
-          </Form.Group>
+            {emailError && <div className="invalid-feedback text-danger mt-1 small">{emailError}</div>}
+          </div>
 
-          <Button type="submit" className="btn-gf-primary w-100 py-2" disabled={submitting}>
+          <button type="submit" className="btn-enterprise-primary w-100 py-2 justify-content-center" disabled={submitting}>
             {submitting ? <Spinner animation="border" size="sm" /> : 'Send Reset Code'}
-          </Button>
-        </Form>
+          </button>
+        </form>
       )}
     </AuthLayout>
   );

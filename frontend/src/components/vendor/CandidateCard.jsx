@@ -1,38 +1,43 @@
 import React from 'react';
-import { Card, Button } from 'react-bootstrap';
+import { Card } from 'react-bootstrap';
 
 function CandidateCard({ candidate, onEdit, onDelete, onUploadResume }) {
+  const getAvailabilityClass = (status) => {
+    return status?.toLowerCase() === 'available' ? 'success' : 'danger';
+  };
+
   return (
-    <Card className="gf-card p-3 mb-0 border-0 h-100 bg-white">
+    <Card className="gf-card p-3 mb-0 border-0 h-100 bg-white" style={{ borderRadius: 'var(--gf-radius)', boxShadow: 'var(--gf-shadow)' }}>
       <div className="d-flex justify-content-between align-items-start mb-2">
         <div>
-          <h5 className="fw-bold text-slate-800 mb-0">{candidate.name}</h5>
+          <h5 className="fw-bold text-dark mb-0">{candidate.name}</h5>
           <span className="text-muted small">{candidate.currentCompany || 'Freelance'}</span>
         </div>
-        <span className={`gf-badge badge-${candidate.availability === 'AVAILABLE' ? 'approved' : 'rejected'}`}>
+        <span className={`status-pill ${getAvailabilityClass(candidate.availability)}`}>
           {candidate.availability}
         </span>
       </div>
 
-      <div className="small text-slate-600 mb-3 flex-grow-1">
-        <div className="mb-1"><strong>Skills:</strong> {candidate.skills}</div>
-        <div className="mb-1"><strong>Experience:</strong> {candidate.experience} Years</div>
-        <div className="mb-1"><strong>Notice Period:</strong> {candidate.noticePeriod}</div>
-        <div className="mb-1"><strong>Preferred Location:</strong> {candidate.preferredLocation}</div>
-        <div><strong>Preferred Daily Rate:</strong> <span className="text-green-600 fw-bold">${candidate.rate}/day</span></div>
+      <div className="small text-muted mb-3 flex-grow-1">
+        <div className="mb-1 text-dark"><strong>Skills:</strong> {candidate.skills}</div>
+        <div className="mb-1 text-dark"><strong>Experience:</strong> {candidate.experience} Years</div>
+        <div className="mb-1 text-dark"><strong>Notice Period:</strong> {candidate.noticePeriod}</div>
+        <div className="mb-1 text-dark"><strong>Preferred Location:</strong> {candidate.preferredLocation}</div>
+        <div className="text-dark"><strong>Preferred Daily Rate:</strong> <span className="text-success fw-bold">₹ {candidate.rate}/day</span></div>
       </div>
 
       <div className="d-flex justify-content-between align-items-center gap-1 border-top pt-2">
-        <Button size="sm" variant="outline-primary" className="py-1 px-2" onClick={() => onUploadResume(candidate)}>
-          {candidate.resumeUrl ? '📄 View Resume' : '📤 Upload Resume'}
-        </Button>
+        <button className="btn-enterprise-secondary py-1 px-2" style={{ height: '32px', fontSize: '13px' }} onClick={() => onUploadResume(candidate)}>
+          <i className={`bi ${candidate.resumeUrl ? 'bi-file-earmark-text' : 'bi-upload'} me-2`}></i>
+          {candidate.resumeUrl ? 'View Resume' : 'Upload Resume'}
+        </button>
         <div className="d-flex gap-1">
-          <Button size="sm" variant="outline-secondary" className="py-1" onClick={() => onEdit(candidate)}>
+          <button className="btn-enterprise-secondary py-1 px-2" style={{ height: '32px', fontSize: '13px' }} onClick={() => onEdit(candidate)}>
             Edit
-          </Button>
-          <Button size="sm" variant="outline-danger" className="py-1" onClick={() => onDelete(candidate.id)}>
+          </button>
+          <button className="btn-enterprise-ghost text-danger py-1 px-2 border-0" style={{ height: '32px', fontSize: '13px' }} onClick={() => onDelete(candidate.id)}>
             Delete
-          </Button>
+          </button>
         </div>
       </div>
     </Card>

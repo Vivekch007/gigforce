@@ -88,7 +88,7 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
             try {
                 businessUnits = BusinessUnits.valueOf(request.getBusinessUnitId().trim().toUpperCase());
             } catch (IllegalArgumentException e) {
-                throw new BusinessValidationException("businessUnitId must be one of: IT, FINANCE, HIRING_MANAGER, HR");
+                throw new BusinessValidationException("businessUnitId must be one of: " + java.util.Arrays.toString(BusinessUnits.values()));
             }
         }
         ResourceRequisition requisition = ResourceRequisition.builder()
@@ -106,6 +106,7 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
                 .startDate(request.getStartDate() != null ? request.getStartDate() : java.time.LocalDate.now())
                 .duration(request.getDuration() != null ? request.getDuration().trim() : "6 months")
                 .businessUnitId(businessUnits != null ? businessUnits.name() : null)
+                .customDepartment(request.getCustomDepartment() != null ? request.getCustomDepartment().trim() : null)
                 .build();
 
         ResourceRequisition saved = requisitionRepository.save(requisition);
@@ -161,10 +162,11 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
             try {
                 businessUnits = BusinessUnits.valueOf(request.getBusinessUnitId().trim().toUpperCase());
             } catch (IllegalArgumentException e) {
-                throw new BusinessValidationException("businessUnitId must be one of: IT, FINANCE, HIRING_MANAGER, HR");
+                throw new BusinessValidationException("businessUnitId must be one of: " + java.util.Arrays.toString(BusinessUnits.values()));
             }
         }
         requisition.setBusinessUnitId(businessUnits != null ? businessUnits.name() : null);
+        requisition.setCustomDepartment(request.getCustomDepartment() != null ? request.getCustomDepartment().trim() : null);
 
         ResourceRequisition updated = requisitionRepository.save(requisition);
 
@@ -401,6 +403,7 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
                 .startDate(requisition.getStartDate())
                 .duration(requisition.getDuration())
                 .businessUnitId(requisition.getBusinessUnitId())
+                .customDepartment(requisition.getCustomDepartment())
                 .createdAt(requisition.getCreatedAt())
                 .updatedAt(requisition.getUpdatedAt())
                 .build();

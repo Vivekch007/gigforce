@@ -84,6 +84,15 @@ function Notifications() {
 
   const { today, yesterday, earlier } = groupNotifications(filteredNotifications);
 
+  const getCategoryIcon = (category) => {
+    const cat = category?.toUpperCase() || '';
+    if (cat === 'CANDIDATE') return 'bi-person';
+    if (cat === 'INTERVIEW') return 'bi-calendar-event';
+    if (cat === 'ASSIGNMENT' || cat === 'REQUISITION') return 'bi-clipboard-check';
+    if (cat === 'PURCHASE_ORDER') return 'bi-receipt';
+    return 'bi-bell';
+  };
+
   const renderGroupSection = (title, items) => {
     if (items.length === 0) return null;
     return (
@@ -94,12 +103,8 @@ function Notifications() {
             <Card key={notif.NotificationID} className={`gf-card p-3 mb-0 border-0 ${notif.Status === 'UNREAD' ? 'bg-light border-start border-4 border-primary' : 'bg-white'}`}>
               <div className="d-flex justify-content-between align-items-start gap-2">
                 <div className="d-flex gap-3">
-                  <span className="fs-4">
-                    {notif.Category?.toUpperCase() === 'CANDIDATE' ? '👤' :
-                     notif.Category?.toUpperCase() === 'INTERVIEW' ? '📅' :
-                     notif.Category?.toUpperCase() === 'ASSIGNMENT' ? '📋' :
-                     notif.Category?.toUpperCase() === 'PURCHASE_ORDER' ? '💵' :
-                     notif.Category?.toUpperCase() === 'REQUISITION' ? '💼' : '🔔'}
+                  <span className="fs-4 d-inline-flex align-items-center justify-content-center bg-light border rounded text-muted" style={{ width: '40px', height: '40px' }}>
+                    <i className={`bi ${getCategoryIcon(notif.Category)}`}></i>
                   </span>
                   <div>
                     <h6 className={`mb-1 fw-bold ${notif.Status === 'UNREAD' ? 'text-slate-900' : 'text-slate-700'}`}>
@@ -153,7 +158,7 @@ function Notifications() {
         </div>
       ) : (
         <div className="text-center py-5 gf-card bg-white border-0">
-          <span className="fs-1">🔔</span>
+          <i className="bi bi-bell-slash fs-1 text-muted"></i>
           <p className="text-muted small mt-2 mb-0">Your notification center is empty.</p>
         </div>
       )}

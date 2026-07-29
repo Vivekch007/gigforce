@@ -32,6 +32,7 @@ public class ResourceRequisitionResponseDTO {
     private java.time.LocalDate startDate;
     private String duration;
     private String businessUnitId;
+    private String customDepartment;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

@@ -203,7 +203,7 @@ function Reports() {
             {/* Active placements list */}
             <Col lg={6}>
               <Card className="gf-card p-4 border-0">
-                <h5 className="fw-bold mb-3 text-slate-800">👤 Active Hires Overview</h5>
+                <h5 className="fw-bold mb-3 text-slate-800"><i className="bi bi-person-fill me-2"></i>Active Hires Overview</h5>
                 <div className="table-responsive">
                   <Table className="table table-hover align-middle mb-0 small">
                     <thead className="table-light">
@@ -236,7 +236,7 @@ function Reports() {
             {/* Open jobs list */}
             <Col lg={6}>
               <Card className="gf-card p-4 border-0">
-                <h5 className="fw-bold mb-3 text-slate-800">💼 Open Job Postings</h5>
+                <h5 className="fw-bold mb-3 text-slate-800"><i className="bi bi-briefcase me-2"></i>Open Job Postings</h5>
                 <div className="table-responsive">
                   <Table className="table table-hover align-middle mb-0 small">
                     <thead className="table-light">

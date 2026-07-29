@@ -3,6 +3,9 @@ package com.gigforce.identity.service;
 import com.gigforce.identity.dto.UserResponseDTO;
 import org.springframework.data.domain.Page;
 
+import java.util.List;
+import java.util.Map;
+
 public interface UserService {
     UserResponseDTO getUserById(String id);
 
@@ -17,4 +20,6 @@ public interface UserService {
     UserResponseDTO deactivateUser(String id);
 
     UserResponseDTO activateUser(String id);
+
+    List<Map<String, Object>> getDistinctOrgUnits();
 }

@@ -1,11 +1,10 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Alert, Button, Form, Spinner, InputGroup } from 'react-bootstrap';
+import { Alert, Spinner } from 'react-bootstrap';
 import AuthLayout from './AuthLayout';
 import { resetPassword } from '../../services/authService';
 import { getErrorMessage, getFieldErrors } from '../../services/errorUtils';
 
-// Same @Pattern rule enforced server-side on ResetPasswordRequestDTO.newPassword.
 const PASSWORD_PATTERN = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]{8,}$/;
 
 function ResetPasswordPage() {
@@ -66,6 +65,7 @@ function ResetPasswordPage() {
   return (
     <AuthLayout
       title="Reset your password"
+      subtitle="Enter the reset code sent to your email to define a new password."
       footer={
         <>
           <Link to="/forgot-password">Need a new code?</Link>{' '}
@@ -74,95 +74,100 @@ function ResetPasswordPage() {
       }
     >
       {formError && (
-        <Alert variant="danger" className="py-2">
+        <Alert variant="danger" className="enterprise-alert enterprise-alert-danger py-2">
           {formError}
         </Alert>
       )}
       {successMessage && (
-        <Alert variant="success" className="py-2">
+        <Alert variant="success" className="enterprise-alert enterprise-alert-success py-2">
           {successMessage}
         </Alert>
       )}
 
-      <Form onSubmit={handleSubmit} noValidate>
-        <Form.Group className="mb-3" controlId="resetToken">
-          <Form.Label className="uppercase-label">
+      <form onSubmit={handleSubmit} noValidate>
+        <div className="enterprise-form-group">
+          <label className="enterprise-form-label" htmlFor="resetToken">
             Reset Code <span className="text-danger">*</span>
-          </Form.Label>
-          <Form.Control
+          </label>
+          <input
+            id="resetToken"
             name="token"
+            className={`enterprise-form-control ${fieldErrors.token ? 'is-invalid' : ''}`}
             value={form.token}
             onChange={handleChange}
-            isInvalid={!!fieldErrors.token}
-            placeholder="Enter reset code"
+            placeholder="ENTER RESET CODE"
             maxLength={7}
             style={{ textTransform: 'uppercase', letterSpacing: '0.15em' }}
+            required
           />
-          <Form.Control.Feedback type="invalid">{fieldErrors.token}</Form.Control.Feedback>
-        </Form.Group>
+          {fieldErrors.token && <div className="invalid-feedback text-danger mt-1 small">{fieldErrors.token}</div>}
+        </div>
 
-        <Form.Group className="mb-3" controlId="resetNewPassword">
-          <Form.Label className="uppercase-label">
+        <div className="enterprise-form-group">
+          <label className="enterprise-form-label" htmlFor="resetNewPassword">
             New Password <span className="text-danger">*</span>
-          </Form.Label>
-          <InputGroup hasValidation>
-            <Form.Control
+          </label>
+          <div className="position-relative">
+            <input
+              id="resetNewPassword"
               type={showNewPassword ? 'text' : 'password'}
               name="newPassword"
+              className={`enterprise-form-control pe-5 ${fieldErrors.newPassword ? 'is-invalid' : ''}`}
               value={form.newPassword}
               onChange={handleChange}
-              isInvalid={!!fieldErrors.newPassword}
-              placeholder="Enter password"
+              placeholder="New password"
               autoComplete="new-password"
+              required
             />
-            <Button
-              variant="outline-secondary"
+            <button
+              type="button"
+              className="position-absolute end-0 top-50 translate-middle-y border-0 bg-transparent pe-3 text-muted"
               onClick={() => setShowNewPassword(!showNewPassword)}
-              style={{ borderLeft: 'none' }}
+              style={{ outline: 'none' }}
             >
-              {showNewPassword ? '🙈' : '👁️'}
-            </Button>
-            <Form.Control.Feedback type="invalid">{fieldErrors.newPassword}</Form.Control.Feedback>
-          </InputGroup>
+              <i className={`bi ${showNewPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
+            </button>
+          </div>
+          {fieldErrors.newPassword && <div className="invalid-feedback text-danger mt-1 small d-block">{fieldErrors.newPassword}</div>}
           {!fieldErrors.newPassword && (
-            <Form.Text className="text-muted">
-              Min 8 characters with uppercase, lowercase, a digit, and a special character
-              (@$!%*?&amp;#).
-            </Form.Text>
+            <span className="text-muted d-block mt-1" style={{ fontSize: '11px' }}>
+              At least 8 chars with an uppercase, lowercase, digit, and special char (@$!%*?&#).
+            </span>
           )}
-        </Form.Group>
+        </div>
 
-        <Form.Group className="mb-3" controlId="resetConfirmPassword">
-          <Form.Label className="uppercase-label">
+        <div className="enterprise-form-group">
+          <label className="enterprise-form-label" htmlFor="resetConfirmPassword">
             Confirm New Password <span className="text-danger">*</span>
-          </Form.Label>
-          <InputGroup hasValidation>
-            <Form.Control
+          </label>
+          <div className="position-relative">
+            <input
+              id="resetConfirmPassword"
               type={showConfirmNewPassword ? 'text' : 'password'}
               name="confirmPassword"
+              className={`enterprise-form-control pe-5 ${fieldErrors.confirmPassword ? 'is-invalid' : ''}`}
               value={form.confirmPassword}
               onChange={handleChange}
-              isInvalid={!!fieldErrors.confirmPassword}
-              placeholder="Enter password again"
+              placeholder="Confirm new password"
               autoComplete="new-password"
+              required
             />
-            <Button
-              variant="outline-secondary"
+            <button
+              type="button"
+              className="position-absolute end-0 top-50 translate-middle-y border-0 bg-transparent pe-3 text-muted"
               onClick={() => setShowConfirmNewPassword(!showConfirmNewPassword)}
-              style={{ borderLeft: 'none' }}
+              style={{ outline: 'none' }}
             >
-              {showConfirmNewPassword ? '🙈' : '👁️'}
-            </Button>
-            <Form.Control.Feedback type="invalid">
-              {fieldErrors.confirmPassword}
-            </Form.Control.Feedback>
-          </InputGroup>
-        </Form.Group>
+              <i className={`bi ${showConfirmNewPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
+            </button>
+          </div>
+          {fieldErrors.confirmPassword && <div className="invalid-feedback text-danger mt-1 small d-block">{fieldErrors.confirmPassword}</div>}
+        </div>
 
-        <Button type="submit" className="btn-gf-primary w-100 py-2" disabled={submitting}>
+        <button type="submit" className="btn-enterprise-primary w-100 py-2 justify-content-center mt-2" disabled={submitting}>
           {submitting ? <Spinner animation="border" size="sm" /> : 'Reset Password'}
-        </Button>
-      </Form>
+        </button>
+      </form>
     </AuthLayout>
   );
 }

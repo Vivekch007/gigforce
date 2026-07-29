@@ -92,7 +92,7 @@ function Profile() {
                     <Form.Label className="uppercase-label">Personal Email</Form.Label>
                     <Form.Control
                       type="email"
-                      disabled={!editing}
+                      disabled
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     />

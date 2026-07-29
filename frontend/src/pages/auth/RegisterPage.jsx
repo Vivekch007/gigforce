@@ -1,13 +1,10 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Alert, Button, Col, Form, Row, Spinner, InputGroup } from 'react-bootstrap';
+import { Alert, Spinner } from 'react-bootstrap';
 import AuthLayout from './AuthLayout';
 import { register as registerUser } from '../../services/authService';
 import { getErrorMessage, getFieldErrors } from '../../services/errorUtils';
 
-// Mirrors com.gigforce.identity.enums.UserRole, minus ADMIN - the backend
-// (AuthServiceImpl.register) rejects ADMIN self-registration outright, and
-// admin accounts are provisioned separately, so it's not offered here.
 const ROLE_OPTIONS = [
   { value: 'CONTRACTOR', label: 'Contractor' },
   { value: 'HIRING_MANAGER', label: 'Hiring Manager' },
@@ -16,10 +13,8 @@ const ROLE_OPTIONS = [
   { value: 'FINANCE', label: 'Finance' },
 ];
 
-// Roles for which an Org Unit ID is required at registration.
 const ORG_UNIT_REQUIRED_ROLES = ['HIRING_MANAGER', 'FINANCE', 'VENDOR', 'VENDOR_MANAGER'];
 
-// Exact patterns enforced server-side by RegisterRequestDTO's @Pattern annotations.
 const PASSWORD_PATTERN = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]{8,}$/;
 const PHONE_PATTERN = /^\d{10}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -121,162 +116,174 @@ function RegisterPage() {
       }
     >
       {formError && (
-        <Alert variant="danger" className="py-2">
+        <Alert variant="danger" className="enterprise-alert enterprise-alert-danger py-2">
           {formError}
         </Alert>
       )}
       {successMessage && (
-        <Alert variant="success" className="py-2">
+        <Alert variant="success" className="enterprise-alert enterprise-alert-success py-2">
           {successMessage}
         </Alert>
       )}
 
-      <Form onSubmit={handleSubmit} noValidate>
-        <Form.Group className="mb-3" controlId="registerName">
-          <Form.Label className="uppercase-label">
+      <form onSubmit={handleSubmit} noValidate className="d-flex flex-column gap-3">
+        {/* Full Name */}
+        <div className="enterprise-form-group m-0">
+          <label className="enterprise-form-label" htmlFor="registerName">
             Full Name <span className="text-danger">*</span>
-          </Form.Label>
-          <Form.Control
+          </label>
+          <input
+            id="registerName"
             name="name"
+            className={`enterprise-form-control ${fieldErrors.name ? 'is-invalid' : ''}`}
             value={form.name}
             onChange={handleChange}
-            isInvalid={!!fieldErrors.name}
-            placeholder="Enter full name"
+            placeholder="John Doe"
+            required
           />
-          <Form.Control.Feedback type="invalid">{fieldErrors.name}</Form.Control.Feedback>
-        </Form.Group>
+          {fieldErrors.name && <div className="invalid-feedback text-danger mt-1 small">{fieldErrors.name}</div>}
+        </div>
 
-        <Form.Group className="mb-3" controlId="registerEmail">
-          <Form.Label className="uppercase-label">
+        {/* Email Address */}
+        <div className="enterprise-form-group m-0">
+          <label className="enterprise-form-label" htmlFor="registerEmail">
             Email Address <span className="text-danger">*</span>
-          </Form.Label>
-          <Form.Control
+          </label>
+          <input
+            id="registerEmail"
             type="email"
             name="email"
+            className={`enterprise-form-control ${fieldErrors.email ? 'is-invalid' : ''}`}
             value={form.email}
             onChange={handleChange}
-            isInvalid={!!fieldErrors.email}
-            placeholder="Enter email address"
+            placeholder="name@company.com"
             autoComplete="email"
+            required
           />
-          <Form.Control.Feedback type="invalid">{fieldErrors.email}</Form.Control.Feedback>
-        </Form.Group>
+          {fieldErrors.email && <div className="invalid-feedback text-danger mt-1 small">{fieldErrors.email}</div>}
+        </div>
 
-        <Row>
-          <Col xs={12} md={6}>
-            <Form.Group className="mb-3" controlId="registerPhone">
-              <Form.Label className="uppercase-label">
-                Phone <span className="text-danger">*</span>
-              </Form.Label>
-              <Form.Control
-                name="phone"
-                value={form.phone}
-                onChange={handleChange}
-                isInvalid={!!fieldErrors.phone}
-                placeholder="Enter phone number"
-                maxLength={10}
-                inputMode="numeric"
-              />
-              <Form.Control.Feedback type="invalid">{fieldErrors.phone}</Form.Control.Feedback>
-            </Form.Group>
-          </Col>
-          <Col xs={12} md={6}>
-            <Form.Group className="mb-3" controlId="registerOrgUnitId">
-              <Form.Label className="uppercase-label">
-                Org Unit ID {isOrgUnitRequired && <span className="text-danger">*</span>}
-              </Form.Label>
-              <Form.Control
-                name="orgUnitId"
-                value={form.orgUnitId}
-                onChange={handleChange}
-                isInvalid={!!fieldErrors.orgUnitId}
-                placeholder="Enter org unit ID"
-              />
-              <Form.Control.Feedback type="invalid">{fieldErrors.orgUnitId}</Form.Control.Feedback>
-              {!isOrgUnitRequired && !fieldErrors.orgUnitId && (
-                <Form.Text className="text-muted">Optional for this role.</Form.Text>
-              )}
-            </Form.Group>
-          </Col>
-        </Row>
+        {/* Phone */}
+        <div className="enterprise-form-group m-0">
+          <label className="enterprise-form-label" htmlFor="registerPhone">
+            Phone <span className="text-danger">*</span>
+          </label>
+          <input
+            id="registerPhone"
+            name="phone"
+            className={`enterprise-form-control ${fieldErrors.phone ? 'is-invalid' : ''}`}
+            value={form.phone}
+            onChange={handleChange}
+            placeholder="10 digit number"
+            maxLength={10}
+            inputMode="numeric"
+            required
+          />
+          {fieldErrors.phone && <div className="invalid-feedback text-danger mt-1 small">{fieldErrors.phone}</div>}
+        </div>
 
-        <Form.Group className="mb-3" controlId="registerRole">
-          <Form.Label className="uppercase-label">
+        {/* Org Unit ID */}
+        <div className="enterprise-form-group m-0">
+          <label className="enterprise-form-label" htmlFor="registerOrgUnitId">
+            Org Unit ID {isOrgUnitRequired && <span className="text-danger">*</span>}
+          </label>
+          <input
+            id="registerOrgUnitId"
+            name="orgUnitId"
+            className={`enterprise-form-control ${fieldErrors.orgUnitId ? 'is-invalid' : ''}`}
+            value={form.orgUnitId}
+            onChange={handleChange}
+            placeholder="e.g. ORG1"
+          />
+          {fieldErrors.orgUnitId && <div className="invalid-feedback text-danger mt-1 small">{fieldErrors.orgUnitId}</div>}
+          {!isOrgUnitRequired && !fieldErrors.orgUnitId && (
+            <span className="text-muted d-block mt-1" style={{ fontSize: '11px' }}>Optional for this role.</span>
+          )}
+        </div>
+
+        {/* Role Select Dropdown */}
+        <div className="enterprise-form-group m-0">
+          <label className="enterprise-form-label" htmlFor="registerRole">
             Role <span className="text-danger">*</span>
-          </Form.Label>
-          <Form.Select name="role" value={form.role} onChange={handleChange}>
+          </label>
+          <select id="registerRole" name="role" className="enterprise-form-select" value={form.role} onChange={handleChange}>
             {ROLE_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>
             ))}
-          </Form.Select>
-        </Form.Group>
+          </select>
+        </div>
 
-        <Row>
-          <Col xs={12} md={6}>
-            <Form.Group className="mb-3" controlId="registerPassword">
-              <Form.Label className="uppercase-label">
-                Password <span className="text-danger">*</span>
-              </Form.Label>
-              <InputGroup hasValidation>
-                <Form.Control
-                  type={showPassword ? 'text' : 'password'}
-                  name="password"
-                  value={form.password}
-                  onChange={handleChange}
-                  isInvalid={!!fieldErrors.password}
-                  placeholder="Enter password"
-                  autoComplete="new-password"
-                />
-                <Button
-                  variant="outline-secondary"
-                  onClick={() => setShowPassword(!showPassword)}
-                  style={{ borderLeft: 'none' }}
-                >
-                  {showPassword ? '🙈' : '👁️'}
-                </Button>
-                <Form.Control.Feedback type="invalid">{fieldErrors.password}</Form.Control.Feedback>
-              </InputGroup>
-            </Form.Group>
-          </Col>
-          <Col xs={12} md={6}>
-            <Form.Group className="mb-3" controlId="registerConfirmPassword">
-              <Form.Label className="uppercase-label">
-                Confirm Password <span className="text-danger">*</span>
-              </Form.Label>
-              <InputGroup hasValidation>
-                <Form.Control
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  name="confirmPassword"
-                  value={form.confirmPassword}
-                  onChange={handleChange}
-                  isInvalid={!!fieldErrors.confirmPassword}
-                  placeholder="Enter password again"
-                  autoComplete="new-password"
-                />
-                <Button
-                  variant="outline-secondary"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  style={{ borderLeft: 'none' }}
-                >
-                  {showConfirmPassword ? '🙈' : '👁️'}
-                </Button>
-                <Form.Control.Feedback type="invalid">{fieldErrors.confirmPassword}</Form.Control.Feedback>
-              </InputGroup>
-            </Form.Group>
-          </Col>
-        </Row>
+        {/* Password */}
+        <div className="enterprise-form-group m-0">
+          <label className="enterprise-form-label" htmlFor="registerPassword">
+            Password <span className="text-danger">*</span>
+          </label>
+          <div className="position-relative">
+            <input
+              id="registerPassword"
+              type={showPassword ? 'text' : 'password'}
+              name="password"
+              className={`enterprise-form-control pe-5 ${fieldErrors.password ? 'is-invalid' : ''}`}
+              value={form.password}
+              onChange={handleChange}
+              placeholder="••••••••"
+              autoComplete="new-password"
+              required
+            />
+            <button
+              type="button"
+              className="position-absolute end-0 top-50 translate-middle-y border-0 bg-transparent pe-3 text-muted"
+              onClick={() => setShowPassword(!showPassword)}
+              style={{ outline: 'none' }}
+            >
+              <i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
+            </button>
+          </div>
+          {fieldErrors.password && <div className="invalid-feedback text-danger mt-1 small d-block">{fieldErrors.password}</div>}
+        </div>
+
+        {/* Confirm Password */}
+        <div className="enterprise-form-group m-0">
+          <label className="enterprise-form-label" htmlFor="registerConfirmPassword">
+            Confirm Password <span className="text-danger">*</span>
+          </label>
+          <div className="position-relative">
+            <input
+              id="registerConfirmPassword"
+              type={showConfirmPassword ? 'text' : 'password'}
+              name="confirmPassword"
+              className={`enterprise-form-control pe-5 ${fieldErrors.confirmPassword ? 'is-invalid' : ''}`}
+              value={form.confirmPassword}
+              onChange={handleChange}
+              placeholder="••••••••"
+              autoComplete="new-password"
+              required
+            />
+            <button
+              type="button"
+              className="position-absolute end-0 top-50 translate-middle-y border-0 bg-transparent pe-3 text-muted"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              style={{ outline: 'none' }}
+            >
+              <i className={`bi ${showConfirmPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
+            </button>
+          </div>
+          {fieldErrors.confirmPassword && <div className="invalid-feedback text-danger mt-1 small d-block">{fieldErrors.confirmPassword}</div>}
+        </div>
+
         {!fieldErrors.password && !fieldErrors.confirmPassword && (
-          <Form.Text className="text-muted d-block mb-3" style={{ marginTop: '-0.75rem' }}>
-            Min 8 characters with uppercase, lowercase, a digit, and a special character (@$!%*?&amp;#).
-          </Form.Text>
+          <span className="text-muted d-block" style={{ fontSize: '11px', marginTop: '-4px' }}>
+            At least 8 chars with an uppercase, lowercase, digit, and special char (@$!%*?&#).
+          </span>
         )}
 
-        <Button type="submit" className="btn-gf-primary w-100 py-2" disabled={submitting}>
+        {/* Submit Button */}
+        <button type="submit" className="btn-enterprise-primary w-100 py-2 justify-content-center mt-2" disabled={submitting}>
           {submitting ? <Spinner animation="border" size="sm" /> : 'Create Account'}
-        </Button>
-      </Form>
+        </button>
+      </form>
     </AuthLayout>
   );
 }

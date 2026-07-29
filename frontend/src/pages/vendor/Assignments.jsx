@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Card, Table, Button, Alert, Modal, Form } from 'react-bootstrap';
+import { Card, Form, Modal, Alert } from 'react-bootstrap';
 import { getAssignments, getAssignmentDetails, requestAssignmentExtension } from '../../services/vendorAssignmentService';
 import { getErrorMessage } from '../../services/errorUtils';
+import { useToast } from '../../context/ToastContext';
 
 // Reusable components
 import AssignmentDrawer from '../../components/vendor/AssignmentDrawer';
-import LoadingSpinner from '../../components/vendor/LoadingSpinner';
+import Loader from '../../components/Loader';
+import Table from '../../components/Table';
 
 function Assignments() {
   const [searchParams] = useSearchParams();
@@ -14,7 +16,7 @@ function Assignments() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const { showToast } = useToast();
 
   // Assignments state
   const [assignments, setAssignments] = useState([]);
@@ -55,6 +57,7 @@ function Assignments() {
       setShowDrawer(true);
     } catch (err) {
       setError(getErrorMessage(err));
+      showToast(getErrorMessage(err), 'error');
     }
   };
 
@@ -68,13 +71,13 @@ function Assignments() {
   const handleRequestExtension = async () => {
     if (!newEndDate) {
       setError('Please select a target extension end date.');
+      showToast('Please select a target extension end date.', 'warning');
       return;
     }
 
     try {
       setSubmittingExt(true);
       setError('');
-      setSuccess('');
 
       const payload = {
         effectiveDate: new Date().toISOString().split('T')[0],
@@ -83,11 +86,12 @@ function Assignments() {
       };
 
       await requestAssignmentExtension(extAsn.id, payload);
-      setSuccess(`Extension amendment request submitted for contractor: ${extAsn.contractorName}!`);
+      showToast(`Extension amendment request submitted for contractor: ${extAsn.contractorName}!`, 'success');
       setShowExtensionModal(false);
       loadAssignments();
     } catch (err) {
       setError(getErrorMessage(err));
+      showToast(getErrorMessage(err), 'error');
     } finally {
       setSubmittingExt(false);
     }
@@ -108,66 +112,47 @@ function Assignments() {
     <div className="container-fluid">
       {/* Header */}
       <div className="mb-4">
-        <h2 className="fw-black text-slate-800 mb-0">Assignments Tracker</h2>
-        <p className="text-muted small mt-1 mb-0">Track active contractor placements, review SOW agreements, and request contract extensions.</p>
+        <h1 className="page-title mb-1">Assignments Tracker</h1>
+        <p className="muted-text">Track active contractor placements, review SOW agreements, and request contract extensions.</p>
       </div>
 
-      {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
-      {success && <Alert variant="success" className="mb-4" onClose={() => setSuccess('')} dismissible>{success}</Alert>}
+      {error && <Alert variant="danger" className="enterprise-alert enterprise-alert-danger mb-4">{error}</Alert>}
 
       {loading ? (
-        <LoadingSpinner message="Retrieving placements..." />
+        <Loader message="Retrieving placements..." />
       ) : filteredAssignments.length > 0 ? (
-        <Card className="gf-card p-4 border-0">
-          <div className="table-responsive">
-            <Table className="table table-hover align-middle mb-0">
-              <thead className="table-light">
-                <tr>
-                  <th>Assignment ID</th>
-                  <th>Contractor</th>
-                  <th>Client</th>
-                  <th>Job Title</th>
-                  <th>Start Date</th>
-                  <th>End Date</th>
-                  <th>Status</th>
-                  <th className="text-end">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredAssignments.map(a => (
-                  <tr key={a.id}>
-                    <td className="fw-bold">{a.id}</td>
-                    <td>{a.contractorName}</td>
-                    <td>{a.clientName || 'Partner Client'}</td>
-                    <td>{a.requisitionTitle || 'Specialist'}</td>
-                    <td>{a.startDate}</td>
-                    <td>{a.endDate || 'Ongoing'}</td>
-                    <td>
-                      <span className={`gf-badge badge-${a.status === 'ACTIVE' ? 'approved' : 'rejected'}`}>
-                        {a.status}
-                      </span>
-                    </td>
-                    <td className="text-end">
-                      <div className="d-flex gap-2 justify-content-end">
-                        <Button size="sm" variant="outline-primary" onClick={() => openDrawer(a.id)}>
-                          View Agreement
-                        </Button>
-                        {a.status === 'ACTIVE' && (
-                          <Button size="sm" className="btn-gf-primary" onClick={() => openExtensionModal(a)}>
-                            Request Extension
-                          </Button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </Table>
-          </div>
-        </Card>
+        <Table headers={['Assignment ID', 'Contractor', 'Client', 'Job Title', 'Start Date', 'End Date', 'Status', 'Actions']}>
+          {filteredAssignments.map(a => (
+            <tr key={a.id}>
+              <td className="fw-bold">{a.id}</td>
+              <td className="fw-semibold text-dark">{a.contractorName}</td>
+              <td>{a.clientName || 'Partner Client'}</td>
+              <td>{a.requisitionTitle || 'Specialist'}</td>
+              <td>{a.startDate}</td>
+              <td>{a.endDate || 'Ongoing'}</td>
+              <td>
+                <span className={`status-pill ${a.status === 'ACTIVE' ? 'success' : 'secondary'}`}>
+                  {a.status}
+                </span>
+              </td>
+              <td>
+                <div className="d-flex gap-2 justify-content-start">
+                  <button className="btn-enterprise-secondary py-1 px-3" onClick={() => openDrawer(a.id)}>
+                    View Agreement
+                  </button>
+                  {a.status === 'ACTIVE' && (
+                    <button className="btn-enterprise-primary py-1 px-3" onClick={() => openExtensionModal(a)}>
+                      Request Extension
+                    </button>
+                  )}
+                </div>
+              </td>
+            </tr>
+          ))}
+        </Table>
       ) : (
-        <div className="text-center py-5 gf-card bg-white border-0">
-          <span className="fs-1">📋</span>
+        <div className="text-center py-5 gf-card bg-white border-0" style={{ borderRadius: 'var(--gf-radius)', boxShadow: 'var(--gf-shadow)' }}>
+          <i className="bi bi-clipboard-check fs-1 text-muted"></i>
           <p className="text-muted small mt-2 mb-0">No placements or active assignments found.</p>
         </div>
       )}
@@ -176,34 +161,36 @@ function Assignments() {
       <AssignmentDrawer show={showDrawer} onHide={() => setShowDrawer(false)} assignment={selectedAsn} />
 
       {/* Extension request modal */}
-      <Modal show={showExtensionModal} onHide={() => setShowExtensionModal(false)} centered>
-        <Modal.Header closeButton>
-          <Modal.Title className="fw-bold text-slate-800">Request Assignment Extension</Modal.Title>
+      <Modal show={showExtensionModal} onHide={() => setShowExtensionModal(false)} centered className="enterprise-modal-content">
+        <Modal.Header closeButton className="enterprise-modal-header">
+          <Modal.Title className="fw-bold text-dark">Request Assignment Extension</Modal.Title>
         </Modal.Header>
-        <Modal.Body className="p-4">
+        <Modal.Body className="enterprise-modal-body">
           {extAsn && (
             <div>
               <div className="mb-3">
-                <span className="text-muted text-xs">Contractor</span>
-                <h6 className="fw-bold text-slate-800">{extAsn.contractorName}</h6>
+                <span className="text-muted small">Contractor</span>
+                <h6 className="fw-bold text-dark mt-1">{extAsn.contractorName}</h6>
                 <span className="text-muted small">Current End Date: {extAsn.endDate || 'Ongoing'}</span>
               </div>
 
               <Form.Group className="mb-3" controlId="newEndDate">
-                <Form.Label className="uppercase-label">Proposed New End Date</Form.Label>
+                <Form.Label className="enterprise-form-label">Proposed New End Date</Form.Label>
                 <Form.Control
                   type="date"
                   required
+                  className="enterprise-form-control"
                   value={newEndDate}
                   onChange={(e) => setNewEndDate(e.target.value)}
                 />
               </Form.Group>
 
               <Form.Group className="mb-3" controlId="remarks">
-                <Form.Label className="uppercase-label">Extension Rationale</Form.Label>
+                <Form.Label className="enterprise-form-label">Extension Rationale</Form.Label>
                 <Form.Control
                   as="textarea"
                   rows={3}
+                  className="enterprise-form-control"
                   placeholder="e.g. Project timeline extended. Continuing deliverables."
                   value={extRemarks}
                   onChange={(e) => setExtRemarks(e.target.value)}
@@ -212,11 +199,11 @@ function Assignments() {
             </div>
           )}
         </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowExtensionModal(false)}>Cancel</Button>
-          <Button className="btn-gf-primary" onClick={handleRequestExtension} disabled={submittingExt}>
+        <Modal.Footer className="enterprise-modal-footer">
+          <button className="btn-enterprise-secondary" onClick={() => setShowExtensionModal(false)}>Cancel</button>
+          <button className="btn-enterprise-primary" onClick={handleRequestExtension} disabled={submittingExt}>
             {submittingExt ? 'Submitting...' : 'Request Extension'}
-          </Button>
+          </button>
         </Modal.Footer>
       </Modal>
     </div>

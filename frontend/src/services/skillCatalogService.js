@@ -12,8 +12,6 @@ export function createSkill(payload) {
   return apiClient.post('/skills', payload).then((res) => res.data);
 }
 
-
-
-
-
-
+export function deleteSkill(id) {
+  return apiClient.delete(`/skills/${id}`).then((res) => res.data);
+}

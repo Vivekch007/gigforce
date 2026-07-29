@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Table, Button, Form, Modal, Row, Col, Alert, Spinner, Pagination, Offcanvas } from 'react-bootstrap';
+import { Form, Modal, Row, Col, Alert, Spinner, Pagination, Offcanvas } from 'react-bootstrap';
 import { getAssignments, getAssignmentDetails, completeAssignment, requestAmendment } from '../../services/managerAssignmentService';
 import { getErrorMessage } from '../../services/errorUtils';
+import Table from '../../components/Table';
+import Loader from '../../components/Loader';
 
 function Assignments() {
   const [searchParams] = useSearchParams();
@@ -32,12 +34,10 @@ function Assignments() {
     remarks: '',
   });
   const [submittingAction, setSubmittingAction] = useState(false);
-
   const loadAssignments = async () => {
     try {
       setLoading(true);
       setError('');
-      
       const params = {
         page: currentPage,
         size: 10,
@@ -72,14 +72,14 @@ function Assignments() {
       const details = await getAssignmentDetails(asn.id);
       setSelectedAsn(details);
     } catch (err) {
-      console.error('Failed to load placement details', err);
+      console.error('Failed to load assignment details', err);
     } finally {
       setLoadingDetails(false);
     }
   };
 
   const handleCloseAssignment = async (id) => {
-    if (!window.confirm('Are you sure you want to close this placement assignment?')) return;
+    if (!window.confirm('Are you sure you want to close this assignment engagement?')) return;
     try {
       setError('');
       setSuccess('');
@@ -141,100 +141,85 @@ function Assignments() {
 
   return (
     <div className="container-fluid">
-      {/* Header */}
+      {/* Header (Renamed Contractor Placements to Assignments - User Request 1) */}
       <div className="mb-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
         <div>
-          <h2 className="fw-black text-slate-800 mb-0">Contractor Placements</h2>
-          <p className="text-muted small mt-1 mb-0">Track active contractor engagements, review statement of work (SOW) terms, and handle extensions.</p>
+          <h1 className="page-title mb-1">Assignments</h1>
+          <p className="muted-text">Track active contractor engagements, review statement of work (SOW) terms, and handle extensions.</p>
         </div>
         <div>
           <Form.Select 
             value={statusFilter} 
             onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(0); }}
-            style={{ width: '180px' }}
+            className="enterprise-form-select"
+            style={{ width: '220px' }}
           >
-            <option value="ALL">All Placements</option>
+            <option value="ALL">All Assignments</option>
             <option value="ACTIVE">Active</option>
+            <option value="EXTENDED">Extended</option>
             <option value="COMPLETED">Completed</option>
-            <option value="SUSPENDED">Suspended</option>
+            <option value="TERMINATED_EARLY">Terminated Early</option>
+            <option value="CANCELLED">Cancelled</option>
           </Form.Select>
         </div>
       </div>
 
-      {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
-      {success && <Alert variant="success" className="mb-4" onClose={() => setSuccess('')} dismissible>{success}</Alert>}
+      {error && <Alert variant="danger" className="enterprise-alert enterprise-alert-danger mb-4">{error}</Alert>}
+      {success && <Alert variant="success" className="enterprise-alert enterprise-alert-success mb-4" onClose={() => setSuccess('')} dismissible>{success}</Alert>}
 
       {loading ? (
-        <div className="text-center py-5">
-          <Spinner animation="border" variant="primary" />
-          <p className="text-muted small mt-2">Loading placement records...</p>
-        </div>
+        <Loader message="Loading assignment records..." />
       ) : (
-        <div className="gf-card p-0 border-0">
-          <div className="table-responsive">
-            <Table className="table table-hover align-middle mb-0">
-              <thead className="table-light">
-                <tr>
-                  <th>Assignment ID</th>
-                  <th>Contractor</th>
-                  <th>Job Title</th>
-                  <th>Engagement Period</th>
-                  <th>Agreed Rate</th>
-                  <th>Status</th>
-                  <th className="text-end">Actions</th>
+        <div>
+          {filteredAssignments.length > 0 ? (
+            <Table headers={['Assignment ID', 'Contractor', 'Job Title', 'Engagement Period', 'Agreed Rate', 'Status', 'Actions']}>
+              {filteredAssignments.map((asn) => (
+                <tr key={asn.id}>
+                  <td className="fw-bold">{asn.id}</td>
+                  <td className="fw-semibold text-dark">{asn.contractorName || 'Contractor'}</td>
+                  <td>{asn.requisitionTitle || 'Specialist'}</td>
+                  <td className="small">
+                    <span className="fw-medium">{asn.startDate}</span> to <span className="fw-medium">{asn.endDate}</span>
+                  </td>
+                  <td className="text-success fw-bold">₹{asn.agreedRatePerDay}/day</td>
+                  <td>
+                    <span className={`status-pill ${asn.status.toLowerCase() === 'active' || asn.status.toLowerCase() === 'extended' ? 'success' : 'secondary'}`}>
+                      {asn.status}
+                    </span>
+                  </td>
+                  <td>
+                    <div className="d-flex gap-2 justify-content-start">
+                      <button className="btn-enterprise-secondary py-1 px-3" onClick={() => viewAssignmentDetails(asn)}>
+                        View
+                      </button>
+                      
+                      {(asn.status === 'ACTIVE' || asn.status === 'EXTENDED') && (
+                        <>
+                          <button className="btn-enterprise-primary py-1 px-3" onClick={() => openExtendModal(asn)}>
+                            Extend
+                          </button>
+                          <button className="btn-enterprise-ghost text-danger py-1 px-3 border-0" onClick={() => handleCloseAssignment(asn.id)}>
+                            Close
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {filteredAssignments.length > 0 ? (
-                  filteredAssignments.map((asn) => (
-                    <tr key={asn.id}>
-                      <td className="fw-bold">{asn.id}</td>
-                      <td className="fw-semibold text-slate-800">{asn.contractorName || 'Contractor'}</td>
-                      <td>{asn.requisitionTitle || 'Specialist'}</td>
-                      <td className="small">
-                        <span className="fw-medium">{asn.startDate}</span> to <span className="fw-medium">{asn.endDate}</span>
-                      </td>
-                      <td className="text-green-600 fw-bold">${asn.agreedRatePerDay}/day</td>
-                      <td>
-                        <span className={`gf-badge badge-${asn.status.toLowerCase() === 'active' ? 'approved' : 'rejected'}`}>
-                          {asn.status}
-                        </span>
-                      </td>
-                      <td className="text-end">
-                        <div className="d-flex justify-content-end gap-1">
-                          <Button size="sm" variant="outline-primary" onClick={() => viewAssignmentDetails(asn)}>
-                            View
-                          </Button>
-                          
-                          {asn.status === 'ACTIVE' && (
-                            <>
-                              <Button size="sm" className="btn-gf-primary" onClick={() => openExtendModal(asn)}>
-                                Extend
-                              </Button>
-                              <Button size="sm" variant="outline-danger" onClick={() => handleCloseAssignment(asn.id)}>
-                                Close
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={7} className="text-center py-5 text-muted">
-                      No contractor placements logged.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
+              ))}
             </Table>
-          </div>
+          ) : (
+            <div className="enterprise-table-container p-5 text-center text-muted">
+              <i className="bi bi-journal-x fs-2"></i>
+              <p className="small mt-2 mb-0">No assignments found matching this criteria.</p>
+            </div>
+          )}
 
           {/* Pagination */}
           {pageMeta.totalPages > 1 && (
-            <div className="d-flex justify-content-center p-3">
-              <Pagination>
+            <div className="enterprise-pagination">
+              <span className="small text-muted">Page {currentPage + 1} of {pageMeta.totalPages}</span>
+              <Pagination className="m-0">
                 <Pagination.First onClick={() => setCurrentPage(0)} disabled={currentPage === 0} />
                 <Pagination.Prev onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))} disabled={currentPage === 0} />
                 {[...Array(pageMeta.totalPages)].map((_, i) => (
@@ -251,52 +236,52 @@ function Assignments() {
       )}
 
       {/* Assignment SOW Details Drawer */}
-      <Offcanvas show={showDrawer} onHide={() => setShowDrawer(false)} placement="end" style={{ width: '500px' }}>
-        <Offcanvas.Header closeButton className="border-bottom">
-          <Offcanvas.Title className="fw-bold text-slate-800">Statement of Work (SOW)</Offcanvas.Title>
+      <Offcanvas show={showDrawer} onHide={() => setShowDrawer(false)} placement="end" style={{ width: '500px' }} className="enterprise-modal-content">
+        <Offcanvas.Header closeButton className="border-bottom enterprise-modal-header">
+          <Offcanvas.Title className="fw-bold text-dark">Statement of Work (SOW)</Offcanvas.Title>
         </Offcanvas.Header>
-        <Offcanvas.Body>
+        <Offcanvas.Body className="enterprise-modal-body">
           {loadingDetails ? (
             <div className="text-center py-5">
               <Spinner animation="border" variant="primary" />
-              <p className="text-muted small">Loading SOW details...</p>
+              <p className="text-muted small mt-2">Loading SOW details...</p>
             </div>
           ) : selectedAsn ? (
             <div className="d-flex flex-column gap-3">
               <div className="bg-light p-3 rounded mb-2">
-                <div className="small text-muted font-bold text-uppercase">Contractor</div>
-                <h5 className="fw-bold text-slate-800 mb-0">{selectedAsn.contractorName}</h5>
+                <div className="small text-muted font-bold text-uppercase" style={{ fontSize: '10px' }}>Contractor</div>
+                <h5 className="fw-bold text-dark mb-0">{selectedAsn.contractorName}</h5>
                 <span className="text-muted small">Assignment Ref: {selectedAsn.id}</span>
               </div>
 
               <div>
-                <div className="small text-muted font-bold text-uppercase">Client Account / Org unit</div>
-                <div className="fw-semibold text-slate-800">{selectedAsn.orgUnitId === 'bu1' ? 'Engineering' : 'Corporate'}</div>
+                <div className="small text-muted font-bold text-uppercase" style={{ fontSize: '10px' }}>Client Account / Org unit</div>
+                <div className="fw-semibold text-dark">{selectedAsn.orgUnitId === 'bu1' ? 'Engineering' : 'Corporate'}</div>
               </div>
 
               <div>
-                <div className="small text-muted font-bold text-uppercase">Role Designation</div>
-                <div className="fw-semibold text-slate-800">{selectedAsn.requisitionTitle || 'Specialist'}</div>
+                <div className="small text-muted font-bold text-uppercase" style={{ fontSize: '10px' }}>Role Designation</div>
+                <div className="fw-semibold text-dark">{selectedAsn.requisitionTitle || 'Specialist'}</div>
               </div>
 
               <div>
-                <div className="small text-muted font-bold text-uppercase">Contract Period</div>
-                <div className="fw-semibold text-slate-800">{selectedAsn.startDate} to {selectedAsn.endDate}</div>
+                <div className="small text-muted font-bold text-uppercase" style={{ fontSize: '10px' }}>Contract Period</div>
+                <div className="fw-semibold text-dark">{selectedAsn.startDate} to {selectedAsn.endDate}</div>
               </div>
 
               <div>
-                <div className="small text-muted font-bold text-uppercase">Agreed Bill Rate</div>
-                <div className="fw-bold text-green-600 fs-5">${selectedAsn.agreedRatePerDay}/day</div>
+                <div className="small text-muted font-bold text-uppercase" style={{ fontSize: '10px' }}>Agreed Bill Rate</div>
+                <div className="fw-bold text-success fs-5">₹{selectedAsn.agreedRatePerDay}/day</div>
               </div>
 
               <div>
-                <div className="small text-muted font-bold text-uppercase">SOW reference number</div>
+                <div className="small text-muted font-bold text-uppercase" style={{ fontSize: '10px' }}>SOW reference number</div>
                 <div className="fw-mono text-slate-700 bg-light p-2 rounded small mt-1">{selectedAsn.sowReference || 'SOW-2026-9023-A'}</div>
               </div>
 
               <div>
-                <div className="small text-muted font-bold text-uppercase">Compliance status</div>
-                <span className="gf-badge badge-approved mt-1">COMPLIANT</span>
+                <div className="small text-muted font-bold text-uppercase" style={{ fontSize: '10px' }}>Compliance status</div>
+                <span className="status-pill success mt-1">COMPLIANT</span>
               </div>
             </div>
           ) : (
@@ -306,55 +291,58 @@ function Assignments() {
       </Offcanvas>
 
       {/* Extend Contract Modal */}
-      <Modal show={showExtendModal} onHide={() => setShowExtendModal(false)} centered>
-        <Modal.Header closeButton>
-          <Modal.Title className="fw-bold text-slate-800">Extend Contractor Placement</Modal.Title>
+      <Modal show={showExtendModal} onHide={() => setShowExtendModal(false)} centered className="enterprise-modal-content">
+        <Modal.Header closeButton className="enterprise-modal-header">
+          <Modal.Title className="fw-bold text-dark">Extend Assignment</Modal.Title>
         </Modal.Header>
-        <Modal.Body>
+        <Modal.Body className="enterprise-modal-body">
           <Form onSubmit={(e) => e.preventDefault()}>
             <Row className="g-3">
               <Col md={12}>
                 <Form.Group controlId="extEffDate">
-                  <Form.Label className="uppercase-label">Effective Date <span className="text-danger">*</span></Form.Label>
+                  <Form.Label className="enterprise-form-label">Effective Date <span className="text-danger">*</span></Form.Label>
                   <Form.Control 
                     type="date"
                     value={extendForm.effectiveDate}
                     onChange={(e) => setExtendForm(prev => ({ ...prev, effectiveDate: e.target.value }))}
+                    className="enterprise-form-control"
                     required
                   />
                 </Form.Group>
               </Col>
               <Col md={12}>
                 <Form.Group controlId="extNewEnd">
-                  <Form.Label className="uppercase-label">New End Date <span className="text-danger">*</span></Form.Label>
+                  <Form.Label className="enterprise-form-label">New End Date <span className="text-danger">*</span></Form.Label>
                   <Form.Control 
                     type="date"
                     value={extendForm.newValue}
                     onChange={(e) => setExtendForm(prev => ({ ...prev, newValue: e.target.value }))}
+                    className="enterprise-form-control"
                     required
                   />
                 </Form.Group>
               </Col>
               <Col md={12}>
                 <Form.Group controlId="extRemarks">
-                  <Form.Label className="uppercase-label">Extension Justification / Remarks</Form.Label>
+                  <Form.Label className="enterprise-form-label">Extension Justification / Remarks</Form.Label>
                   <Form.Control 
                     as="textarea"
                     rows={3}
                     placeholder="Provide justification notes for extension..."
                     value={extendForm.remarks}
                     onChange={(e) => setExtendForm(prev => ({ ...prev, remarks: e.target.value }))}
+                    className="enterprise-form-control"
                   />
                 </Form.Group>
               </Col>
             </Row>
           </Form>
         </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowExtendModal(false)}>Cancel</Button>
-          <Button className="btn-gf-primary" onClick={handleExtendSubmit} disabled={submittingAction}>
+        <Modal.Footer className="enterprise-modal-footer">
+          <button className="btn-enterprise-secondary" onClick={() => setShowExtendModal(false)}>Cancel</button>
+          <button className="btn-enterprise-primary" onClick={handleExtendSubmit} disabled={submittingAction}>
             {submittingAction ? <Spinner animation="border" size="sm" /> : 'Request Extension'}
-          </Button>
+          </button>
         </Modal.Footer>
       </Modal>
     </div>

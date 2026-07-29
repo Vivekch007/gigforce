@@ -19,6 +19,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/v1/users")
 @Tag(name = "User Management", description = "Endpoints for managing users, updating profile details, and controlling account statuses")
@@ -101,5 +104,13 @@ public class UserController {
     public ResponseEntity<UserResponseDTO> activateUser(@PathVariable String id) {
         UserResponseDTO activatedUser = userService.activateUser(id);
         return ResponseEntity.ok(activatedUser);
+    }
+
+    @GetMapping("/org-units")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Get distinct organization units", description = "Returns all unique org unit IDs from user records, with user counts. Restricted to ADMIN.")
+    public ResponseEntity<List<Map<String, Object>>> getOrgUnits() {
+        List<Map<String, Object>> orgUnits = userService.getDistinctOrgUnits();
+        return ResponseEntity.ok(orgUnits);
     }
 }

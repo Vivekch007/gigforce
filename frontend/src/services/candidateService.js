@@ -1,49 +1,6 @@
 // --- Candidate Database Service (Simulated Service Wrapper with Mock DB) ---
 
-let mockCandidates = [
-  {
-    id: 'cand1',
-    name: 'Michael Johnson',
-    email: 'michael.j@example.com',
-    phone: '555-0199',
-    skills: 'Java, Spring Boot, MySQL',
-    experience: 5,
-    noticePeriod: '30 Days',
-    currentCompany: 'Tech Solutions Inc',
-    preferredLocation: 'Remote',
-    availability: 'AVAILABLE',
-    rate: 450,
-    resumeUrl: 'resume_michael_johnson.pdf',
-  },
-  {
-    id: 'cand2',
-    name: 'Emily Davis',
-    email: 'emily.davis@example.com',
-    phone: '555-0188',
-    skills: 'React, TypeScript, Bootstrap',
-    experience: 4,
-    noticePeriod: 'Immediate',
-    currentCompany: 'Creative Web Corp',
-    preferredLocation: 'On-Site',
-    availability: 'AVAILABLE',
-    rate: 400,
-    resumeUrl: 'resume_emily_davis.pdf',
-  },
-  {
-    id: 'cand3',
-    name: 'David Wilson',
-    email: 'david.wilson@example.com',
-    phone: '555-0177',
-    skills: 'AWS, Kubernetes, Terraform',
-    experience: 6,
-    noticePeriod: '15 Days',
-    currentCompany: 'CloudOps Systems',
-    preferredLocation: 'Hybrid',
-    availability: 'AVAILABLE',
-    rate: 550,
-    resumeUrl: '',
-  }
-];
+let mockCandidates = [];
 
 export function getCandidates() {
   return new Promise((resolve) => {

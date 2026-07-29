@@ -33,6 +33,7 @@ import LeaveApprovals from './pages/manager/LeaveApprovals';
 import InvoiceCreation from './pages/manager/InvoiceCreation';
 import ManagerReports from './pages/manager/Reports';
 import ManagerNotifications from './pages/manager/Notifications';
+import ManagerProfile from './pages/manager/Profile';
 
 // Vendor Workspace Components
 import VendorLayout from './layouts/VendorLayout';
@@ -69,14 +70,16 @@ import AdminAuditLogs from './pages/admin/AuditLogs';
 import AdminSystemSettings from './pages/admin/SystemSettings';
 import AdminNotifications from './pages/admin/Notifications';
 import AdminProfile from './pages/admin/Profile';
+import { ToastProvider } from './context/ToastContext';
 
 function App() {
   return (
     <Router>
       <AuthProvider>
-        <Routes>
-          {/* Public routes */}
-          <Route path="/" element={<LandingPage />} />
+        <ToastProvider>
+          <Routes>
+            {/* Public routes */}
+            <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -109,6 +112,7 @@ function App() {
               <Route path="/manager/invoice-creation" element={<InvoiceCreation />} />
               <Route path="/manager/reports" element={<ManagerReports />} />
               <Route path="/manager/notifications" element={<ManagerNotifications />} />
+              <Route path="/manager/profile" element={<ManagerProfile />} />
             </Route>
           </Route>
 
@@ -155,6 +159,7 @@ function App() {
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </ToastProvider>
       </AuthProvider>
     </Router>
   );

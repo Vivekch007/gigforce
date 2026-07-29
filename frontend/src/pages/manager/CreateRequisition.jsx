@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Form, Button, Card, Row, Col, Alert, Spinner } from 'react-bootstrap';
-import { createRequisition, publishRequisition } from '../../services/requisitionService';
+import { createRequisition, publishRequisition, getDepartments } from '../../services/requisitionService';
 import { getSkills } from '../../services/contractorService';
 import { getErrorMessage } from '../../services/errorUtils';
 
@@ -10,9 +10,13 @@ function CreateRequisition() {
   
   const [skills, setSkills] = useState([]);
   const [loadingSkills, setLoadingSkills] = useState(true);
+  const [departments, setDepartments] = useState([]);
+  const [loadingDepartments, setLoadingDepartments] = useState(true);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // Modern Toast State
+  const [toast, setToast] = useState({ show: false, message: '' });
 
   // Form State
   const [form, setForm] = useState({
@@ -26,25 +30,41 @@ function CreateRequisition() {
     experienceLevel: 'MID',
     startDate: '',
     duration: '6 Months',
-    businessUnitId: 'bu1', // Default business unit
+    businessUnitId: '', // loaded dynamically
+    customDepartment: '', // used only if businessUnitId === 'OTHER'
   });
 
   useEffect(() => {
-    const loadSkills = async () => {
+    const loadMetadata = async () => {
       try {
         setLoadingSkills(true);
-        const data = await getSkills();
-        setSkills(data || []);
-        if (data && data.length > 0) {
-          setForm(prev => ({ ...prev, requiredSkillId: data[0].id }));
+        setLoadingDepartments(true);
+        
+        const [skillsData, deptsData] = await Promise.all([
+          getSkills(),
+          getDepartments()
+        ]);
+
+        setSkills(skillsData || []);
+        setDepartments(deptsData || []);
+
+        const initialForm = {};
+        if (skillsData && skillsData.length > 0) {
+          initialForm.requiredSkillId = skillsData[0].id;
         }
+        if (deptsData && deptsData.length > 0) {
+          initialForm.businessUnitId = deptsData[0];
+        }
+        
+        setForm(prev => ({ ...prev, ...initialForm }));
       } catch (err) {
-        setError('Failed to load skills catalog.');
+        setError('Failed to load requisitions metadata catalog.');
       } finally {
         setLoadingSkills(false);
+        setLoadingDepartments(false);
       }
     };
-    loadSkills();
+    loadMetadata();
   }, []);
 
   const handleChange = (e) => {
@@ -67,12 +87,14 @@ function CreateRequisition() {
     if (form.maxHourlyRate <= 0) return 'Budget rate must be greater than 0.';
     if (form.quantity < 1) return 'Positions required must be at least 1.';
     if (!form.startDate) return 'Start Date is required.';
+    if (form.businessUnitId === 'OTHER' && !form.customDepartment.trim()) {
+      return 'Please specify the department name.';
+    }
     return '';
   };
 
   const handleAction = async (publishImmediate) => {
     setError('');
-    setSuccess('');
     const validationError = validateForm();
     if (validationError) {
       setError(validationError);
@@ -81,18 +103,27 @@ function CreateRequisition() {
 
     try {
       setSubmitting(true);
-      const newReq = await createRequisition(form);
+      
+      // Prepare payload - only send customDepartment if department is OTHER
+      const payload = {
+        ...form,
+        customDepartment: form.businessUnitId === 'OTHER' ? form.customDepartment.trim() : null
+      };
+
+      const newReq = await createRequisition(payload);
       
       if (publishImmediate) {
         await publishRequisition(newReq.id);
-        setSuccess(`Requisition ${newReq.id} created and published successfully!`);
-      } else {
-        setSuccess(`Requisition ${newReq.id} saved as draft.`);
       }
 
+      // Trigger Toast Success Notification
+      setToast({ show: true, message: 'Job Requisition submitted successfully.' });
+
+      // Dismiss toast & navigate after 3 seconds
       setTimeout(() => {
+        setToast({ show: false, message: '' });
         navigate('/manager/requisitions');
-      }, 1500);
+      }, 3000);
 
     } catch (err) {
       setError(getErrorMessage(err));
@@ -101,16 +132,68 @@ function CreateRequisition() {
     }
   };
 
+  const formatDepartmentName = (dept) => {
+    if (!dept) return '';
+    return dept.charAt(0).toUpperCase() + dept.slice(1).toLowerCase();
+  };
+
   return (
-    <div className="container-fluid">
+    <div className="container-fluid position-relative">
+      <style>{`
+        @keyframes slideIn {
+          from {
+            transform: translateY(-20px);
+            opacity: 0;
+          }
+          to {
+            transform: translateY(0);
+            opacity: 1;
+          }
+        }
+      `}</style>
+
+      {/* Modern Enterprise Success Toast */}
+      {toast.show && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: '24px',
+            right: '24px',
+            zIndex: 9999,
+            minWidth: '340px',
+            backgroundColor: 'rgba(22, 163, 74, 0.06)',
+            border: '1px solid rgba(22, 163, 74, 0.16)',
+            borderRadius: '12px',
+            padding: '16px 20px',
+            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.05)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px',
+            animation: 'slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+          }}
+        >
+          <div className="d-flex align-items-center gap-2">
+            <i className="bi bi-check-circle-fill text-success" style={{ fontSize: '1.25rem' }}></i>
+            <span className="text-dark small fw-semibold">{toast.message}</span>
+          </div>
+          <button 
+            onClick={() => setToast({ show: false, message: '' })}
+            className="btn-enterprise-ghost p-1 border-0 bg-transparent text-muted"
+            style={{ fontSize: '1.2rem', lineHeight: 1 }}
+          >
+            &times;
+          </button>
+        </div>
+      )}
+
       {/* Page Header */}
       <div className="mb-4">
         <h2 className="fw-black text-slate-800 mb-0">Create Job Requisition</h2>
         <p className="text-muted small mt-1 mb-0">Publish talent demands to vendor networks or save for internal planning.</p>
       </div>
 
-      {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
-      {success && <Alert variant="success" className="mb-4">{success}</Alert>}
+      {error && <Alert variant="danger" className="enterprise-alert enterprise-alert-danger mb-4">{error}</Alert>}
 
       <Card className="gf-card p-4 border-0">
         <Form onSubmit={(e) => e.preventDefault()}>
@@ -131,23 +214,46 @@ function CreateRequisition() {
               </Form.Group>
             </Col>
 
-            {/* Business Unit / Client */}
+            {/* Department (Exposing backend BusinessUnits enum) */}
             <Col md={6}>
               <Form.Group controlId="businessUnitId">
-                <Form.Label className="uppercase-label">Business Unit / Department <span className="text-danger">*</span></Form.Label>
-                <Form.Select
-                  name="businessUnitId"
-                  value={form.businessUnitId}
-                  onChange={handleChange}
-                  disabled={submitting}
-                >
-                  <option value="bu1">Engineering</option>
-                  <option value="bu2">Product Operations</option>
-                  <option value="bu3">Corporate Finance</option>
-                  <option value="bu4">Infrastructure & Cloud</option>
-                </Form.Select>
+                <Form.Label className="uppercase-label">Department <span className="text-danger">*</span></Form.Label>
+                {loadingDepartments ? (
+                  <div className="py-2"><Spinner animation="border" size="sm" /></div>
+                ) : (
+                  <Form.Select
+                    name="businessUnitId"
+                    value={form.businessUnitId}
+                    onChange={handleChange}
+                    disabled={submitting}
+                  >
+                    {departments.map((dept) => (
+                      <option key={dept} value={dept}>
+                        {formatDepartmentName(dept)}
+                      </option>
+                    ))}
+                  </Form.Select>
+                )}
               </Form.Group>
             </Col>
+
+            {/* Custom Department name specification (Visible only when OTHER is selected) */}
+            {form.businessUnitId === 'OTHER' && (
+              <Col md={12}>
+                <Form.Group controlId="customDepartment">
+                  <Form.Label className="uppercase-label text-warning">Specify Department <span className="text-danger">*</span></Form.Label>
+                  <Form.Control
+                    type="text"
+                    name="customDepartment"
+                    value={form.customDepartment}
+                    onChange={handleChange}
+                    placeholder="e.g. Research & Development"
+                    disabled={submitting}
+                    required
+                  />
+                </Form.Group>
+              </Col>
+            )}
 
             {/* Required Skill */}
             <Col md={4}>
@@ -324,7 +430,7 @@ function CreateRequisition() {
               {submitting ? <Spinner animation="border" size="sm" /> : 'Save Draft'}
             </Button>
             <Button
-              className="btn-gf-primary py-2 px-4"
+              className="btn-enterprise-primary py-2 px-4"
               onClick={() => handleAction(true)}
               disabled={submitting}
             >

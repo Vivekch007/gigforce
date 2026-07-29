@@ -27,27 +27,23 @@ function Users() {
     try {
       setLoading(true);
       setError('');
-      
-      // Try to fetch real users from backend, fallback to mock users list
-      const paginatedResponse = await getUsers({ page: 0, size: 20 }).catch(() => null);
-      
-      if (paginatedResponse && paginatedResponse.content && paginatedResponse.content.length > 0) {
+
+      const paginatedResponse = await getUsers({ page: 0, size: 50 });
+
+      if (paginatedResponse && paginatedResponse.content) {
         // Map backend UserResponseDTO to list structure
         setUsersList(paginatedResponse.content.map(u => ({
-          id: u.id || u.UserID,
+          id: u.userId,
           employeeId: u.userId || 'N/A',
-
           name: u.name,
           email: u.email,
           role: u.role || 'CONTRACTOR',
-          department: u.department || 'Software Development',
-          organization: u.organization || 'GigForce HQ',
+          department: u.department || '',
+          organization: u.orgUnitId || 'N/A',
           status: u.status || 'ACTIVE',
-
         })));
       } else {
-        const mockList = await getMockUsersList();
-        setUsersList(mockList);
+        setUsersList([]);
       }
     } catch (err) {
       setError(getErrorMessage(err));
@@ -68,13 +64,13 @@ function Users() {
       setSuccess('');
 
       if (currentStatus === 'ACTIVE') {
-        await suspendUser(id).catch(() => null);
-        setUsersList(prev => prev.map(u => u.employeeId === id ? { ...u, status: 'SUSPENDED' } : u));
-        setSuccess(`User account ${id} successfully suspended.`);
+        await suspendUser(id);
+        setUsersList(prev => prev.map(u => u.id === id ? { ...u, status: 'SUSPENDED' } : u));
+        setSuccess(`User account suspended successfully.`);
       } else {
-        await activateUser(id).catch(() => null);
-        setUsersList(prev => prev.map(u => u.employeeId === id ? { ...u, status: 'ACTIVE' } : u));
-        setSuccess(`User account ${id} successfully reactivated.`);
+        await activateUser(id);
+        setUsersList(prev => prev.map(u => u.id === id ? { ...u, status: 'ACTIVE' } : u));
+        setSuccess(`User account reactivated successfully.`);
       }
     } catch (err) {
       setError(getErrorMessage(err));
@@ -145,7 +141,7 @@ function Users() {
                     <td>{u.email}</td>
                     <td>{u.organization}</td>
                     <td>
-                      <span className="badge bg-dark text-slate-700 border small">
+                      <span className="badge bg-white text-dark border small">
                         {u.role}
                       </span>
                     </td>
@@ -160,7 +156,7 @@ function Users() {
                         <Button 
                           size="sm" 
                           variant={u.status === 'ACTIVE' ? 'outline-danger' : 'outline-success'} 
-                          onClick={() => handleToggleStatus(u.employeeId, u.status)}
+                          onClick={() => handleToggleStatus(u.id, u.status)}
                         >
                           {u.status === 'ACTIVE' ? 'Suspend' : 'Reactivate'}
                         </Button>
@@ -174,8 +170,10 @@ function Users() {
         </Card>
       ) : (
         <div className="text-center py-5 gf-card bg-white border-0">
-          <span className="fs-1">👤</span>
-          <p className="text-muted small mt-2 mb-0">No matching system users found.</p>
+          <div className="mb-3 text-muted">
+            <i className="bi bi-people" style={{ fontSize: '2.5rem' }}></i>
+          </div>
+          <p className="text-muted small mb-0">No matching system users found.</p>
         </div>
       )}
 

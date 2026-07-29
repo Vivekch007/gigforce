@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Alert, Button, Form, Spinner, InputGroup } from 'react-bootstrap';
+import { Alert, Spinner } from 'react-bootstrap';
 import AuthLayout from './AuthLayout';
 import { useAuth } from '../../hooks/useAuth';
 import { getDashboardPathForRole } from '../../utils/roleRouting';
@@ -48,61 +48,67 @@ function LoginPage() {
       }
     >
       {error && (
-        <Alert variant="danger" className="py-2">
+        <Alert variant="danger" className="enterprise-alert enterprise-alert-danger py-2">
           {error}
         </Alert>
       )}
 
-      <Form onSubmit={handleSubmit} noValidate>
-        <Form.Group className="mb-3" controlId="loginEmail">
-          <Form.Label className="uppercase-label">
+      <form onSubmit={handleSubmit} noValidate>
+        <div className="enterprise-form-group">
+          <label className="enterprise-form-label" htmlFor="loginEmail">
             Email Address <span className="text-danger">*</span>
-          </Form.Label>
-          <Form.Control
+          </label>
+          <input
+            id="loginEmail"
             type="email"
             name="email"
+            className="enterprise-form-control"
             value={form.email}
             onChange={handleChange}
-            placeholder="Enter email address"
+            placeholder="name@company.com"
             autoComplete="username"
             required
           />
-        </Form.Group>
+        </div>
 
-        <Form.Group className="mb-2" controlId="loginPassword">
-          <Form.Label className="uppercase-label">
+        <div className="enterprise-form-group mb-1">
+          <label className="enterprise-form-label" htmlFor="loginPassword">
             Password <span className="text-danger">*</span>
-          </Form.Label>
-          <InputGroup>
-            <Form.Control
+          </label>
+          <div className="position-relative">
+            <input
+              id="loginPassword"
               type={showPassword ? 'text' : 'password'}
               name="password"
+              className="enterprise-form-control pe-5"
               value={form.password}
               onChange={handleChange}
-              placeholder="Enter password"
+              placeholder="••••••••"
               autoComplete="current-password"
               required
             />
-            <Button
-              variant="outline-secondary"
+            <button
+              type="button"
+              className="position-absolute end-0 top-50 translate-middle-y border-0 bg-transparent pe-3 text-muted"
               onClick={() => setShowPassword(!showPassword)}
-              style={{ borderLeft: 'none' }}
+              style={{ outline: 'none' }}
+              title={showPassword ? 'Hide password' : 'Show password'}
             >
-              {showPassword ? '🙈' : '👁️'}
-            </Button>
-          </InputGroup>
-        </Form.Group>
+              <i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
+            </button>
+          </div>
+        </div>
 
-        <div className="d-flex justify-content-end mb-3">
-          <Link to="/forgot-password" className="small text-decoration-none">
+        <div className="d-flex justify-content-end mb-4">
+          <Link to="/forgot-password" style={{ fontSize: '13px', fontWeight: '500' }}>
             Forgot password?
           </Link>
         </div>
 
-        <Button type="submit" className="btn-gf-primary w-100 py-2" disabled={submitting}>
+        <button type="submit" className="btn-enterprise-primary w-100 py-2 justify-content-center" disabled={submitting}>
           {submitting ? <Spinner animation="border" size="sm" /> : 'Sign In'}
-        </Button>
-      </Form>
+        </button>
+      </form>
     </AuthLayout>
   );
 }

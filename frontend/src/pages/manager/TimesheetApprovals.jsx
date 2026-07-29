@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Table, Button, Form, Modal, Alert, Spinner } from 'react-bootstrap';
+import { Form, Modal, Alert, Spinner } from 'react-bootstrap';
 import { getTimesheetsToApprove, getTimesheetDetails, approveTimesheet, rejectTimesheet } from '../../services/approvalService';
 import { getErrorMessage } from '../../services/errorUtils';
+import Table from '../../components/Table';
+import Loader from '../../components/Loader';
 
 function TimesheetApprovals() {
   const [searchParams] = useSearchParams();
@@ -26,6 +28,9 @@ function TimesheetApprovals() {
   const [actionType, setActionType] = useState('APPROVE'); // APPROVE or REJECT
   const [remarksText, setRemarksText] = useState('');
   const [submittingAction, setSubmittingAction] = useState(false);
+
+  const [loadingDetails, setLoadingDetails] = useState(false);
+  const [detailsError, setDetailsError] = useState('');
 
   const loadTimesheets = async () => {
     try {
@@ -53,11 +58,16 @@ function TimesheetApprovals() {
   const viewDetails = async (ts) => {
     try {
       setSelectedTs(ts);
+      setDetailsError('');
+      setLoadingDetails(true);
       setShowViewModal(true);
+
       const details = await getTimesheetDetails(ts.id);
       setSelectedTs(details);
     } catch (err) {
-      console.error('Failed to load timesheet details', err);
+      setDetailsError(getErrorMessage(err));
+    } finally {
+      setLoadingDetails(false);
     }
   };
 
@@ -95,6 +105,17 @@ function TimesheetApprovals() {
     }
   };
 
+  // Helper to parse day of week from date (User Request 3 & 6)
+  const getDayOfWeek = (dateStr) => {
+    if (!dateStr) return '';
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('en-US', { weekday: 'long' });
+    } catch (e) {
+      return '';
+    }
+  };
+
   // Local filter
   const filteredTimesheets = timesheets.filter((item) => {
     if (!searchQuery.trim()) return true;
@@ -111,13 +132,14 @@ function TimesheetApprovals() {
       {/* Header */}
       <div className="mb-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
         <div>
-          <h2 className="fw-black text-slate-800 mb-0">Timesheet Approvals</h2>
-          <p className="text-muted small mt-1 mb-0">Sign off on contractor weekly log sheets or return them for edits.</p>
+          <h1 className="page-title mb-1">Timesheet Approvals</h1>
+          <p className="muted-text">Sign off on contractor weekly log sheets or return them for edits.</p>
         </div>
         <div>
           <Form.Select 
             value={statusFilter} 
             onChange={(e) => setStatusFilter(e.target.value)}
+            className="enterprise-form-select"
             style={{ width: '200px' }}
           >
             <option value="ALL">All Statuses</option>
@@ -128,104 +150,98 @@ function TimesheetApprovals() {
         </div>
       </div>
 
-      {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
-      {success && <Alert variant="success" className="mb-4" onClose={() => setSuccess('')} dismissible>{success}</Alert>}
+      {error && <Alert variant="danger" className="enterprise-alert enterprise-alert-danger mb-4">{error}</Alert>}
+      {success && <Alert variant="success" className="enterprise-alert enterprise-alert-success mb-4" onClose={() => setSuccess('')} dismissible>{success}</Alert>}
 
       {loading ? (
-        <div className="text-center py-5">
-          <Spinner animation="border" variant="primary" />
-          <p className="text-muted small mt-2">Loading submitted logs...</p>
-        </div>
+        <Loader message="Loading submitted logs..." />
       ) : (
-        <div className="gf-card p-0 border-0">
-          <div className="table-responsive">
-            <Table className="table table-hover align-middle mb-0">
-              <thead className="table-light">
-                <tr>
-                  <th>Timesheet ID</th>
-                  <th>Contractor</th>
-                  <th>Week Period</th>
-                  <th>Regular Hours</th>
-                  <th>Overtime</th>
-                  <th>Billable Cost</th>
-                  <th>Status</th>
-                  <th className="text-end">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredTimesheets.length > 0 ? (
-                  filteredTimesheets.map((ts) => (
-                    <tr key={ts.id}>
-                      <td className="fw-bold">{ts.id}</td>
-                      <td className="fw-semibold text-slate-800">{ts.contractorName || 'Contractor'}</td>
-                      <td className="small">
-                        <span className="fw-medium">{ts.startDate}</span> to <span className="fw-medium">{ts.endDate}</span>
-                      </td>
-                      <td className="fw-semibold">{ts.totalHoursLogged || 0.00} hrs</td>
-                      <td>{ts.totalOvertimeHoursLogged || 0.00} hrs</td>
-                      <td className="text-green-600 fw-bold">${parseFloat(ts.billableAmount || '0').toLocaleString()}</td>
-                      <td>
-                        <span className={`gf-badge badge-${ts.status.toLowerCase() === 'approved' ? 'approved' : ts.status.toLowerCase() === 'submitted' ? 'pending' : 'rejected'}`}>
-                          {ts.status}
-                        </span>
-                      </td>
-                      <td className="text-end">
-                        <div className="d-flex justify-content-end gap-1">
-                          <Button size="sm" variant="outline-primary" onClick={() => viewDetails(ts)}>
-                            View Logs
-                          </Button>
-                          
-                          {ts.status === 'SUBMITTED' && (
-                            <>
-                              <Button size="sm" variant="outline-success" onClick={() => openActionModal(ts, 'APPROVE')}>
-                                Approve
-                              </Button>
-                              <Button size="sm" variant="outline-danger" onClick={() => openActionModal(ts, 'REJECT')}>
-                                Reject
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={8} className="text-center py-5 text-muted">
-                      No timesheets found in this status filter.
+        <div>
+          {filteredTimesheets.length > 0 ? (
+            <Table headers={['Timesheet ID', 'Contractor', 'Week Period', 'Regular Hours', 'Overtime', 'Billable Cost', 'Status', 'Actions']}>
+              {filteredTimesheets.map((ts) => {
+                const start = ts.weekStartDate || ts.startDate || '';
+                const end = ts.weekEndDate || ts.endDate || '';
+                const regularHours = ts.hoursLogged ?? ts.totalHoursLogged ?? '0.00';
+                const overtimeHours = ts.overtimeLogged ?? ts.totalOvertimeHoursLogged ?? '0.00';
+
+                return (
+                  <tr key={ts.id}>
+                    <td className="fw-bold">{ts.id}</td>
+                    <td className="fw-semibold text-dark">{ts.contractorName || 'Contractor'}</td>
+                    <td className="small">
+                      <span className="fw-medium">{start}</span> to <span className="fw-medium">{end}</span>
+                    </td>
+                    <td className="fw-semibold">{regularHours} hrs</td>
+                    <td>{overtimeHours} hrs</td>
+                    <td className="text-success fw-bold">₹{parseFloat(ts.billableAmount || '0').toLocaleString('en-IN')}</td>
+                    <td>
+                      <span className={`status-pill ${ts.status.toLowerCase() === 'approved' ? 'success' : ts.status.toLowerCase() === 'submitted' ? 'pending' : 'rejected'}`}>
+                        {ts.status}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="d-flex gap-2 justify-content-start">
+                        <button className="btn-enterprise-secondary py-1 px-3" onClick={() => viewDetails(ts)}>
+                          View Logs
+                        </button>
+                        
+                        {ts.status === 'SUBMITTED' && (
+                          <>
+                            <button className="btn-enterprise-primary py-1 px-3" onClick={() => openActionModal(ts, 'APPROVE')}>
+                              Approve
+                            </button>
+                            <button className="btn-enterprise-ghost text-danger py-1 px-3 border-0" onClick={() => openActionModal(ts, 'REJECT')}>
+                              Reject
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
-                )}
-              </tbody>
+                );
+              })}
             </Table>
-          </div>
+          ) : (
+            <div className="enterprise-table-container p-5 text-center text-muted">
+              <i className="bi bi-clock fs-2"></i>
+              <p className="small mt-2 mb-0">No timesheets found in this status filter.</p>
+            </div>
+          )}
         </div>
       )}
 
       {/* Daily Breakdown Modal */}
-      <Modal show={showViewModal} onHide={() => setShowViewModal(false)} size="lg" centered>
-        <Modal.Header closeButton>
-          <Modal.Title className="fw-bold text-slate-800">Weekly Log Breakdown ({selectedTs?.id})</Modal.Title>
+      <Modal show={showViewModal} onHide={() => setShowViewModal(false)} size="lg" centered className="enterprise-modal-content">
+        <Modal.Header closeButton className="enterprise-modal-header">
+          <Modal.Title className="fw-bold text-dark">Weekly Log Breakdown ({selectedTs?.id})</Modal.Title>
         </Modal.Header>
-        <Modal.Body>
-          {selectedTs ? (
+        <Modal.Body className="enterprise-modal-body">
+          {detailsError && <Alert variant="danger" className="enterprise-alert enterprise-alert-danger">{detailsError}</Alert>}
+
+          {loadingDetails ? (
+            <div className="text-center py-4">
+              <Spinner animation="border" variant="primary" size="sm" />
+              <p className="text-muted small mt-2">Fetching breakdown sheets...</p>
+            </div>
+          ) : selectedTs ? (
             <div>
               <div className="bg-light p-3 rounded mb-3">
                 <div className="row g-2">
                   <Col sm={6}>
-                    <div className="small text-muted text-uppercase font-bold">Contractor</div>
-                    <div className="fw-bold text-slate-800">{selectedTs.contractorName}</div>
+                    <div className="small text-muted text-uppercase font-bold" style={{ fontSize: '10px' }}>Contractor</div>
+                    <div className="fw-bold text-dark">{selectedTs.contractorName}</div>
                   </Col>
                   <Col sm={6}>
-                    <div className="small text-muted text-uppercase font-bold">Assignment Reference</div>
-                    <div className="fw-semibold text-slate-800">{selectedTs.assignmentId}</div>
+                    <div className="small text-muted text-uppercase font-bold" style={{ fontSize: '10px' }}>Assignment Reference</div>
+                    <div className="fw-semibold text-dark">{selectedTs.assignmentId}</div>
                   </Col>
                 </div>
               </div>
 
-              <h6 className="fw-bold text-slate-700 mb-2">Daily Entries</h6>
+              <h6 className="fw-bold text-dark mb-2">Daily Entries</h6>
               <div className="table-responsive">
-                <Table className="table table-bordered table-sm align-middle text-center">
+                <table className="enterprise-table table-bordered table-sm align-middle text-center" style={{ width: '100%' }}>
                   <thead className="table-light">
                     <tr>
                       <th>Day</th>
@@ -239,33 +255,33 @@ function TimesheetApprovals() {
                     {selectedTs.lines && selectedTs.lines.length > 0 ? (
                       selectedTs.lines.map((line) => (
                         <tr key={line.id}>
-                          <td className="fw-semibold">{line.dayOfWeek}</td>
+                          <td className="fw-semibold">{line.dayOfWeek || getDayOfWeek(line.workDate)}</td>
                           <td>{line.workDate}</td>
-                          <td className="fw-bold text-slate-800">{line.hoursWorked}</td>
+                          <td className="fw-bold text-dark">{line.hoursWorked}</td>
                           <td>{line.overtimeHours}</td>
-                          <td className="text-start small text-slate-600">{line.activityDescription || '—'}</td>
+                          <td className="text-start small text-muted">{line.activityDesc || line.activityDescription || '—'}</td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={5} className="text-muted">No daily records logged.</td>
+                        <td colSpan={5} className="text-muted text-center py-3">No logs available for this timesheet.</td>
                       </tr>
                     )}
                   </tbody>
-                </Table>
+                </table>
               </div>
 
               {selectedTs.comments && selectedTs.comments.length > 0 && (
                 <div className="mt-3">
-                  <h6 className="fw-bold text-slate-700">Workflow Comments Thread</h6>
+                  <h6 className="fw-bold text-dark">Workflow Comments Thread</h6>
                   <div className="d-flex flex-column gap-2 bg-light p-3 rounded">
                     {selectedTs.comments.map((comment) => (
                       <div key={comment.id} className="small border-bottom pb-2">
                         <div className="d-flex justify-content-between">
-                          <span className="fw-bold text-slate-700">{comment.authorName} ({comment.authorRole})</span>
+                          <span className="fw-bold text-dark">{comment.authorName} ({comment.authorRole})</span>
                           <span className="text-muted text-xs">{new Date(comment.createdAt).toLocaleDateString()}</span>
                         </div>
-                        <p className="mb-0 text-slate-600 mt-1">{comment.remarks}</p>
+                        <p className="mb-0 text-muted mt-1">{comment.remarks}</p>
                       </div>
                     ))}
                   </div>
@@ -273,24 +289,24 @@ function TimesheetApprovals() {
               )}
             </div>
           ) : (
-            <div className="text-center py-4"><Spinner animation="border" /></div>
+            <p className="text-muted text-center py-4">No logs available for this timesheet.</p>
           )}
         </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowViewModal(false)}>Close</Button>
+        <Modal.Footer className="enterprise-modal-footer">
+          <button className="btn-enterprise-secondary" onClick={() => setShowViewModal(false)}>Close</button>
         </Modal.Footer>
       </Modal>
 
       {/* Action Modal (Approve or Reject with comments) */}
-      <Modal show={showActionModal} onHide={() => setShowActionModal(false)} centered>
-        <Modal.Header closeButton>
-          <Modal.Title className="fw-bold text-slate-800">
+      <Modal show={showActionModal} onHide={() => setShowActionModal(false)} centered className="enterprise-modal-content">
+        <Modal.Header closeButton className="enterprise-modal-header">
+          <Modal.Title className="fw-bold text-dark">
             {actionType === 'APPROVE' ? 'Approve Timesheet' : 'Reject Timesheet'}
           </Modal.Title>
         </Modal.Header>
-        <Modal.Body>
+        <Modal.Body className="enterprise-modal-body">
           <Form.Group controlId="approvalComments">
-            <Form.Label className="uppercase-label">
+            <Form.Label className="enterprise-form-label">
               {actionType === 'APPROVE' ? 'Remarks (Optional)' : 'Rejection Reason (Mandatory) *'}
             </Form.Label>
             <Form.Control
@@ -299,19 +315,20 @@ function TimesheetApprovals() {
               placeholder={actionType === 'APPROVE' ? 'Add signing remarks...' : 'Provide details on what needs correction...'}
               value={remarksText}
               onChange={(e) => setRemarksText(e.target.value)}
+              className="enterprise-form-control"
               required={actionType === 'REJECT'}
             />
           </Form.Group>
         </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowActionModal(false)}>Cancel</Button>
-          <Button
-            variant={actionType === 'APPROVE' ? 'success' : 'danger'}
+        <Modal.Footer className="enterprise-modal-footer">
+          <button className="btn-enterprise-secondary" onClick={() => setShowActionModal(false)}>Cancel</button>
+          <button
+            className={actionType === 'APPROVE' ? 'btn-enterprise-primary' : 'btn-enterprise-primary bg-danger border-danger'}
             onClick={handleActionSubmit}
             disabled={submittingAction}
           >
             {submittingAction ? <Spinner animation="border" size="sm" /> : actionType === 'APPROVE' ? 'Approve Logs' : 'Reject Logs'}
-          </Button>
+          </button>
         </Modal.Footer>
       </Modal>
     </div>

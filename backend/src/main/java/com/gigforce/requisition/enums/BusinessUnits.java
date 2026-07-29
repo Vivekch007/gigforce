@@ -1,8 +1,8 @@
 package com.gigforce.requisition.enums;
 
 public enum BusinessUnits {
-    IT,
+    ENGINEERING,
     FINANCE,
-    HIRING_MANAGER,
-    HR
+    CLOUD,
+    OTHER
 }

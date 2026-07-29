@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Table, Button, Form, Modal, Alert, Spinner, Row, Col } from 'react-bootstrap';
+import { Form, Modal, Alert, Spinner, Row, Col } from 'react-bootstrap';
 import { getLeavesToApprove, approveLeave, rejectLeave, getLeaveDetails } from '../../services/approvalService';
 import { getErrorMessage } from '../../services/errorUtils';
+import Table from '../../components/Table';
+import Loader from '../../components/Loader';
+import KpiCard from '../../components/KpiCard';
 
 function LeaveApprovals() {
   const [searchParams] = useSearchParams();
@@ -155,207 +158,253 @@ function LeaveApprovals() {
   return (
     <div className="container-fluid">
       {/* Header */}
-      <div className="mb-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
-        <div>
-          <h2 className="fw-black text-slate-800 mb-0">Leave Approvals</h2>
-          <p className="text-muted small mt-1 mb-0">Review leave requests, verify balance constraints, and sign off on absences.</p>
-        </div>
-        <div>
-          <Form.Select 
-            value={statusFilter} 
-            onChange={(e) => setStatusFilter(e.target.value)}
-            style={{ width: '200px' }}
-          >
-            <option value="ALL">All Requests</option>
-            <option value="PENDING">Pending Review</option>
-            <option value="APPROVED">Approved</option>
-            <option value="REJECTED">Rejected</option>
-          </Form.Select>
-        </div>
+      <div className="mb-4">
+        <h1 className="page-title mb-1">Leave Approvals</h1>
+        <p className="muted-text">Review leave requests, verify balance constraints, and sign off on contractor absences.</p>
       </div>
 
-      {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
-      {success && <Alert variant="success" className="mb-4" onClose={() => setSuccess('')} dismissible>{success}</Alert>}
+      {/* Leave Summary Tab Bar */}
+      <div 
+        className="d-flex border-bottom mb-4" 
+        style={{ borderColor: 'var(--gf-border)' }}
+      >
+        <button
+          onClick={() => setStatusFilter('ALL')}
+          className="pb-3 px-3 bg-transparent border-0 position-relative small"
+          style={{
+            fontWeight: statusFilter === 'ALL' ? '600' : '500',
+            color: statusFilter === 'ALL' ? 'var(--gf-primary)' : 'var(--gf-muted)',
+            transition: 'all 0.2s ease',
+            outline: 'none',
+            fontSize: '14px'
+          }}
+        >
+          All ({leaves.length})
+          {statusFilter === 'ALL' && (
+            <div 
+              style={{
+                position: 'absolute',
+                bottom: '-1px',
+                left: '0',
+                right: '0',
+                height: '2px',
+                backgroundColor: 'var(--gf-primary)'
+              }}
+            />
+          )}
+        </button>
 
-      {/* Summary Cards */}
-      <div className="row g-3 mb-4">
-        <div className="col-md-3">
-          <div className="gf-card mb-0 p-3 h-100 bg-white border-start border-4 border-warning">
-            <span className="text-uppercase text-muted font-bold small" style={{ fontSize: '0.65rem' }}>Pending Requests</span>
-            <h3 className="fw-black text-amber-600 mt-1 mb-0">{summary.pending}</h3>
-          </div>
-        </div>
+        <button
+          onClick={() => setStatusFilter('PENDING')}
+          className="pb-3 px-3 bg-transparent border-0 position-relative small"
+          style={{
+            fontWeight: statusFilter === 'PENDING' ? '600' : '500',
+            color: statusFilter === 'PENDING' ? 'var(--gf-primary)' : 'var(--gf-muted)',
+            transition: 'all 0.2s ease',
+            outline: 'none',
+            fontSize: '14px'
+          }}
+        >
+          Pending ({summary.pending})
+          {statusFilter === 'PENDING' && (
+            <div 
+              style={{
+                position: 'absolute',
+                bottom: '-1px',
+                left: '0',
+                right: '0',
+                height: '2px',
+                backgroundColor: 'var(--gf-primary)'
+              }}
+            />
+          )}
+        </button>
 
-        <div className="col-md-3">
-          <div className="gf-card mb-0 p-3 h-100 bg-white border-start border-4 border-success">
-            <span className="text-uppercase text-muted font-bold small" style={{ fontSize: '0.65rem' }}>Approved</span>
-            <h3 className="fw-black text-green-600 mt-1 mb-0">{summary.approved}</h3>
-          </div>
-        </div>
+        <button
+          onClick={() => setStatusFilter('APPROVED')}
+          className="pb-3 px-3 bg-transparent border-0 position-relative small"
+          style={{
+            fontWeight: statusFilter === 'APPROVED' ? '600' : '500',
+            color: statusFilter === 'APPROVED' ? 'var(--gf-primary)' : 'var(--gf-muted)',
+            transition: 'all 0.2s ease',
+            outline: 'none',
+            fontSize: '14px'
+          }}
+        >
+          Approved ({summary.approved})
+          {statusFilter === 'APPROVED' && (
+            <div 
+              style={{
+                position: 'absolute',
+                bottom: '-1px',
+                left: '0',
+                right: '0',
+                height: '2px',
+                backgroundColor: 'var(--gf-primary)'
+              }}
+            />
+          )}
+        </button>
 
-        <div className="col-md-3">
-          <div className="gf-card mb-0 p-3 h-100 bg-white border-start border-4 border-danger">
-            <span className="text-uppercase text-muted font-bold small" style={{ fontSize: '0.65rem' }}>Rejected</span>
-            <h3 className="fw-black text-red-600 mt-1 mb-0">{summary.rejected}</h3>
-          </div>
-        </div>
-
-        <div className="col-md-3">
-          <div className="gf-card mb-0 p-3 h-100 bg-white border-start border-4 border-primary">
-            <span className="text-uppercase text-muted font-bold small" style={{ fontSize: '0.65rem' }}>Submitted Today</span>
-            <h3 className="fw-black text-blue-600 mt-1 mb-0">{summary.today}</h3>
-          </div>
-        </div>
+        <button
+          onClick={() => setStatusFilter('REJECTED')}
+          className="pb-3 px-3 bg-transparent border-0 position-relative small"
+          style={{
+            fontWeight: statusFilter === 'REJECTED' ? '600' : '500',
+            color: statusFilter === 'REJECTED' ? 'var(--gf-primary)' : 'var(--gf-muted)',
+            transition: 'all 0.2s ease',
+            outline: 'none',
+            fontSize: '14px'
+          }}
+        >
+          Rejected ({summary.rejected})
+          {statusFilter === 'REJECTED' && (
+            <div 
+              style={{
+                position: 'absolute',
+                bottom: '-1px',
+                left: '0',
+                right: '0',
+                height: '2px',
+                backgroundColor: 'var(--gf-primary)'
+              }}
+            />
+          )}
+        </button>
       </div>
+
+      {error && <Alert variant="danger" className="enterprise-alert enterprise-alert-danger mb-4">{error}</Alert>}
+      {success && <Alert variant="success" className="enterprise-alert enterprise-alert-success mb-4" onClose={() => setSuccess('')} dismissible>{success}</Alert>}
 
       {loading ? (
-        <div className="text-center py-5">
-          <Spinner animation="border" variant="primary" />
-          <p className="text-muted small mt-2">Loading leave logs...</p>
-        </div>
+        <Loader message="Loading leave logs..." />
       ) : (
-        <div className="gf-card p-0 border-0">
-          <div className="table-responsive">
-            <Table className="table table-hover align-middle mb-0">
-              <thead className="table-light">
-                <tr>
-                  <th>Request ID</th>
-                  <th>Contractor</th>
-                  <th>Leave Type</th>
-                  <th>From Date</th>
-                  <th>To Date</th>
-                  <th>Days</th>
-                  <th>Status</th>
-                  <th className="text-end">Actions</th>
+        <div>
+          {filteredLeaves.length > 0 ? (
+            <Table headers={['Request ID', 'Contractor', 'Leave Type', 'From Date', 'To Date', 'Days', 'Status', 'Actions']}>
+              {filteredLeaves.map((item) => (
+                <tr key={item.id}>
+                  <td className="fw-bold">{item.id}</td>
+                  <td className="fw-semibold text-dark">{item.contractorName || 'Contractor'}</td>
+                  <td>
+                    <span className="fw-semibold">{item.absenceType}</span>
+                    <div className="text-muted small" style={{ fontSize: '11px' }}>{item.duration} Day</div>
+                  </td>
+                  <td>{item.startDate}</td>
+                  <td>{item.endDate}</td>
+                  <td className="fw-semibold">{calculateDays(item.startDate, item.endDate)}</td>
+                  <td>
+                    <span className={`status-pill ${item.status.toLowerCase() === 'approved' ? 'success' : item.status.toLowerCase() === 'pending' ? 'pending' : 'danger'}`}>
+                      {item.status}
+                    </span>
+                  </td>
+                  <td>
+                    <div className="d-flex gap-2 justify-content-start">
+                      <button className="btn-enterprise-secondary py-1 px-3" onClick={() => openDetails(item)}>
+                        View
+                      </button>
+                      
+                      {item.status === 'PENDING' && (
+                        <>
+                          <button className="btn-enterprise-primary py-1 px-3" onClick={() => handleApprove(item.id)}>
+                            Approve
+                          </button>
+                          <button className="btn-enterprise-ghost text-danger py-1 px-3 border-0" onClick={() => openRejectModal(item)}>
+                            Reject
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {filteredLeaves.length > 0 ? (
-                  filteredLeaves.map((item) => (
-                    <tr key={item.id}>
-                      <td className="fw-bold">{item.id}</td>
-                      <td className="fw-semibold text-slate-800">{item.contractorName || 'Contractor'}</td>
-                      <td>
-                        <span className="fw-semibold">{item.absenceType}</span>
-                        <div className="text-muted small" style={{ fontSize: '0.75rem' }}>{item.duration} Day</div>
-                      </td>
-                      <td>{item.startDate}</td>
-                      <td>{item.endDate}</td>
-                      <td className="fw-semibold">{calculateDays(item.startDate, item.endDate)}</td>
-                      <td>
-                        <span className={`gf-badge badge-${item.status.toLowerCase() === 'approved' ? 'approved' : item.status.toLowerCase() === 'pending' ? 'pending' : 'rejected'}`}>
-                          {item.status}
-                        </span>
-                      </td>
-                      <td className="text-end">
-                        <div className="d-flex justify-content-end gap-1">
-                          <Button size="sm" variant="outline-primary" onClick={() => openDetails(item)}>
-                            View
-                          </Button>
-                          
-                          {item.status === 'PENDING' && (
-                            <>
-                              <Button size="sm" variant="outline-success" onClick={() => handleApprove(item.id)}>
-                                Approve
-                              </Button>
-                              <Button size="sm" variant="outline-danger" onClick={() => openRejectModal(item)}>
-                                Reject
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={8} className="text-center py-5 text-muted">
-                      No leave requests found in this status filter.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
+              ))}
             </Table>
-          </div>
+          ) : (
+            <div className="enterprise-table-container p-5 text-center text-muted">
+              <i className="bi bi-calendar-x fs-2"></i>
+              <p className="small mt-2 mb-0">No leave requests found in this status filter.</p>
+            </div>
+          )}
         </div>
       )}
 
       {/* Details View Modal */}
-      <Modal show={showViewModal} onHide={() => setShowViewModal(false)} centered>
-        <Modal.Header closeButton>
-          <Modal.Title className="fw-bold text-slate-800">Leave Absence Details ({selectedLeave?.id})</Modal.Title>
+      <Modal show={showViewModal} onHide={() => setShowViewModal(false)} centered className="enterprise-modal-content">
+        <Modal.Header closeButton className="enterprise-modal-header">
+          <Modal.Title className="fw-bold text-dark">Leave Absence Details ({selectedLeave?.id})</Modal.Title>
         </Modal.Header>
-        <Modal.Body>
+        <Modal.Body className="enterprise-modal-body">
           {selectedLeave ? (
             <Row className="g-3">
               <Col sm={6}>
-                <div className="small text-muted font-bold text-uppercase">Contractor</div>
-                <div className="fw-bold text-slate-800">{selectedLeave.contractorName || 'Sarah Contractor'}</div>
+                <div className="small text-muted font-bold text-uppercase" style={{ fontSize: '10px' }}>Contractor</div>
+                <div className="fw-bold text-dark">{selectedLeave.contractorName || 'Sarah Contractor'}</div>
               </Col>
               <Col sm={6}>
-                <div className="small text-muted font-bold text-uppercase">Status</div>
+                <div className="small text-muted font-bold text-uppercase" style={{ fontSize: '10px' }}>Status</div>
                 <div className="mt-1">
-                  <span className={`gf-badge badge-${selectedLeave.status.toLowerCase() === 'approved' ? 'approved' : selectedLeave.status.toLowerCase() === 'pending' ? 'pending' : 'rejected'}`}>
+                  <span className={`status-pill ${selectedLeave.status.toLowerCase() === 'approved' ? 'success' : selectedLeave.status.toLowerCase() === 'pending' ? 'pending' : 'danger'}`}>
                     {selectedLeave.status}
                   </span>
                 </div>
               </Col>
               <Col sm={6}>
-                <div className="small text-muted font-bold text-uppercase">Leave Type</div>
-                <div className="fw-semibold text-slate-800">{selectedLeave.absenceType} &bull; {selectedLeave.duration}</div>
+                <div className="small text-muted font-bold text-uppercase" style={{ fontSize: '10px' }}>Leave Type</div>
+                <div className="fw-semibold text-dark">{selectedLeave.absenceType} &bull; {selectedLeave.duration}</div>
               </Col>
               <Col sm={6}>
-                <div className="small text-muted font-bold text-uppercase">Duration Period</div>
-                <div className="fw-semibold text-slate-800">{selectedLeave.startDate} to {selectedLeave.endDate}</div>
+                <div className="small text-muted font-bold text-uppercase" style={{ fontSize: '10px' }}>Duration Period</div>
+                <div className="fw-semibold text-dark">{selectedLeave.startDate} to {selectedLeave.endDate}</div>
               </Col>
               <Col sm={12}>
                 <hr />
-                <div className="small text-muted font-bold text-uppercase mb-2">Absence Reason</div>
-                <p className="bg-light p-3 rounded text-slate-700">{selectedLeave.reason || 'No description provided.'}</p>
+                <div className="small text-muted font-bold text-uppercase mb-2" style={{ fontSize: '10px' }}>Absence Reason</div>
+                <p className="bg-light p-3 rounded text-dark small">{selectedLeave.reason || 'No description provided.'}</p>
               </Col>
               {selectedLeave.remarks && (
                 <Col sm={12}>
-                  <div className="small text-muted font-bold text-uppercase mb-2">Manager Review Remarks</div>
-                  <p className="bg-light p-3 rounded text-danger fw-semibold">{selectedLeave.remarks}</p>
+                  <div className="small text-muted font-bold text-uppercase mb-2" style={{ fontSize: '10px' }}>Manager Review Remarks</div>
+                  <p className="bg-light p-3 rounded text-danger small fw-semibold">{selectedLeave.remarks}</p>
                 </Col>
               )}
             </Row>
           ) : (
-            <div className="text-center"><Spinner animation="border" /></div>
+            <div className="text-center py-4"><Spinner animation="border" variant="primary" size="sm" /></div>
           )}
         </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowViewModal(false)}>Close</Button>
+        <Modal.Footer className="enterprise-modal-footer">
+          <button className="btn-enterprise-secondary" onClick={() => setShowViewModal(false)}>Close</button>
         </Modal.Footer>
       </Modal>
 
       {/* Reject Modal with mandatory reason */}
-      <Modal show={showRejectModal} onHide={() => setShowRejectModal(false)} centered>
-        <Modal.Header closeButton>
-          <Modal.Title className="fw-bold text-slate-800">Reject Leave Request</Modal.Title>
+      <Modal show={showRejectModal} onHide={() => setShowRejectModal(false)} centered className="enterprise-modal-content">
+        <Modal.Header closeButton className="enterprise-modal-header">
+          <Modal.Title className="fw-bold text-dark">Reject Leave Request</Modal.Title>
         </Modal.Header>
-        <Modal.Body>
+        <Modal.Body className="enterprise-modal-body">
           <Form.Group controlId="rejectReasonComments">
-            <Form.Label className="uppercase-label">Rejection Reason (Mandatory) *</Form.Label>
+            <Form.Label className="enterprise-form-label">Rejection Reason (Mandatory) *</Form.Label>
             <Form.Control 
               as="textarea"
               rows={3}
               placeholder="e.g. Schedule conflicts on these dates. Please coordinate shift cover."
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}
+              className="enterprise-form-control"
               required
             />
           </Form.Group>
         </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowRejectModal(false)}>Cancel</Button>
-          <Button 
-            variant="danger" 
+        <Modal.Footer className="enterprise-modal-footer">
+          <button className="btn-enterprise-secondary" onClick={() => setShowRejectModal(false)}>Cancel</button>
+          <button 
+            className="btn-enterprise-primary bg-danger border-danger" 
             onClick={handleRejectSubmit} 
             disabled={submittingAction}
           >
             {submittingAction ? <Spinner animation="border" size="sm" /> : 'Confirm Rejection'}
-          </Button>
+          </button>
         </Modal.Footer>
       </Modal>
     </div>

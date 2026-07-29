@@ -201,7 +201,7 @@ function PurchaseOrders() {
           {/* Right Column: Approved Timesheets waiting for PO */}
           <div className="col-lg-5">
             <Card className="gf-card p-4 border-0">
-              <h5 className="fw-bold mb-3 text-slate-800">⏱️ Approved Unbilled Timesheets</h5>
+              <h5 className="fw-bold mb-3 text-slate-800"><i className="bi bi-clock me-2"></i>Approved Unbilled Timesheets</h5>
               <div className="table-responsive">
                 <Table className="table table-hover align-middle mb-0 small">
                   <thead className="table-light">

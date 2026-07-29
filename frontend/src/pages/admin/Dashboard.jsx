@@ -1,25 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Row, Col, Alert, Button, Card } from 'react-bootstrap';
-import { useAuth } from '../../hooks/useAuth';
+import { useNavigate } from 'react-router-dom';
+import { Row, Col, Alert } from 'react-bootstrap';
 import { getAdminDashboardMetrics } from '../../services/adminDashboardService';
 import { getErrorMessage } from '../../services/errorUtils';
-
-// Reusable components
-import AdminMetricCard from '../../components/admin/AdminMetricCard';
 import ActivityTimeline from '../../components/admin/ActivityTimeline';
-import LoadingSpinner from '../../components/admin/LoadingSpinner';
+import Loader from '../../components/Loader';
+import KpiCard from '../../components/KpiCard';
 
 function Dashboard() {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const [searchParams] = useSearchParams();
-  const searchQuery = searchParams.get('search') || '';
-
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [metrics, setMetrics] = useState(null);
-
 
   const loadDashboard = async () => {
     try {
@@ -39,108 +31,114 @@ function Dashboard() {
   }, []);
 
   return (
-    <div className="container-fluid">
-      {/* Header */}
+    <div>
+      {/* Welcome Header */}
       <div className="mb-4">
-        <h2 className="fw-black text-slate-800 mb-0">System Dashboard</h2>
-        <p className="text-muted small mt-1 mb-0">Monitor platform health metrics, audit administrative updates, and configure global variables.</p>
+        <h1 className="page-title mb-1">System Dashboard</h1>
+        <p className="muted-text">Monitor platform health metrics, audit administrative updates, and configure global variables.</p>
       </div>
 
-      {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
+      {error && <Alert variant="danger" className="enterprise-alert enterprise-alert-danger">{error}</Alert>}
 
       {loading ? (
-        <LoadingSpinner message="Querying dashboard metrics..." />
+        <Loader message="Querying dashboard metrics..." />
       ) : (
         <div>
-          {/* KPI Metrics Row */}
-          <div className="row row-cols-2 row-cols-md-4 row-cols-lg-9 g-3 mb-4">
-            <div className="col">
-              <AdminMetricCard title="Total Users" value={metrics?.totalUsers} desc="All roles registered" borderStartClass="border-start border-4 border-primary" />
-            </div>
-            <div className="col">
-              <AdminMetricCard title="Active Users" value={metrics?.activeUsers} desc="Not suspended" borderStartClass="border-start border-4 border-success" />
-            </div>
-            <div className="col">
-              <AdminMetricCard title="Contractors" value={metrics?.contractorsCount} desc="Onboarded contractors" borderStartClass="border-start border-4 border-warning" />
-            </div>
-            <div className="col">
-              <AdminMetricCard title="Vendors" value={metrics?.vendorsCount} desc="Staffing suppliers" borderStartClass="border-start border-4 border-info" />
-            </div>
-            <div className="col">
-              <AdminMetricCard title="Hiring Mgrs" value={metrics?.managersCount} desc="Client managers" borderStartClass="border-start border-4 border-dark" />
-            </div>
-            <div className="col">
-              <AdminMetricCard title="Finance" value={metrics?.financeCount} desc="Ledger processors" borderStartClass="border-start border-4 border-danger" />
-            </div>
-            <div className="col">
-              <AdminMetricCard title="Org Units" value={metrics?.totalOrgUnits} desc="Distinct org units" borderStartClass="border-start border-4 border-primary" />
-            </div>
-            <div className="col">
-              <AdminMetricCard title="Total Skills" value={metrics?.totalSkills} desc="Master catalogs" borderStartClass="border-start border-4 border-success" />
-            </div>
-            <div className="col">
-              <AdminMetricCard title="Open Requisitions" value={metrics?.healthMetrics?.openRequisitions} desc="Awaiting fulfillment" borderStartClass="border-start border-4 border-warning" />
+          {/* Quick Actions Panel */}
+          <div className="enterprise-table-container p-4 mb-4">
+            <h5 className="small fw-semibold text-uppercase text-muted mb-3">Quick Administrative Actions</h5>
+            <div className="row g-3">
+              <div className="col-md-4">
+                <button className="btn-enterprise-secondary w-100 justify-content-center py-3" onClick={() => navigate('/admin/users')}>
+                   View Users List
+                </button>
+              </div>
+              <div className="col-md-4">
+                <button className="btn-enterprise-secondary w-100 justify-content-center py-3" onClick={() => navigate('/admin/organizations')}>
+                   View Organization List
+                </button>
+              </div>
+              {/* <div className="col-md-4">
+                <button className="btn-enterprise-primary w-100 justify-content-center py-3" onClick={() => navigate('/admin/audit-logs')}>
+                  <i className="bi bi-file-earmark-text me-2"></i> Review Audit Trails
+                </button>
+              </div> */}
             </div>
           </div>
 
-          <Row className="g-4 mb-4">
-            {/* Quick Actions & System Health */}
+          {/* KPI Metrics Row using our shared KpiCard */}
+          <div className="row g-4 mb-5">
+            <div className="col-md-3">
+              <KpiCard
+                label="Total Platform Users"
+                value={metrics?.totalUsers}
+                icon="bi-people"
+                trend={{ value: 'Active', direction: 'up' }}
+              />
+            </div>
+
+            <div className="col-md-3">
+              <KpiCard
+                label="Active Placements"
+                value={metrics?.healthMetrics?.activeAssignments}
+                icon="bi-briefcase"
+                trend={{ value: 'Live', direction: 'up' }}
+              />
+            </div>
+
+            <div className="col-md-3">
+              <KpiCard
+                label="Open Requisitions"
+                value={metrics?.healthMetrics?.openRequisitions}
+                icon="bi-file-earmark-plus"
+                trend={{ value: 'Open', direction: 'warning' }}
+              />
+            </div>
+
+            <div className="col-md-3">
+              <KpiCard
+                label="Tenant Organizations"
+                value={metrics?.totalOrgUnits}
+                icon="bi-building"
+                trend={{ value: 'Tenants', direction: 'up' }}
+              />
+            </div>
+          </div>
+
+          <Row className="g-4">
+            {/* System Health */}
             <Col lg={8}>
-              <Card className="gf-card p-4 border-0 mb-4 bg-white">
-                <h5 className="fw-bold mb-3 text-slate-800">Administrative Tasks</h5>
-                <div className="d-flex flex-wrap gap-2">
-                  <Button variant="outline-primary" className="py-2 px-3 flex-grow-1" onClick={() => navigate('/admin/users')}>
-                    👤 Create User Account
-                  </Button>
-
-                  <Button variant="outline-primary" className="py-2 px-3 flex-grow-1" onClick={() => navigate('/admin/organizations')}>
-                    🏢 Register Tenant Organization
-                  </Button>
-                  <Button className="btn-gf-primary py-2 px-3 flex-grow-1" onClick={() => navigate('/admin/audit-logs')}>
-                    📜 Review Audit Trails
-                  </Button>
-                </div>
-              </Card>
-
-              {/* Health widgets */}
-              <Card className="gf-card p-4 border-0 bg-white">
-                <h5 className="fw-bold mb-4 text-slate-800">🖥️ Platform Environment Health</h5>
-                <Row className="g-3 text-center">
-                  <Col md={3}>
-                    <div className="border rounded p-3 bg-light">
-                      <span className="small text-muted font-bold text-uppercase d-block mb-1">Active Assignments</span>
-                      <h4 className="fw-black text-slate-800 mb-0">{metrics?.healthMetrics?.activeAssignments}</h4>
+              <div className="enterprise-table-container p-4 h-100">
+                <h5 className="small fw-semibold text-uppercase text-muted mb-4"><i className="bi bi-display me-2"></i>Platform Environment Health</h5>
+                <Row className="g-3">
+                  <Col sm={6}>
+                    <div className="p-3 border rounded-3 bg-light">
+                      <span className="small text-muted text-uppercase fw-semibold d-block mb-1">Contractor Profiles</span>
+                      <h4 className="fw-bold mb-0 text-dark">{metrics?.contractorsCount}</h4>
                     </div>
                   </Col>
-                  <Col md={3}>
-                    <div className="border rounded p-3 bg-light">
-                      <span className="small text-muted font-bold text-uppercase d-block mb-1">API Endpoint</span>
-                      <span className="badge bg-success mt-1">HEALTHY</span>
+                  <Col sm={6}>
+                    <div className="p-3 border rounded-3 bg-light">
+                      <span className="small text-muted text-uppercase fw-semibold d-block mb-1">Staffing Vendors</span>
+                      <h4 className="fw-bold mb-0 text-dark">{metrics?.vendorsCount}</h4>
                     </div>
                   </Col>
-                  <Col md={3}>
-                    <div className="border rounded p-3 bg-light">
-                      <span className="small text-muted font-bold text-uppercase d-block mb-1">Database Conn</span>
-                      <span className="badge bg-success mt-1">CONNECTED</span>
-                    </div>
-                  </Col>
-                  <Col md={3}>
-                    <div className="border rounded p-3 bg-light">
-                      <span className="small text-muted font-bold text-uppercase d-block mb-1">Inactive / Suspended</span>
-                      <h4 className="fw-black text-slate-800 mb-0">{(metrics?.totalUsers ?? 0) - (metrics?.activeUsers ?? 0)}</h4>
+                  <Col sm={6}>
+                    <div className="p-3 border rounded-3 bg-light">
+                      <span className="small text-muted text-uppercase fw-semibold d-block mb-1">Tenant Administrators</span>
+                      <h4 className="fw-bold mb-0 text-dark">{metrics?.activeUsers}</h4>
                     </div>
                   </Col>
                 </Row>
-
-              </Card>
+              </div>
             </Col>
 
             {/* Recent Timeline activity */}
             <Col lg={4}>
-              <Card className="gf-card p-4 border-0 bg-white h-100">
-                <h5 className="fw-bold mb-3 text-slate-800">📜 Recent Administration Activities</h5>
+              <div className="enterprise-table-container p-4 h-100">
+                <h5 className="small fw-semibold text-uppercase text-muted mb-3"><i className="bi bi-clock-history me-2"></i>Recent Administrative Logs</h5>
                 <ActivityTimeline activities={metrics?.recentLogs} />
-              </Card>
+              </div>
             </Col>
           </Row>
         </div>

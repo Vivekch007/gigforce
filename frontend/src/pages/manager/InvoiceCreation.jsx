@@ -163,7 +163,7 @@ function InvoiceCreation() {
           <div className="col-lg-7">
             {/* Unbilled Timesheets */}
             <Card className="gf-card p-4 mb-4 border-0">
-              <h5 className="fw-bold mb-3 text-slate-800">📋 Approved Unbilled Timesheets</h5>
+              <h5 className="fw-bold mb-3 text-slate-800"><i className="bi bi-clipboard me-2"></i>Approved Unbilled Timesheets</h5>
               <div className="table-responsive">
                 <Table className="table table-hover align-middle mb-0">
                   <thead className="table-light">
@@ -204,7 +204,7 @@ function InvoiceCreation() {
 
             {/* Generated Invoices */}
             <Card className="gf-card p-4 border-0">
-              <h5 className="fw-bold mb-3 text-slate-800">📄 Generated Billing Invoices</h5>
+              <h5 className="fw-bold mb-3 text-slate-800"><i className="bi bi-file-earmark-text me-2"></i>Generated Billing Invoices</h5>
               <div className="table-responsive">
                 <Table className="table table-hover align-middle mb-0">
                   <thead className="table-light">
@@ -247,7 +247,7 @@ function InvoiceCreation() {
           {/* Right Column - 5 Cols */}
           <div className="col-lg-5">
             <Card className="gf-card p-4 border-0 sticky-top" style={{ top: '80px' }}>
-              <h5 className="fw-bold mb-4 text-slate-800">💰 Invoice Details Preview</h5>
+              <h5 className="fw-bold mb-4 text-slate-800"><i className="bi bi-cash-stack me-2"></i>Invoice Details Preview</h5>
               {loadingDetails ? (
                 <div className="text-center py-5"><Spinner animation="border" /></div>
               ) : selectedTs && assignment ? (

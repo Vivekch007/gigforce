@@ -1,16 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Row, Col, Alert, Button, Card } from 'react-bootstrap';
+import { Row, Col, Alert } from 'react-bootstrap';
 import { getVendorDashboardMetrics } from '../../services/vendorDashboardService';
 import { getCandidates } from '../../services/candidateService';
 import { getRequisitions } from '../../services/vendorRequisitionService';
 import { getAssignments } from '../../services/vendorAssignmentService';
 import { getErrorMessage } from '../../services/errorUtils';
-
-// Reusable custom components
-import VendorMetricCard from '../../components/vendor/VendorMetricCard';
 import ActivityTimeline from '../../components/vendor/ActivityTimeline';
-import LoadingSpinner from '../../components/vendor/LoadingSpinner';
+import KpiCard from '../../components/KpiCard';
+import Table from '../../components/Table';
+import Loader from '../../components/Loader';
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -19,11 +18,8 @@ function Dashboard() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-
-  // Dashboard states
   const [metrics, setMetrics] = useState(null);
 
-  // Search result states
   const [searchResults, setSearchResults] = useState({
     candidates: [],
     requisitions: [],
@@ -40,7 +36,6 @@ function Dashboard() {
       if (searchQuery.trim()) {
         const query = searchQuery.trim().toLowerCase();
         
-        // Fetch candidates, requisitions, and assignments to filter locally
         const [cands, reqsData, asns] = await Promise.all([
           getCandidates().catch(() => []),
           getRequisitions({ size: 100 }).catch(() => ({ content: [] })),
@@ -82,141 +77,165 @@ function Dashboard() {
   }, [searchQuery]);
 
   return (
-    <div className="container-fluid">
+    <div>
       {/* Header */}
       <div className="mb-4">
-        <h2 className="fw-black text-slate-800 mb-0">Vendor Portal</h2>
-        <p className="text-muted small mt-1 mb-0">Overview of active requisitions, staffing pipelines, and billing contracts.</p>
+        <h1 className="page-title mb-1">Vendor Portal</h1>
+        <p className="muted-text">Overview of active requisitions, staffing pipelines, and billing contracts.</p>
       </div>
 
-      {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
+      {error && <Alert variant="danger" className="enterprise-alert enterprise-alert-danger mb-4">{error}</Alert>}
 
       {loading ? (
-        <LoadingSpinner message="Assembling metrics..." />
+        <Loader message="Assembling metrics..." />
       ) : searchQuery.trim() ? (
         /* Global Search Panel */
         <div>
-          <div className="alert alert-info py-2 mb-4">
-            🔍 Showing search results for: <strong>"{searchQuery}"</strong>
+          <div className="enterprise-alert enterprise-alert-success py-2 mb-4 d-flex align-items-center gap-2">
+            <i className="bi bi-search text-success"></i>
+            <span>Showing search results for: <strong>"{searchQuery}"</strong></span>
           </div>
 
           <Row className="g-4">
             {/* Candidates */}
             <Col lg={4}>
-              <Card className="gf-card p-4 border-0">
-                <h5 className="fw-bold mb-3 text-slate-800">👤 Matching Candidates ({searchResults.candidates.length})</h5>
+              <div className="enterprise-table-container p-4">
+                <h5 className="small fw-semibold text-uppercase text-muted mb-3">Matching Candidates ({searchResults.candidates.length})</h5>
                 {searchResults.candidates.length > 0 ? (
                   <div className="d-flex flex-column gap-2">
                     {searchResults.candidates.map(c => (
-                      <div key={c.id} className="p-2 border rounded bg-light">
-                        <div className="small fw-bold text-slate-800">{c.name}</div>
-                        <div className="text-muted text-xs" style={{ fontSize: '0.7rem' }}>{c.skills} &bull; {c.experience} yrs</div>
+                      <div key={c.id} className="p-3 border rounded-3 bg-light">
+                        <div className="small fw-bold text-dark">{c.name}</div>
+                        <div className="text-muted small mt-1">{c.skills} &bull; {c.experience} yrs</div>
                       </div>
                     ))}
                   </div>
                 ) : (
                   <p className="text-muted small mb-0">No matching candidates found.</p>
                 )}
-              </Card>
+              </div>
             </Col>
 
             {/* Requisitions */}
             <Col lg={4}>
-              <Card className="gf-card p-4 border-0">
-                <h5 className="fw-bold mb-3 text-slate-800">💼 Matching Open Jobs ({searchResults.requisitions.length})</h5>
+              <div className="enterprise-table-container p-4">
+                <h5 className="small fw-semibold text-uppercase text-muted mb-3">Matching Open Jobs ({searchResults.requisitions.length})</h5>
                 {searchResults.requisitions.length > 0 ? (
                   <div className="d-flex flex-column gap-2">
                     {searchResults.requisitions.map(r => (
-                      <div key={r.id} className="p-2 border rounded bg-light">
-                        <div className="small fw-bold text-slate-800">{r.title}</div>
-                        <div className="text-muted text-xs" style={{ fontSize: '0.7rem' }}>{r.clientName} &bull; {r.experienceLevel}</div>
+                      <div key={r.id} className="p-3 border rounded-3 bg-light">
+                        <div className="small fw-bold text-dark">{r.title}</div>
+                        <div className="text-muted small mt-1">{r.clientName} &bull; {r.experienceLevel}</div>
                       </div>
                     ))}
                   </div>
                 ) : (
                   <p className="text-muted small mb-0">No matching open requisitions found.</p>
                 )}
-              </Card>
+              </div>
             </Col>
 
             {/* Assignments */}
             <Col lg={4}>
-              <Card className="gf-card p-4 border-0">
-                <h5 className="fw-bold mb-3 text-slate-800">📋 Matching Placements ({searchResults.assignments.length})</h5>
+              <div className="enterprise-table-container p-4">
+                <h5 className="small fw-semibold text-uppercase text-muted mb-3">Matching Placements ({searchResults.assignments.length})</h5>
                 {searchResults.assignments.length > 0 ? (
                   <div className="d-flex flex-column gap-2">
                     {searchResults.assignments.map(a => (
-                      <div key={a.id} className="p-2 border rounded bg-light">
-                        <div className="small fw-bold text-slate-800">{a.contractorName}</div>
-                        <div className="text-muted text-xs" style={{ fontSize: '0.7rem' }}>{a.requisitionTitle} &bull; {a.status}</div>
+                      <div key={a.id} className="p-3 border rounded-3 bg-light">
+                        <div className="small fw-bold text-dark">{a.contractorName}</div>
+                        <div className="text-muted small mt-1">{a.requisitionTitle} &bull; {a.status}</div>
                       </div>
                     ))}
                   </div>
                 ) : (
                   <p className="text-muted small mb-0">No matching placements found.</p>
                 )}
-              </Card>
+              </div>
             </Col>
           </Row>
         </div>
       ) : (
         /* Normal Dashboard View */
         <div>
-          {/* KPI Cards */}
-          <div className="row row-cols-2 row-cols-md-3 row-cols-lg-6 g-3 mb-4">
-            <div className="col">
-              <VendorMetricCard title="Open Jobs" value={metrics?.openReqs} desc="Active vacancies" borderStartClass="border-start border-4 border-primary" />
+          {/* Quick Actions Panel */}
+          <div className="enterprise-table-container p-4 mb-4">
+            <h5 className="small fw-semibold text-uppercase text-muted mb-3">Quick Actions</h5>
+            <div className="row g-3">
+              <div className="col-md-4">
+                <button className="btn-enterprise-secondary w-100 justify-content-center py-3" onClick={() => navigate('/vendor/candidates')}>
+                  <i className="bi bi-person-plus me-2"></i> Add Candidate
+                </button>
+              </div>
+              <div className="col-md-4">
+                <button className="btn-enterprise-secondary w-100 justify-content-center py-3" onClick={() => navigate('/vendor/requisitions')}>
+                  <i className="bi bi-clipboard-plus me-2"></i> Submit Candidate
+                </button>
+              </div>
+              <div className="col-md-4">
+                <button className="btn-enterprise-primary w-100 justify-content-center py-3" onClick={() => navigate('/vendor/purchase-orders')}>
+                  <i className="bi bi-file-earmark-plus me-2"></i> Create Purchase Order
+                </button>
+              </div>
             </div>
-            <div className="col">
-              <VendorMetricCard title="Submitted" value={metrics?.scorecard ? metrics.scorecard.totalSubmissions : metrics?.submittedCandidates} desc="Total profiles logged" borderStartClass="border-start border-4 border-info" />
+          </div>
+
+          {/* KPI Cards Row */}
+          <div className="row g-4 mb-5">
+            <div className="col-md-3">
+              <KpiCard
+                label="Open Requisitions"
+                value={metrics?.openReqs || 0}
+                icon="bi-journal-list"
+                trend={{ value: 'Sourcing', direction: 'up' }}
+              />
             </div>
-            <div className="col">
-              <VendorMetricCard title="Selection Rate" value={metrics?.scorecard ? `${metrics.scorecard.selectionRate}%` : '0%'} desc="Hired profile ratio" borderStartClass="border-start border-4 border-warning" />
+
+            <div className="col-md-3">
+              <KpiCard
+                label="Placements Filled"
+                value={metrics?.activeAssignments || 0}
+                icon="bi-people"
+                trend={{ value: 'Active', direction: 'up' }}
+              />
             </div>
-            <div className="col">
-              <VendorMetricCard title="Fill Rate" value={metrics?.scorecard ? `${metrics.scorecard.fillRate}%` : '0%'} desc="Requisition fill ratio" borderStartClass="border-start border-4 border-success" />
+
+            <div className="col-md-3">
+              <KpiCard
+                label="Selection Rate"
+                value={metrics?.scorecard ? `${metrics.scorecard.selectionRate}%` : '0%'}
+                icon="bi-percent"
+                trend={{ value: 'Avg Ratio', direction: 'warning' }}
+              />
             </div>
-            <div className="col">
-              <VendorMetricCard title="Active Placements" value={metrics?.activeAssignments} desc="Onboarded contractors" borderStartClass="border-start border-4 border-dark" />
-            </div>
-            <div className="col">
-              <VendorMetricCard title="Total Revenue" value={metrics?.scorecard ? `$${parseFloat(metrics.scorecard.totalRevenueGenerated).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : '$0.00'} desc="Approved invoice total" borderStartClass="border-start border-4 border-secondary" />
+
+            <div className="col-md-3">
+              <KpiCard
+                label="Total Revenue"
+                value={`₹ ${metrics?.scorecard ? Math.round(metrics.scorecard.totalRevenueGenerated).toLocaleString('en-IN') : '0'}`}
+                icon="bi-wallet2"
+                trend={{ value: 'Settled', direction: 'up' }}
+              />
             </div>
           </div>
 
           <Row className="g-4">
-            {/* Left side: Quick actions & upcoming interviews */}
+            {/* Left side: upcoming interviews */}
             <Col lg={8}>
-              {/* Quick Actions */}
-              <Card className="gf-card p-4 border-0 mb-4">
-                <h5 className="fw-bold mb-3 text-slate-800">Quick Actions</h5>
-                <div className="d-flex flex-wrap gap-2">
-                  <Button variant="outline-primary" className="py-2 px-3 flex-grow-1" onClick={() => navigate('/vendor/candidates')}>
-                    👤 Add Candidate
-                  </Button>
-                  <Button variant="outline-primary" className="py-2 px-3 flex-grow-1" onClick={() => navigate('/vendor/requisitions')}>
-                    💼 Submit Candidate
-                  </Button>
-                  <Button className="btn-gf-primary py-2 px-3 flex-grow-1" onClick={() => navigate('/vendor/purchase-orders')}>
-                    💵 Create Purchase Order
-                  </Button>
-                </div>
-              </Card>
-
               {/* Upcoming Interviews */}
-              <Card className="gf-card p-4 border-0">
-                <h5 className="fw-bold mb-3 text-slate-800">📅 Upcoming Interview Calendars</h5>
+              <div className="enterprise-table-container p-4">
+                <h5 className="small fw-semibold text-uppercase text-muted mb-3"><i className="bi bi-calendar-event me-2"></i>Upcoming Interview Calendars</h5>
                 {metrics?.upcomingInterviews?.length > 0 ? (
                   <div className="row g-3">
                     {metrics.upcomingInterviews.map(i => (
                       <div className="col-md-6" key={i.id}>
-                        <div className="p-3 border rounded bg-light">
+                        <div className="p-3 border rounded-3 bg-light">
                           <div className="d-flex justify-content-between align-items-center mb-1">
-                            <span className="small fw-bold text-slate-800">{i.candidateName}</span>
-                            <span className="gf-badge badge-approved">{i.status}</span>
+                            <span className="small fw-bold text-dark">{i.candidateName}</span>
+                            <span className="status-pill success">{i.status}</span>
                           </div>
                           <div className="text-muted small mb-2">{i.position} &bull; {i.clientName}</div>
-                          <span className="text-slate-600 small">⏱️ {i.date} @ {i.time}</span>
+                          <span className="text-dark small"><i className="bi bi-clock me-1"></i> {i.date} @ {i.time}</span>
                         </div>
                       </div>
                     ))}
@@ -224,15 +243,15 @@ function Dashboard() {
                 ) : (
                   <p className="text-muted small mb-0 py-2">No interviews scheduled today.</p>
                 )}
-              </Card>
+              </div>
             </Col>
 
             {/* Right side: Activity Timeline */}
             <Col lg={4}>
-              <Card className="gf-card p-4 border-0 h-100">
-                <h5 className="fw-bold mb-3 text-slate-800">🔔 Recent Portal Activity</h5>
+              <div className="enterprise-table-container p-4 h-100">
+                <h5 className="small fw-semibold text-uppercase text-muted mb-3"><i className="bi bi-activity me-2"></i>Recent Portal Activity</h5>
                 <ActivityTimeline activities={metrics?.recentActivities} />
-              </Card>
+              </div>
             </Col>
           </Row>
         </div>

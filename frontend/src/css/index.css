@@ -1,0 +1,115 @@
+:root {
+  --gf-bg: #FAFBFC;
+  --gf-card: #FFFFFF;
+  --gf-primary: #2563EB;
+  --gf-primary-dark: #1d4ed8;
+  --gf-text: #111827;
+  --gf-muted: #6B7280;
+  --gf-border: #E5E7EB;
+  --gf-hover: #F3F4F6;
+
+  /* Standard Design Tokens */
+  --gf-radius: 8px;
+  --gf-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  --gf-shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.03);
+  --gf-transition: all 150ms ease-in-out;
+  --gf-btn-height: 40px;
+  --gf-input-height: 40px;
+
+  /* Font settings */
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: var(--gf-text);
+  background-color: var(--gf-bg);
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* Applied only to app layout shell (non-public pages) */
+.app-layout-shell {
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Global Icon Standardization */
+.bi {
+  font-size: 18px !important;
+  line-height: 1;
+  vertical-align: -0.125em;
+  display: inline-block;
+}
+
+/* Typography styles based on Design Hierarchy */
+.hero-title {
+  font-size: 48px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--gf-text);
+}
+
+.page-title {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--gf-text);
+  margin-bottom: 4px;
+}
+
+.section-title {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--gf-text);
+  margin-bottom: 16px;
+}
+
+.body-text {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--gf-text);
+}
+
+.muted-text {
+  font-size: 13.5px;
+  font-weight: 400;
+  color: var(--gf-muted);
+}
+
+/* Primary Action Button Styles */
+.btn-gf-primary {
+  background-color: var(--gf-primary) !important;
+  border-color: var(--gf-primary) !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  transition: background-color 150ms ease-in-out, border-color 150ms ease-in-out, color 150ms ease-in-out !important;
+}
+
+.btn-gf-primary:hover,
+.btn-gf-primary:focus,
+.btn-gf-primary:active {
+  background-color: var(--gf-primary-dark) !important;
+  border-color: var(--gf-primary-dark) !important;
+  color: #ffffff !important;
+}
+
+.btn-gf-primary i {
+  color: #ffffff !important;
+}

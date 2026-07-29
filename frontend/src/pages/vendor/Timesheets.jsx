@@ -119,8 +119,10 @@ function Timesheets() {
         </Card>
       ) : (
         <div className="text-center py-5 gf-card bg-white border-0">
-          <span className="fs-1">⏱️</span>
-          <p className="text-muted small mt-2 mb-0">No timesheet records submitted by contractors.</p>
+          <div className="mb-3 text-muted">
+            <i className="bi bi-clock" style={{ fontSize: '2.5rem' }}></i>
+          </div>
+          <p className="text-muted small mb-0">No timesheet records submitted by contractors.</p>
         </div>
       )}
 

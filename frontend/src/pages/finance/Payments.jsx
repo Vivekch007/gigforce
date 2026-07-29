@@ -160,7 +160,7 @@ function Payments() {
           {/* Left Column: List of Processed Payments */}
           <div className="col-lg-7">
             <Card className="gf-card p-4 border-0 bg-white">
-              <h5 className="fw-bold mb-3 text-slate-800">💳 Processed Payments</h5>
+              <h5 className="fw-bold mb-3 text-slate-800"><i className="bi bi-credit-card me-2"></i>Processed Payments</h5>
               <div className="table-responsive">
                 <Table className="table table-hover align-middle mb-0">
                   <thead className="table-light">
@@ -211,7 +211,7 @@ function Payments() {
           {/* Right Column: Invoices Ready for Payment */}
           <div className="col-lg-5">
             <Card className="gf-card p-4 border-0 bg-white">
-              <h5 className="fw-bold mb-3 text-slate-800">💵 Invoices Ready for Settlement</h5>
+              <h5 className="fw-bold mb-3 text-slate-800"><i className="bi bi-cash-stack me-2"></i>Invoices Ready for Settlement</h5>
               <div className="table-responsive">
                 <Table className="table table-hover align-middle mb-0 small">
                   <thead className="table-light">

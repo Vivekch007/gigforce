@@ -84,6 +84,13 @@ public class ResourceRequisitionController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/departments")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER', 'VENDOR_MANAGER', 'VENDOR', 'CONTRACTOR', 'FINANCE')")
+    @Operation(summary = "Get list of department options from BusinessUnits enum")
+    public ResponseEntity<com.gigforce.requisition.enums.BusinessUnits[]> getDepartments() {
+        return ResponseEntity.ok(com.gigforce.requisition.enums.BusinessUnits.values());
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER', 'VENDOR_MANAGER', 'VENDOR', 'CONTRACTOR', 'FINANCE')")
     @Operation(summary = "Get requisition details by ID")

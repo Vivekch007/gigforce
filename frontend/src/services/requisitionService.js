@@ -34,3 +34,7 @@ export function closeRequisition(id) {
 export function setRequisitionUnderReview(id) {
   return apiClient.put(`/requisitions/${id}/under-review`).then((res) => res.data);
 }
+
+export function getDepartments() {
+  return apiClient.get('/requisitions/departments').then((res) => res.data);
+}

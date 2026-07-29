@@ -1,0 +1,68 @@
+/* KPI Card Custom Rules */
+.enterprise-kpi-card {
+  background: var(--gf-card);
+  border: 1px solid var(--gf-border);
+  border-radius: var(--gf-radius);
+  box-shadow: var(--gf-shadow);
+  padding: 24px;
+  transition: var(--gf-transition);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.enterprise-kpi-card:hover {
+  border-color: #D1D5DB;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.kpi-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.kpi-card-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--gf-muted);
+}
+
+.kpi-card-icon {
+  font-size: 20px;
+  color: var(--gf-muted);
+}
+
+.kpi-card-body {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.kpi-card-number {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--gf-text);
+  margin: 0;
+}
+
+.kpi-card-trend {
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.kpi-card-trend.up {
+  color: #166534;
+}
+
+.kpi-card-trend.down {
+  color: #B42318;
+}
+
+.kpi-card-trend.warning {
+  color: #9A6700;
+}
