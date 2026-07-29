@@ -163,7 +163,7 @@ public class TimesheetServiceImpl implements TimesheetService {
                     .build());
         }
         timesheetLineRepository.saveAll(skeleton);
-
+        notificationPublisher.publishTimesheetSubmission(saved);
         auditService.logAction(
                 currentUser.getId(),
                 "TIMESHEET_CREATED",
@@ -295,7 +295,7 @@ public class TimesheetServiceImpl implements TimesheetService {
         syncLineStatuses(timesheet, existingLines);
         timesheetLineRepository.saveAll(existingLines);
         Timesheet saved = timesheetRepository.save(timesheet);
-
+        notificationPublisher.publishTimesheetSubmission(saved);
         auditService.logAction(
                 currentUser.getId(),
                 isRevised ? "TIMESHEET_REVISED" : "TIMESHEET_UPDATED",
