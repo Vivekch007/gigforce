@@ -2,7 +2,7 @@ target/
 *.class
 .claude/
 .sfdx/
-
+node_modules/
 gigforce-backend.iml
 
 mysql_data/
