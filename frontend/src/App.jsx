@@ -71,12 +71,14 @@ import AdminSystemSettings from './pages/admin/SystemSettings';
 import AdminNotifications from './pages/admin/Notifications';
 import AdminProfile from './pages/admin/Profile';
 import { ToastProvider } from './context/ToastContext';
+import { ConfirmationProvider } from './context/ConfirmationContext';
 
 function App() {
   return (
     <Router>
       <AuthProvider>
         <ToastProvider>
+          <ConfirmationProvider>
           <Routes>
             {/* Public routes */}
             <Route path="/" element={<LandingPage />} />
@@ -159,6 +161,7 @@ function App() {
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+          </ConfirmationProvider>
         </ToastProvider>
       </AuthProvider>
     </Router>

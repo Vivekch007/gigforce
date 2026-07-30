@@ -163,7 +163,7 @@ public class TimesheetServiceImpl implements TimesheetService {
                     .build());
         }
         timesheetLineRepository.saveAll(skeleton);
-        notificationPublisher.publishTimesheetSubmission(saved);
+        notificationPublisher.publishTimesheetGeneration(saved);
         auditService.logAction(
                 currentUser.getId(),
                 "TIMESHEET_CREATED",
@@ -295,7 +295,7 @@ public class TimesheetServiceImpl implements TimesheetService {
         syncLineStatuses(timesheet, existingLines);
         timesheetLineRepository.saveAll(existingLines);
         Timesheet saved = timesheetRepository.save(timesheet);
-        notificationPublisher.publishTimesheetSubmission(saved);
+        // Draft save — no notification published; submission notification fires in submitTimesheet()
         auditService.logAction(
                 currentUser.getId(),
                 isRevised ? "TIMESHEET_REVISED" : "TIMESHEET_UPDATED",
@@ -616,7 +616,7 @@ public class TimesheetServiceImpl implements TimesheetService {
             spec = spec.and((root, query, cb) -> cb.equal(root.get("orgUnitId"), orgUnitId));
         }
 
-        return timesheetRepository.findAll(spec).stream()
+        return timesheetRepository.findAll(spec, org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "weekStartDate")).stream()
                 .map(this::toDto)
                 .collect(Collectors.toList());
     }

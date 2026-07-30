@@ -44,6 +44,7 @@ public class VendorSubmissionServiceImpl implements VendorSubmissionService {
     private final UserRepository userRepository;
     private final EngagementHistoryRepository engagementHistoryRepository;
     private final AuditService auditService;
+    private final com.gigforce.notification.publisher.NotificationPublisher notificationPublisher;
 
     public VendorSubmissionServiceImpl(
             VendorSubmissionRepository submissionRepository,
@@ -51,13 +52,15 @@ public class VendorSubmissionServiceImpl implements VendorSubmissionService {
             ContractorProfileRepository contractorProfileRepository,
             UserRepository userRepository,
             EngagementHistoryRepository engagementHistoryRepository,
-            AuditService auditService) {
+            AuditService auditService,
+            com.gigforce.notification.publisher.NotificationPublisher notificationPublisher) {
         this.submissionRepository = submissionRepository;
         this.requisitionRepository = requisitionRepository;
         this.contractorProfileRepository = contractorProfileRepository;
         this.userRepository = userRepository;
         this.engagementHistoryRepository = engagementHistoryRepository;
         this.auditService = auditService;
+        this.notificationPublisher = notificationPublisher;
     }
 
     @Override
@@ -116,6 +119,8 @@ public class VendorSubmissionServiceImpl implements VendorSubmissionService {
                 saved.getId(),
                 String.format("Contractor %s submitted to Requisition '%s' by %s", profile.getUser().getEmail(),
                         requisition.getTitle(), currentUser.getEmail()));
+
+        notificationPublisher.publishVendorSubmission(saved);
 
         return toDto(saved);
     }

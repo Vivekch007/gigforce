@@ -88,7 +88,7 @@ class EngagementHistoryServiceImplTest {
         when(engagementHistoryRepository.save(any(EngagementHistory.class))).thenAnswer(i -> i.getArgument(0));
         EngagementHistoryRequestDTO req = EngagementHistoryRequestDTO.builder()
                 .clientName("Acme").roleTitle("Dev")
-                .verifyer_name("Manager").verifyer_email("mgr@x.com")
+                .Verifyer_name("Manager").Verifyer_email("mgr@x.com")
                 .startDate(LocalDate.now().minusMonths(6)).endDate(LocalDate.now().minusMonths(1)).build();
 
         service.addEngagement("p1", req);

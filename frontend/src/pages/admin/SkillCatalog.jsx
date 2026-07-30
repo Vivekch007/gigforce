@@ -3,11 +3,13 @@ import { Card, Table, Button, Alert, Modal, Form } from 'react-bootstrap';
 import { useAuth } from '../../hooks/useAuth';
 import { getSkills, createSkill, deleteSkill } from '../../services/skillCatalogService';
 import { getErrorMessage } from '../../services/errorUtils';
+import { useConfirmation } from '../../context/ConfirmationContext';
 
 // Reusable components
 import LoadingSpinner from '../../components/admin/LoadingSpinner';
 
 function SkillCatalog() {
+  const { showConfirmation } = useConfirmation();
   const { user } = useAuth();
 
   const [loading, setLoading] = useState(true);
@@ -80,12 +82,13 @@ function SkillCatalog() {
     }
   };
 
-  const handleDelete = async (id, nameVal) => {
-    if (!window.confirm(`Are you sure you want to delete the master skill "${nameVal}"?`)) return;
+  const handleDelete = async (skillId, nameVal) => {
+    const confirmed = await showConfirmation({ title: 'Delete Skill', message: `Are you sure you want to delete the master skill "${nameVal}"?` });
+    if (!confirmed) return;
     try {
       setError('');
       setSuccess('');
-      await deleteSkill(id);
+      await deleteSkill(skillId);
       setSuccess(`Master skill "${nameVal}" deleted from catalog.`);
       loadSkills();
     } catch (err) {

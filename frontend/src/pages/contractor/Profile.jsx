@@ -13,9 +13,13 @@ import {
   addProfileEngagement 
 } from '../../services/contractorService';
 import { getErrorMessage } from '../../services/errorUtils';
+import { useToast } from '../../context/ToastContext';
+import { useConfirmation } from '../../context/ConfirmationContext';
 import '../../styles/contractor.css';
 
 function Profile() {
+  const { addToast } = useToast();
+  const { showConfirmation } = useConfirmation();
   const [profile, setProfile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [profileError, setProfileError] = useState('');
@@ -175,7 +179,7 @@ function Profile() {
         experienceYears: parseInt(personalForm.experienceYears, 10),
       });
       setProfile(updated);
-      alert('Personal details updated successfully!');
+      addToast('Success', 'Personal details updated successfully!', 'success');
     } catch (err) {
       setTabError(getErrorMessage(err));
     } finally {
@@ -187,7 +191,7 @@ function Profile() {
   const handleAddSkill = async (e) => {
     e.preventDefault();
     if (!skillForm.skillId) {
-      alert('Please select a skill from the list');
+      addToast('Error', 'Please select a skill from the list', 'danger');
       return;
     }
     setActionLoading(true);
@@ -200,7 +204,7 @@ function Profile() {
       });
       setProfile(updated);
       setSkillForm({ skillId: '', proficiencyLevel: 'BEGINNER', yearsOfExperience: '' });
-      alert('Skill mapped successfully!');
+      addToast('Success', 'Skill mapped successfully!', 'success');
     } catch (err) {
       setTabError(getErrorMessage(err));
     } finally {
@@ -210,7 +214,8 @@ function Profile() {
 
   // Skill Delete
   const handleDeleteSkill = async (skillId) => {
-    if (!window.confirm('Are you sure you want to remove this skill?')) return;
+    const confirmed = await showConfirmation({ title: 'Remove Skill', message: 'Are you sure you want to remove this skill?' });
+    if (!confirmed) return;
     setActionLoading(true);
     setTabError('');
     try {
@@ -236,7 +241,7 @@ function Profile() {
       setCertifications(certs);
       setShowCertModal(false);
       setCertForm({ name: '', issuingAuthority: '', issueDate: '', expiryDate: '', certificateNumber: '' });
-      alert('Certification added successfully!');
+      addToast('Success', 'Certification added successfully!', 'success');
     } catch (err) {
       setTabError(getErrorMessage(err));
     } finally {
@@ -246,7 +251,8 @@ function Profile() {
 
   // Cert Delete
   const handleDeleteCert = async (certId) => {
-    if (!window.confirm('Are you sure you want to remove this certification?')) return;
+    const confirmed = await showConfirmation({ title: 'Remove Certification', message: 'Are you sure you want to remove this certification?' });
+    if (!confirmed) return;
     setActionLoading(true);
     setTabError('');
     try {
@@ -285,7 +291,7 @@ function Profile() {
         verifyer_email: '',
         verifyer_phone: '',
       });
-      alert('Engagement logged for verification!');
+      addToast('Success', 'Engagement logged for verification!', 'success');
     } catch (err) {
       setTabError(getErrorMessage(err));
     } finally {
@@ -440,6 +446,7 @@ function Profile() {
                       <Form.Select 
                         value={personalForm.availabilityStatus} 
                         onChange={(e) => setPersonalForm({...personalForm, availabilityStatus: e.target.value})}
+                        disabled
                       >
                         <option value="AVAILABLE">Available</option>
                         <option value="ON_ASSIGNMENT">On Assignment</option>

@@ -3,12 +3,14 @@ import { useSearchParams } from 'react-router-dom';
 import { Alert, Form, Modal, Row, Col } from 'react-bootstrap';
 import { getCandidates, addCandidate, updateCandidate, deleteCandidate, uploadCandidateResume } from '../../services/candidateService';
 import { getErrorMessage } from '../../services/errorUtils';
+import { useConfirmation } from '../../context/ConfirmationContext';
 
 // Reusable components
 import CandidateCard from '../../components/vendor/CandidateCard';
 import Loader from '../../components/Loader';
 
 function CandidateDatabase() {
+  const { showConfirmation } = useConfirmation();
   const [searchParams] = useSearchParams();
   const searchVal = searchParams.get('search') || '';
 
@@ -127,11 +129,12 @@ function CandidateDatabase() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this candidate from your database?')) return;
+  const handleDelete = async (candidateId) => {
+    const confirmed = await showConfirmation({ title: 'Delete Candidate', message: 'Are you sure you want to delete this candidate from your database?' });
+    if (!confirmed) return;
     try {
       setError('');
-      await deleteCandidate(id);
+      await deleteCandidate(candidateId);
       if (window.showToast) window.showToast('Candidate deleted from database.', 'info');
       loadCandidatesData();
     } catch (err) {

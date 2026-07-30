@@ -88,7 +88,8 @@ function Dashboard() {
 
         const notifs = await getMyNotifications();
         if (active) {
-          setActivities(notifs.slice(0, 5));
+          const filteredNotifs = notifs.filter(n => n.NotificationType !== 'TIMESHEET_SUBMISSION');
+          setActivities(filteredNotifs.slice(0, 5));
         }
 
         if (profileData) {

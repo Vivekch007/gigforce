@@ -483,16 +483,16 @@ public class AnalyticsServiceImpl implements AnalyticsService {
                 .getSingleResult();
 
         BigDecimal totalHoursVal = entityManager.createQuery(
-                "SELECT SUM(tl.hoursWorked) FROM TimesheetLine tl WHERE tl.timesheet.contractor.user.id = :userId AND tl.timesheet.status = :status", BigDecimal.class)
+                "SELECT COALESCE(SUM(tl.hoursWorked + tl.overtimeHours), 0) FROM TimesheetLine tl WHERE tl.timesheet.contractor.user.id = :userId AND tl.timesheet.status = :status", BigDecimal.class)
                 .setParameter("userId", contractorUserId)
                 .setParameter("status", TimesheetStatus.APPROVED)
                 .getSingleResult();
         BigDecimal totalHoursLogged = totalHoursVal != null ? totalHoursVal.setScale(2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
 
         Long pendingTimesheetsCount = entityManager.createQuery(
-                "SELECT COUNT(t.id) FROM Timesheet t WHERE t.contractor.user.id = :userId AND t.status = :status", Long.class)
+                "SELECT COUNT(t.id) FROM Timesheet t WHERE t.contractor.user.id = :userId AND t.status IN :statuses", Long.class)
                 .setParameter("userId", contractorUserId)
-                .setParameter("status", TimesheetStatus.SUBMITTED)
+                .setParameter("statuses", java.util.List.of(TimesheetStatus.DRAFT, TimesheetStatus.REJECTED, TimesheetStatus.REVISED))
                 .getSingleResult();
 
         BigDecimal totalPaidAmount = entityManager.createQuery(

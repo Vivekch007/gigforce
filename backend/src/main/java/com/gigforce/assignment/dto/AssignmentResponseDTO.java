@@ -22,6 +22,7 @@ public class AssignmentResponseDTO {
     private String contractorEmail;
     private String hiringManagerId;
     private String hiringManagerName;
+    private String hiringManagerEmail;
     private LocalDate startDate;
     private LocalDate endDate;
     private BigDecimal agreedRatePerDay;

@@ -28,7 +28,8 @@ export async function getAdminDashboardMetrics() {
   // for "how many org units are represented in the system".
   const totalOrgUnits = new Set(users.map((u) => u.orgUnitId).filter(Boolean)).size;
 
-  const sortedLogs = [...auditLogs].sort(
+  const filteredLogs = auditLogs.filter(log => log.action !== 'TIMESHEET_SUBMITTED');
+  const sortedLogs = [...filteredLogs].sort(
     (a, b) => new Date(b.timestamp || b.createdAt) - new Date(a.timestamp || a.createdAt)
   );
   const recentLogs = sortedLogs.slice(0, 8).map((log) => ({

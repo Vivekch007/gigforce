@@ -3,9 +3,11 @@ import { useSearchParams } from 'react-router-dom';
 import { Spinner, Alert, Button, Card, ButtonGroup } from 'react-bootstrap';
 import { getMyNotifications, markNotificationAsRead, dismissNotification } from '../../services/notificationService';
 import { getErrorMessage } from '../../services/errorUtils';
+import { useToast } from '../../context/ToastContext';
 import '../../styles/contractor.css';
 
 function Notifications() {
+  const { addToast } = useToast();
   const [searchParams] = useSearchParams();
   const searchQuery = searchParams.get('search') || '';
 
@@ -69,7 +71,7 @@ function Notifications() {
     try {
       await Promise.all(unread.map((n) => markNotificationAsRead(n.NotificationID)));
       await loadNotifications(false);
-      alert('All notifications marked as read!');
+      addToast('Success', 'All notifications marked as read!', 'success');
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {

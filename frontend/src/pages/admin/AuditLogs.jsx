@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Card, Table, Button, Alert, Row, Col, Form } from 'react-bootstrap';
-import { getAllAuditLogs, getMockAuditLogs } from '../../services/auditLogService';
+import { getAllAuditLogs } from '../../services/auditLogService';
 import { getErrorMessage } from '../../services/errorUtils';
 
 // Reusable components
@@ -24,8 +24,8 @@ function AuditLogs() {
       setLoading(true);
       setError('');
 
-      // Try backend endpoint, fallback to mock logs
-      const realLogs = await getAllAuditLogs().catch(() => null);
+      // Fetch from backend
+      const realLogs = await getAllAuditLogs();
 
       if (realLogs && realLogs.length > 0) {
         setLogsList(realLogs.map(l => ({
@@ -39,8 +39,7 @@ function AuditLogs() {
           ipAddress: l.ipAddress || '127.0.0.1',
         })));
       } else {
-        const mockData = await getMockAuditLogs();
-        setLogsList(mockData);
+        setLogsList([]);
       }
     } catch (err) {
       setError(getErrorMessage(err));

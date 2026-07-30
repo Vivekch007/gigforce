@@ -1,5 +1,6 @@
 package com.gigforce.assignment.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.gigforce.assignment.enums.TimesheetStatus;
 import com.gigforce.assignment.enums.PayrollStatus;
 import lombok.*;
@@ -32,4 +33,28 @@ public class TimesheetResponseDTO {
     private LocalDateTime approvedDate;
     private LocalDateTime payrollProcessedDate;
     private List<TimesheetLineResponseDTO> lines;
+
+    // -----------------------------------------------------------------------
+    // Alias getters for frontend compatibility
+    // Frontend uses startDate / endDate / totalHoursLogged field names.
+    // These are computed at serialisation time and do NOT duplicate storage.
+    // -----------------------------------------------------------------------
+
+    @JsonProperty("startDate")
+    public LocalDate getStartDate() {
+        return weekStartDate;
+    }
+
+    @JsonProperty("endDate")
+    public LocalDate getEndDate() {
+        return weekEndDate;
+    }
+
+    @JsonProperty("totalHoursLogged")
+    public BigDecimal getTotalHoursLogged() {
+        if (hoursLogged == null && overtimeLogged == null) return BigDecimal.ZERO;
+        BigDecimal h = hoursLogged != null ? hoursLogged : BigDecimal.ZERO;
+        BigDecimal o = overtimeLogged != null ? overtimeLogged : BigDecimal.ZERO;
+        return h.add(o);
+    }
 }

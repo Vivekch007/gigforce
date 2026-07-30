@@ -2,9 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { Spinner, Alert, Button, Form, Table, Card } from 'react-bootstrap';
 import { getTimesheets, getTimesheetDetails, updateTimesheet, submitTimesheet, addTimesheetComment } from '../../services/timesheetService';
 import { getErrorMessage } from '../../services/errorUtils';
+import { useToast } from '../../context/ToastContext';
+import { useConfirmation } from '../../context/ConfirmationContext';
 import '../../styles/contractor.css';
 
 function Timesheets() {
+  const { addToast } = useToast();
+  const { showConfirmation } = useConfirmation();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   
@@ -139,7 +143,7 @@ function Timesheets() {
       const updated = await updateTimesheet(timesheet.id, { lines: editLines });
       setTimesheet(updated);
       buildWeekGrid(updated);
-      alert('Timesheet draft saved successfully!');
+      addToast('Success', 'Timesheet draft saved successfully!', 'success');
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -150,7 +154,11 @@ function Timesheets() {
   // Submits the timesheet (Save + Submit)
   const handleSubmit = async () => {
     if (!timesheet) return;
-    if (!window.confirm('Are you sure you want to submit this timesheet? Once submitted, it cannot be modified until reviewed.')) return;
+    const confirmed = await showConfirmation({
+      title: 'Submit Timesheet',
+      message: 'Are you sure you want to submit this timesheet? Once submitted, it cannot be modified until reviewed.'
+    });
+    if (!confirmed) return;
     setActionLoading(true);
     setError('');
     try {
@@ -176,7 +184,7 @@ function Timesheets() {
       const submitted = await submitTimesheet(timesheet.id);
       setTimesheet(submitted);
       buildWeekGrid(submitted);
-      alert('Timesheet submitted successfully for review!');
+      addToast('Success', 'Timesheet submitted successfully for review!', 'success');
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -193,7 +201,7 @@ function Timesheets() {
     try {
       await addTimesheetComment(timesheet.id, { comment: commentText.trim() });
       setCommentText('');
-      alert('Comment added to timesheet thread!');
+      addToast('Success', 'Comment added to timesheet thread!', 'success');
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {

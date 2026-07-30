@@ -446,7 +446,7 @@ class AnalyticsServiceImplTest {
     void getPersonalDashboard_contractor_success() {
         actingAs(contractor);
         TypedQuery<Long> longQuery = mockQuery(Long.class);
-        when(longQuery.getSingleResult()).thenReturn(2L, 1L); // activeAssignmentsCount, pendingTimesheetsCount
+        when(longQuery.getSingleResult()).thenReturn(2L, 1L); // activeAssignmentsCount, pendingTimesheetsCount (DRAFT/REJECTED/REVISED)
         TypedQuery<BigDecimal> bdQuery = mockQuery(BigDecimal.class);
         when(bdQuery.getSingleResult()).thenReturn(new BigDecimal("80.00"), new BigDecimal("5000.00"));
 

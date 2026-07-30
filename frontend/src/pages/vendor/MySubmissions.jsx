@@ -3,11 +3,13 @@ import { useSearchParams } from 'react-router-dom';
 import { Card, Table, Button, Alert, Modal } from 'react-bootstrap';
 import { getSubmissions, withdrawSubmission, getSubmissionDetails } from '../../services/submissionService';
 import { getErrorMessage } from '../../services/errorUtils';
+import { useConfirmation } from '../../context/ConfirmationContext';
 
 // Reusable components
 import LoadingSpinner from '../../components/vendor/LoadingSpinner';
 
 function MySubmissions() {
+  const { showConfirmation } = useConfirmation();
   const [searchParams] = useSearchParams();
   const searchVal = searchParams.get('search') || '';
 
@@ -39,12 +41,13 @@ function MySubmissions() {
     loadSubmissions();
   }, []);
 
-  const handleWithdraw = async (subId) => {
-    if (!window.confirm('Are you sure you want to withdraw this candidate submission?')) return;
+  const handleWithdraw = async (submissionId) => {
+    const confirmed = await showConfirmation({ title: 'Withdraw Candidate', message: 'Are you sure you want to withdraw this candidate submission?' });
+    if (!confirmed) return;
     try {
       setError('');
       setSuccess('');
-      await withdrawSubmission(subId);
+      await withdrawSubmission(submissionId);
       setSuccess('Submission withdrawn successfully.');
       loadSubmissions();
     } catch (err) {

@@ -3,10 +3,12 @@ import { useSearchParams } from 'react-router-dom';
 import { Form, Modal, Row, Col, Alert, Spinner, Pagination, Offcanvas } from 'react-bootstrap';
 import { getAssignments, getAssignmentDetails, completeAssignment, requestAmendment } from '../../services/managerAssignmentService';
 import { getErrorMessage } from '../../services/errorUtils';
+import { useConfirmation } from '../../context/ConfirmationContext';
 import Table from '../../components/Table';
 import Loader from '../../components/Loader';
 
 function Assignments() {
+  const { showConfirmation } = useConfirmation();
   const [searchParams] = useSearchParams();
   const searchQuery = searchParams.get('search') || '';
 
@@ -79,7 +81,8 @@ function Assignments() {
   };
 
   const handleCloseAssignment = async (id) => {
-    if (!window.confirm('Are you sure you want to close this assignment engagement?')) return;
+    const confirmed = await showConfirmation({ title: 'Close Assignment', message: 'Are you sure you want to close this assignment engagement?' });
+    if (!confirmed) return;
     try {
       setError('');
       setSuccess('');

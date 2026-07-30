@@ -11,7 +11,7 @@ export function getRequisitionDetails(id) {
 }
 
 export function createRequisition(payload) {
-  // ResourceRequisitionRequestDTO { jobTitle, department, location, employmentType, experienceYearsRequired, requiredSkillId, quantity, budget, startDate, endDate, priority, description, orgUnitId }
+  // ResourceRequisitionRequestDTO { title, description, requiredSkillId, minExperienceYears, maxHourlyRate, quantity, engagementType, experienceLevel, startDate, duration, businessUnitId, customDepartment }
   return apiClient.post('/requisitions', payload).then((res) => res.data);
 }
 

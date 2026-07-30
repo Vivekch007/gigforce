@@ -3,9 +3,11 @@ import { Spinner, Alert, Button, Card, Table, Modal, Form, Row, Col } from 'reac
 import { getAbsences, requestAbsence } from '../../services/contractorService';
 import { getAssignments } from '../../services/assignmentService';
 import { getErrorMessage } from '../../services/errorUtils';
+import { useToast } from '../../context/ToastContext';
 import '../../styles/contractor.css';
 
 function Absences() {
+  const { addToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   
@@ -56,7 +58,7 @@ function Absences() {
   const handleApplyLeave = async (e) => {
     e.preventDefault();
     if (!form.assignmentId) {
-      alert('Please select an active assignment placement.');
+      addToast('Error', 'Please select an active assignment placement.', 'danger');
       return;
     }
     setActionLoading(true);
@@ -72,7 +74,7 @@ function Absences() {
         duration: 'FULL_DAY',
         reason: '',
       });
-      alert('Leave request submitted successfully!');
+      addToast('Success', 'Leave request submitted successfully!', 'success');
       loadData(false); // Refresh silently
     } catch (err) {
       setError(getErrorMessage(err));

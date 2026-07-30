@@ -107,6 +107,22 @@ public class NotificationPublisher {
         }
     }
 
+    public void publishVendorSubmission(com.gigforce.requisition.entity.VendorSubmission submission) {
+        if (submission.getRequisition() != null && submission.getRequisition().getCreator() != null) {
+            notificationService.createNotification(NotificationRequestDTO.builder()
+                    .userId(submission.getRequisition().getCreator().getId())
+                    .title("New Candidate Submission")
+                    .message(String.format("A new candidate has been submitted for your requisition '%s'.", submission.getRequisition().getTitle()))
+                    .category("ASSIGNMENT")
+                    .priority("MEDIUM")
+                    .notificationType("VENDOR_SUBMISSION")
+                    .referenceEntityId(submission.getId())
+                    .referenceEntityType("VendorSubmission")
+                    .orgUnitId(submission.getRequisition().getOrgUnitId())
+                    .build());
+        }
+    }
+
     public void publishAssignmentCreated(Assignment assignment) {
         if (assignment.getContractorProfile() != null && assignment.getContractorProfile().getUser() != null) {
             notificationService.createNotification(NotificationRequestDTO.builder()
@@ -139,7 +155,25 @@ public class NotificationPublisher {
         }
     }
 
+    public void publishTimesheetGeneration(Timesheet timesheet) {
+        // Notify contractor that their weekly timesheet has been pre-generated
+        if (timesheet.getContractor() != null && timesheet.getContractor().getUser() != null) {
+            notificationService.createNotification(NotificationRequestDTO.builder()
+                    .userId(timesheet.getContractor().getUser().getId())
+                    .title("Weekly Timesheet Ready")
+                    .message(String.format("Your weekly timesheet for week starting %s has been created. Please fill in your hours.", timesheet.getWeekStartDate()))
+                    .category("TIMESHEET")
+                    .priority("MEDIUM")
+                    .notificationType("TIMESHEET_GENERATED")
+                    .referenceEntityId(timesheet.getId())
+                    .referenceEntityType("Timesheet")
+                    .orgUnitId(timesheet.getOrgUnitId())
+                    .build());
+        }
+    }
+
     public void publishTimesheetSubmission(Timesheet timesheet) {
+        // Notify hiring manager to review
         if (timesheet.getAssignment() != null && timesheet.getAssignment().getHiringManager() != null) {
             notificationService.createNotification(NotificationRequestDTO.builder()
                     .userId(timesheet.getAssignment().getHiringManager().getId())
@@ -147,6 +181,20 @@ public class NotificationPublisher {
                     .message(String.format("Timesheet %s submitted and awaiting approval.", timesheet.getId()))
                     .category("TIMESHEET")
                     .priority("MEDIUM")
+                    .notificationType("TIMESHEET_SUBMISSION")
+                    .referenceEntityId(timesheet.getId())
+                    .referenceEntityType("Timesheet")
+                    .orgUnitId(timesheet.getOrgUnitId())
+                    .build());
+        }
+        // Confirm receipt to the contractor
+        if (timesheet.getContractor() != null && timesheet.getContractor().getUser() != null) {
+            notificationService.createNotification(NotificationRequestDTO.builder()
+                    .userId(timesheet.getContractor().getUser().getId())
+                    .title("Timesheet Submitted")
+                    .message(String.format("Your timesheet %s has been submitted successfully and is awaiting review.", timesheet.getId()))
+                    .category("TIMESHEET")
+                    .priority("LOW")
                     .notificationType("TIMESHEET_SUBMISSION")
                     .referenceEntityId(timesheet.getId())
                     .referenceEntityType("Timesheet")
@@ -190,6 +238,7 @@ public class NotificationPublisher {
     }
 
     public void publishTimesheetL2Approval(Timesheet timesheet, User approver) {
+        // Notify contractor of full approval
         if (timesheet.getContractor() != null && timesheet.getContractor().getUser() != null) {
             notificationService.createNotification(NotificationRequestDTO.builder()
                     .userId(timesheet.getContractor().getUser().getId())
@@ -203,14 +252,29 @@ public class NotificationPublisher {
                     .orgUnitId(timesheet.getOrgUnitId())
                     .build());
         }
+        // Also notify the hiring manager who gave L1 approval
+        if (timesheet.getAssignment() != null && timesheet.getAssignment().getHiringManager() != null) {
+            notificationService.createNotification(NotificationRequestDTO.builder()
+                    .userId(timesheet.getAssignment().getHiringManager().getId())
+                    .title("Timesheet Finance Approved")
+                    .message(String.format("Timesheet %s has been fully approved by Finance.", timesheet.getId()))
+                    .category("TIMESHEET")
+                    .priority("LOW")
+                    .notificationType("TIMESHEET_APPROVED")
+                    .referenceEntityId(timesheet.getId())
+                    .referenceEntityType("Timesheet")
+                    .orgUnitId(timesheet.getOrgUnitId())
+                    .build());
+        }
     }
 
     public void publishTimesheetRejection(Timesheet timesheet, User approver) {
+        // Notify contractor of rejection with action required
         if (timesheet.getContractor() != null && timesheet.getContractor().getUser() != null) {
             notificationService.createNotification(NotificationRequestDTO.builder()
                     .userId(timesheet.getContractor().getUser().getId())
                     .title("Timesheet Rejected")
-                    .message(String.format("Your timesheet %s has been rejected.", timesheet.getId()))
+                    .message(String.format("Your timesheet %s has been rejected. Please review the feedback and resubmit.", timesheet.getId()))
                     .category("TIMESHEET")
                     .priority("HIGH")
                     .notificationType("TIMESHEET_REJECTION")

@@ -408,6 +408,7 @@ public class AssignmentServiceImpl implements AssignmentService {
                 .contractorEmail(assignment.getContractorProfile().getUser().getEmail())
                 .hiringManagerId(assignment.getHiringManager().getId())
                 .hiringManagerName(assignment.getHiringManager().getName())
+                .hiringManagerEmail(assignment.getHiringManager().getEmail())
                 .startDate(assignment.getStartDate())
                 .endDate(assignment.getEndDate())
                 .agreedRatePerDay(assignment.getAgreedRatePerDay())

@@ -190,13 +190,22 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
         profile.setHourlyRate(request.getHourlyRate());
         profile.setExperienceYears(request.getExperienceYears());
 
+        // Fetch actor
+        String actorEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        User actor = userRepository.findByEmail(actorEmail).orElse(null);
+        String actorId = (actor != null) ? actor.getId() : profile.getUser().getId();
+
         if (request.getAvailabilityStatus() != null && !request.getAvailabilityStatus().trim().isEmpty()) {
-            try {
-                AvailabilityStatus target = AvailabilityStatus.valueOf(request.getAvailabilityStatus().toUpperCase().trim());
-                validateAvailabilityTransition(previousAvail, target);
-                profile.setAvailabilityStatus(target);
-            } catch (IllegalArgumentException e) {
-                throw new BusinessValidationException("Invalid availabilityStatus: " + request.getAvailabilityStatus());
+            if (actor != null && "CONTRACTOR".equals(actor.getRole().name())) {
+                // Ignore availabilityStatus updates from contractors
+            } else {
+                try {
+                    AvailabilityStatus target = AvailabilityStatus.valueOf(request.getAvailabilityStatus().toUpperCase().trim());
+                    validateAvailabilityTransition(previousAvail, target);
+                    profile.setAvailabilityStatus(target);
+                } catch (IllegalArgumentException e) {
+                    throw new BusinessValidationException("Invalid availabilityStatus: " + request.getAvailabilityStatus());
+                }
             }
         }
 
@@ -222,10 +231,7 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
 
         List<ContractorSkill> skills = contractorSkillRepository.findByContractorProfile(updatedProfile);
 
-        // Fetch actor
-        String actorEmail = SecurityContextHolder.getContext().getAuthentication().getName();
-        User actor = userRepository.findByEmail(actorEmail).orElse(null);
-        String actorId = (actor != null) ? actor.getId() : updatedProfile.getUser().getId();
+
 
         // Audit Logging
         auditService.logAction(

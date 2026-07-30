@@ -171,20 +171,13 @@ function Assignments() {
 
               {/* SOW Metrics Details */}
               <div className="gf-card bg-white p-3 mb-0 d-flex flex-column gap-2">
-                <div>
-                  <span className="text-uppercase text-muted font-bold small" style={{ fontSize: '0.65rem' }}>
-                    Client
-                  </span>
-                  <p className="fw-semibold text-slate-800 mb-0">{selectedAsn.hiringManagerName}</p>
-                </div>
 
-                <hr className="my-2" />
 
                 <div>
                   <span className="text-uppercase text-muted font-bold small" style={{ fontSize: '0.65rem' }}>
                     Hiring Manager
                   </span>
-                  <p className="fw-semibold text-slate-800 mb-0">{selectedAsn.hiringManagerName} ({selectedAsn.contractorEmail})</p>
+                  <p className="fw-semibold text-slate-800 mb-0">{selectedAsn.hiringManagerName} ({selectedAsn.hiringManagerEmail})</p>
                 </div>
 
                 <hr className="my-2" />
