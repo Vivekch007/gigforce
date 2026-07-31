@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Spinner, Alert, Button, Card, Table, Modal, Form, Row, Col } from 'react-bootstrap';
+import React, { useEffect, useState, useMemo } from 'react';
+import { Spinner, Button, Table, Modal, Form, Row, Col, InputGroup } from 'react-bootstrap';
 import { getAbsences, requestAbsence } from '../../services/contractorService';
 import { getAssignments } from '../../services/assignmentService';
 import { getErrorMessage } from '../../services/errorUtils';
@@ -10,11 +10,17 @@ function Absences() {
   const { addToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  
+
   const [absences, setAbsences] = useState([]);
   const [assignments, setAssignments] = useState([]);
+
+  // Filters
   const [statusFilter, setStatusFilter] = useState('ALL'); // ALL | PENDING | APPROVED | REJECTED
-  const [monthYearFilter, setMonthYearFilter] = useState('');
+
+  const currentDate = new Date();
+  const [filterType, setFilterType] = useState('all'); // 'all', 'monthly', 'yearly'
+  const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth()); // 0 - 11
 
   // Modal form states
   const [showModal, setShowModal] = useState(false);
@@ -40,7 +46,7 @@ function Absences() {
 
       // Fetch assignments for drop-down selection
       const assignmentsData = await getAssignments();
-      const list = assignmentsData.content || [];
+      const list = assignmentsData?.content || [];
       setAssignments(list);
 
       if (list.length > 0 && !form.assignmentId) {
@@ -85,18 +91,41 @@ function Absences() {
     }
   };
 
-  // Filter list locally
+  // Generate dynamic list of available years from existing records
+  const availableYears = useMemo(() => {
+    const years = new Set(
+      absences
+        .map((item) => item.startDate)
+        .filter(Boolean)
+        .map((dateStr) => new Date(dateStr).getFullYear())
+    );
+    years.add(new Date().getFullYear()); // Always include current year
+    return Array.from(years).sort((a, b) => b - a);
+  }, [absences]);
+
+  // Combined Status and Calendar Filtering Logic
   const filteredAbsences = absences.filter((ab) => {
+    // 1. Status Filter
     if (statusFilter !== 'ALL' && ab.status !== statusFilter) return false;
-    if (monthYearFilter) {
-      const date = new Date(ab.startDate);
-      const my = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      if (my !== monthYearFilter) return false;
+
+    // 2. Date/Calendar Filter
+    if (!ab.startDate) return filterType === 'all';
+
+    const itemDate = new Date(ab.startDate);
+
+    if (filterType === 'monthly') {
+      return (
+        itemDate.getFullYear() === parseInt(selectedYear, 10) &&
+        itemDate.getMonth() === parseInt(selectedMonth, 10)
+      );
+    } else if (filterType === 'yearly') {
+      return itemDate.getFullYear() === parseInt(selectedYear, 10);
     }
-    return true;
+
+    return true; // 'all'
   });
 
-  // Calculate metrics based on list
+  // Metrics based on full list
   const approvedCasual = absences
     .filter((a) => a.status === 'APPROVED' && a.absenceType === 'CASUAL_LEAVE')
     .reduce((acc, current) => acc + (current.duration === 'HALF_DAY' ? 0.5 : 1), 0);
@@ -110,6 +139,11 @@ function Absences() {
 
   const casualBalance = Math.max(0, 15 - approvedCasual);
   const sickBalance = Math.max(0, 10 - approvedSick);
+
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
 
   if (loading) {
     return (
@@ -132,8 +166,6 @@ function Absences() {
           Apply Leave
         </Button>
       </div>
-
-
 
       {/* Metrics Row */}
       <div className="row g-3 mb-4">
@@ -178,8 +210,9 @@ function Absences() {
         </div>
       </div>
 
-      {/* Filter Tabs */}
-      <div className="d-flex justify-content-between align-items-center mb-3">
+      {/* Control Bar: Status Filter (Left) + Calendar Filter (Right) */}
+      <div className="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+        {/* Status Pills */}
         <div className="d-flex gap-2 overflow-x-auto pb-1">
           {['ALL', 'PENDING', 'APPROVED', 'REJECTED'].map((filter) => (
             <Button
@@ -193,14 +226,57 @@ function Absences() {
             </Button>
           ))}
         </div>
-        <div>
-          <Form.Control
-            type="month"
-            size="sm"
-            value={monthYearFilter}
-            onChange={(e) => setMonthYearFilter(e.target.value)}
-            className="border-secondary text-secondary"
-          />
+
+        {/* Date / Calendar Scope Filters */}
+        <div className="d-flex align-items-center gap-2 flex-wrap">
+          <InputGroup size="sm" style={{ width: 'auto' }}>
+            <InputGroup.Text className="bg-white text-muted border-end-0">
+              <i className="bi bi-calendar3"></i>
+            </InputGroup.Text>
+
+            {/* Filter Scope */}
+            <Form.Select
+              size="sm"
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              className="border-start-0 shadow-none fw-semibold"
+              style={{ minWidth: '110px' }}
+            >
+              <option value="all">All Time</option>
+              <option value="monthly">Monthly</option>
+              <option value="yearly">Yearly</option>
+            </Form.Select>
+          </InputGroup>
+
+          {/* Conditional Month Selector */}
+          {filterType === 'monthly' && (
+            <Form.Select
+              size="sm"
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="shadow-none fw-semibold"
+              style={{ width: '120px' }}
+            >
+              {monthNames.map((name, idx) => (
+                <option key={name} value={idx}>{name}</option>
+              ))}
+            </Form.Select>
+          )}
+
+          {/* Conditional Year Selector */}
+          {(filterType === 'monthly' || filterType === 'yearly') && (
+            <Form.Select
+              size="sm"
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+              className="shadow-none fw-semibold"
+              style={{ width: '90px' }}
+            >
+              {availableYears.map((yr) => (
+                <option key={yr} value={yr}>{yr}</option>
+              ))}
+            </Form.Select>
+          )}
         </div>
       </div>
 
@@ -241,7 +317,7 @@ function Absences() {
               <path d="M6.146 7.146a.5.5 0 0 1 .708 0L8 8.293l1.146-1.147a.5.5 0 1 1 .708.708L8.707 9l1.147 1.146a.5.5 0 0 1-.708.708L8 9.707l-1.146 1.147a.5.5 0 0 1-.708-.708L7.293 9 6.146 7.854a.5.5 0 0 1 0-.708"/>
               <path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5M1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4z"/>
             </svg>
-            <p className="text-muted small mt-2 mb-0">No leave logs match the current filter.</p>
+            <p className="text-muted small mt-2 mb-0">No leave logs match the current filter selection.</p>
           </div>
         )}
       </div>
@@ -257,8 +333,8 @@ function Absences() {
               <Col md={12} className="mb-3">
                 <Form.Group controlId="leaveAssignment">
                   <Form.Label className="uppercase-label">Assignment Placement</Form.Label>
-                  <Form.Select 
-                    value={form.assignmentId} 
+                  <Form.Select
+                    value={form.assignmentId}
                     onChange={(e) => setForm({...form, assignmentId: e.target.value})}
                     required
                   >
@@ -274,30 +350,30 @@ function Absences() {
               <Col md={6} className="mb-3">
                 <Form.Group controlId="leaveStart">
                   <Form.Label className="uppercase-label">Start Date</Form.Label>
-                  <Form.Control 
-                    type="date" 
-                    value={form.startDate} 
+                  <Form.Control
+                    type="date"
+                    value={form.startDate}
                     onChange={(e) => setForm({...form, startDate: e.target.value})}
-                    required 
+                    required
                   />
                 </Form.Group>
               </Col>
               <Col md={6} className="mb-3">
                 <Form.Group controlId="leaveEnd">
                   <Form.Label className="uppercase-label">End Date</Form.Label>
-                  <Form.Control 
-                    type="date" 
-                    value={form.endDate} 
+                  <Form.Control
+                    type="date"
+                    value={form.endDate}
                     onChange={(e) => setForm({...form, endDate: e.target.value})}
-                    required 
+                    required
                   />
                 </Form.Group>
               </Col>
               <Col md={6} className="mb-3">
                 <Form.Group controlId="leaveType">
                   <Form.Label className="uppercase-label">Leave Type</Form.Label>
-                  <Form.Select 
-                    value={form.absenceType} 
+                  <Form.Select
+                    value={form.absenceType}
                     onChange={(e) => setForm({...form, absenceType: e.target.value})}
                   >
                     <option value="CASUAL_LEAVE">Casual Leave</option>
@@ -311,8 +387,8 @@ function Absences() {
               <Col md={6} className="mb-3">
                 <Form.Group controlId="leaveDuration">
                   <Form.Label className="uppercase-label">Duration Basis</Form.Label>
-                  <Form.Select 
-                    value={form.duration} 
+                  <Form.Select
+                    value={form.duration}
                     onChange={(e) => setForm({...form, duration: e.target.value})}
                   >
                     <option value="FULL_DAY">Full Day</option>
@@ -323,11 +399,12 @@ function Absences() {
               <Col md={12} className="mb-3">
                 <Form.Group controlId="leaveReason">
                   <Form.Label className="uppercase-label">Reason</Form.Label>
-                  <Form.Control 
-                    as="textarea" 
-                    rows={3} 
-                    value={form.reason} 
-                    onChange={(e) => setForm({...form, reason: e.target.value})} 
+                  <Form.Control
+                    as="textarea"
+                    rows={3}
+                    value={form.reason}
+                    maxLength={250}
+                    onChange={(e) => setForm({...form, reason: e.target.value})}
                     placeholder="Provide details / description for manager review..."
                     required
                   />

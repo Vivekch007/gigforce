@@ -402,6 +402,7 @@ function Profile() {
                       <Form.Control
                         type="text"
                         value={personalForm.phone}
+                        maxLength = {15}
                         onChange={(e) => setPersonalForm({ ...personalForm, phone: e.target.value })}
                       />
                     </Form.Group>

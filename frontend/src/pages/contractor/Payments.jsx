@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Spinner, Alert, Card } from 'react-bootstrap';
+import { Spinner, Card, Form, InputGroup } from 'react-bootstrap';
 import { getInvoices } from '../../services/invoiceService';
 import { getErrorMessage } from '../../services/errorUtils';
 import { useToast } from '../../context/ToastContext';
@@ -11,8 +11,13 @@ function Payments() {
   const searchQuery = searchParams.get('search') || '';
 
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const [earnings, setEarnings] = useState([]);
+
+  // Date Filter State
+  const currentDate = new Date();
+  const [filterType, setFilterType] = useState('all'); // 'all', 'monthly', 'yearly'
+  const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth()); // 0 - 11
 
   // Unified session-synchronized visibility state
   const [showEarnings, setShowEarnings] = useState(() => sessionStorage.getItem('gf_payments_earnings_visible') === 'true');
@@ -39,14 +44,10 @@ function Payments() {
   const loadEarnings = async () => {
     try {
       setLoading(true);
-      setError('');
-      // There is no dedicated "earnings" endpoint - a contractor's payment
-      // history is derived from their own invoices (auto-scoped to the
-      // caller by the backend), using each invoice's PaymentDate/totalAmount/Status.
       const invoices = await getInvoices();
 
       const sorted = [...(invoices || [])].sort(
-        (a, b) => new Date(b.InvoiceDate) - new Date(a.InvoiceDate)
+        (a, b) => new Date(b.InvoiceDate || b.invoiceDate) - new Date(a.InvoiceDate || a.invoiceDate)
       );
 
       setEarnings(sorted);
@@ -78,7 +79,7 @@ function Payments() {
     });
 
     if (list.length > 0) {
-      const latest = list[0]; // Already sorted descending by invoice date
+      const latest = list[0]; // Already sorted descending
       lastStatus = latest.status || '—';
       if (latest.paymentDate) {
         const pDate = new Date(latest.paymentDate);
@@ -115,14 +116,46 @@ function Payments() {
     return `₹${formatted}`;
   };
 
-  // Local filter
+  // Generate dynamic list of available years for dropdown
+  const availableYears = useMemo(() => {
+    const years = new Set(
+      earnings
+        .map(item => item.paymentDate || item.InvoiceDate || item.invoiceDate)
+        .filter(Boolean)
+        .map(dateStr => new Date(dateStr).getFullYear())
+    );
+    years.add(new Date().getFullYear()); // Ensure current year is always option
+    return Array.from(years).sort((a, b) => b - a);
+  }, [earnings]);
+
+  // Combined Search & Calendar Filter Logic
   const filteredEarnings = earnings.filter((item) => {
     const query = searchQuery.trim().toLowerCase();
-    if (!query) return true;
-    return (
+
+    // 1. Search Query Filter
+    const matchesSearch = !query || (
       (item.invoicePeriod && item.invoicePeriod.toLowerCase().includes(query)) ||
       (item.status && item.status.toLowerCase().includes(query))
     );
+
+    if (!matchesSearch) return false;
+
+    // 2. Calendar/Date Filter
+    const targetDateStr = item.paymentDate || item.InvoiceDate || item.invoiceDate;
+    if (!targetDateStr) return filterType === 'all';
+
+    const itemDate = new Date(targetDateStr);
+
+    if (filterType === 'monthly') {
+      return (
+        itemDate.getFullYear() === parseInt(selectedYear, 10) &&
+        itemDate.getMonth() === parseInt(selectedMonth, 10)
+      );
+    } else if (filterType === 'yearly') {
+      return itemDate.getFullYear() === parseInt(selectedYear, 10);
+    }
+
+    return true; // 'all'
   });
 
   const formatPaymentDate = (dateStr) => {
@@ -130,6 +163,11 @@ function Payments() {
     const date = new Date(dateStr);
     return date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
   };
+
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
 
   return (
     <div className="container-fluid">
@@ -139,32 +177,20 @@ function Payments() {
           <span>My Earnings</span>
           <button
             onClick={toggleEarnings}
-            className="border-0 bg-transparent p-0 text-muted d-inline-flex align-items-center"
-            style={{ cursor: 'pointer', outline: 'none' }}
+            className="border-0 bg-transparent p-0 text-muted d-inline-flex align-items-center ms-1"
+            style={{ cursor: 'pointer', outline: 'none'}}
             title={showEarnings ? "Hide earnings" : "Show earnings"}
             aria-label={showEarnings ? "Hide earnings" : "Show earnings"}
           >
             {showEarnings ? (
-              /* Eye Slash Icon */
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
-                <path d="M13.359 11.238C15.06 9.72 16 8 16 8s-3-5.5-8-5.5a7 7 0 0 0-2.79.588l.77.771A6 6 0 0 1 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13 13 0 0 1 14.828 8q-.086.13-.195.288c-.335.48-.83 1.12-1.465 1.755-.165.165-.337.328-.517.486z" />
-                <path d="M11.297 9.176a3.5 3.5 0 0 0-4.474-4.474l.823.823a2.5 2.5 0 0 1 2.829 2.829zm-2.943 1.299.822.822a3.5 3.5 0 0 1-4.474-4.474l.823.823a2.5 2.5 0 0 0 2.829 2.829" />
-                <path d="M3.35 5.47q-.27.242-.518.487C1.597 7.22 1 8 1 8s3 5.5 8 5.5c.82 0 1.6-.14 2.327-.394l-.77-.77A6 6 0 0 1 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13 13 0 0 1 1.172 8q.086-.13.195-.288c.335-.48.83-1.12 1.465-1.755q.247-.248.517-.486z" />
-                <path d="M13.646 14.354l-12-12 .708-.708 12 12z" />
-              </svg>
+              <i className='bi-eye-slash'></i>
             ) : (
-              /* Eye Icon */
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
-                <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8M1.173 8a13 13 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5s3.879 1.168 5.168 2.457A13 13 0 0 1 14.828 8q-.086.13-.195.288c-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5s-3.879-1.168-5.168-2.457A13 13 0 0 1 1.172 8z" />
-                <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5M4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0" />
-              </svg>
+              <i className='bi-eye'></i>
             )}
           </button>
         </h1>
         <p className="muted-text">Review bank disbursement summaries and payout records.</p>
       </div>
-
-
 
       <div>
         {loading ? (
@@ -178,7 +204,6 @@ function Payments() {
             <div className="row g-3 mb-4">
               <div className="col-md-3">
                 <div className="gf-card mb-0 p-3 h-100 d-flex flex-column justify-content-between position-relative" style={{ minHeight: '120px' }}>
-
                   <div>
                     <span className="text-uppercase text-muted font-bold small" style={{ fontSize: '0.65rem' }}>Total Earnings</span>
                     <h3 className={`fw-black text-green-600 mt-1 mb-0 earnings-amount text-truncate ${isAnimating ? 'fade-out' : ''}`} style={{ minWidth: '150px', display: 'block' }}>
@@ -193,7 +218,6 @@ function Payments() {
 
               <div className="col-md-3">
                 <div className="gf-card mb-0 p-3 h-100 d-flex flex-column justify-content-between position-relative" style={{ minHeight: '120px' }}>
-
                   <div>
                     <span className="text-uppercase text-muted font-bold small" style={{ fontSize: '0.65rem' }}>This Month</span>
                     <h3 className={`fw-black text-dark mt-1 mb-0 earnings-amount text-truncate ${isAnimating ? 'fade-out' : ''}`} style={{ minWidth: '150px', display: 'block' }}>
@@ -228,6 +252,63 @@ function Payments() {
                   </div>
                   <p className="text-muted small mb-0 mt-2">Status of latest payment</p>
                 </div>
+              </div>
+            </div>
+
+            {/* Header Above Transactions List */}
+            <div className="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+              <h4 className="fw-bold text-slate-800 mb-0">Recent Transactions</h4>
+
+              {/* Filtering Control Bar */}
+              <div className="d-flex align-items-center gap-2 flex-wrap">
+                <InputGroup size="sm" style={{ width: 'auto' }}>
+                  <InputGroup.Text className="bg-white text-muted border-end-0">
+                    <i className="bi bi-calendar3"></i>
+                  </InputGroup.Text>
+
+                  {/* Scope Selector */}
+                  <Form.Select
+                    size="sm"
+                    value={filterType}
+                    onChange={(e) => setFilterType(e.target.value)}
+                    className="border-start-0 shadow-none fw-semibold"
+                    style={{ minWidth: '110px' }}
+                  >
+                    <option value="all">All Time</option>
+                    <option value="monthly">Monthly</option>
+                    <option value="yearly">Yearly</option>
+                  </Form.Select>
+                </InputGroup>
+
+                {/* Conditional Month Selector */}
+                {filterType === 'monthly' && (
+                  <Form.Select
+                    size="sm"
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(e.target.value)}
+                    className="shadow-none fw-semibold"
+                    style={{ width: '120px' }}
+                  >
+                    {monthNames.map((name, idx) => (
+                      <option key={name} value={idx}>{name}</option>
+                    ))}
+                  </Form.Select>
+                )}
+
+                {/* Conditional Year Selector */}
+                {(filterType === 'monthly' || filterType === 'yearly') && (
+                  <Form.Select
+                    size="sm"
+                    value={selectedYear}
+                    onChange={(e) => setSelectedYear(e.target.value)}
+                    className="shadow-none fw-semibold"
+                    style={{ width: '90px' }}
+                  >
+                    {availableYears.map(yr => (
+                      <option key={yr} value={yr}>{yr}</option>
+                    ))}
+                  </Form.Select>
+                )}
               </div>
             </div>
 
@@ -274,7 +355,7 @@ function Payments() {
               ) : (
                 <div className="text-center py-5 gf-card border-0 bg-white">
                   <i className="bi bi-wallet2 fs-2 text-muted"></i>
-                  <p className="text-muted small mt-2 mb-0">No earnings logs found.</p>
+                  <p className="text-muted small mt-2 mb-0">No earnings logs found for the selected period.</p>
                 </div>
               )}
             </div>

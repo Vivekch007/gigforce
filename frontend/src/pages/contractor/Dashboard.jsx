@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Alert } from 'react-bootstrap';
 import { getPersonalDashboard } from '../../services/analyticsService';
 import { getMyProfile, getProfileCerts } from '../../services/contractorService';
 import { getAssignments } from '../../services/assignmentService';
@@ -15,7 +14,7 @@ function Dashboard() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  
+
   const [personalStats, setPersonalStats] = useState(null);
   const [profile, setProfile] = useState(null);
   const [currentAssignment, setCurrentAssignment] = useState(null);
@@ -200,7 +199,7 @@ function Dashboard() {
       </div>
 
       {/* KPI Cards Row */}
-      <div className="row g-4 mb-5">
+      <div className="row g-4 mb-4">
         <div className="col-md-3">
           <KpiCard
             label="Active Placements"
@@ -241,19 +240,9 @@ function Dashboard() {
                   aria-label={showTotalEarnings ? "Hide earnings" : "Show earnings"}
                 >
                   {showTotalEarnings ? (
-                    /* Eye Slash Icon */
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                      <path d="M13.359 11.238C15.06 9.72 16 8 16 8s-3-5.5-8-5.5a7 7 0 0 0-2.79.588l.77.771A6 6 0 0 1 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13 13 0 0 1 14.828 8q-.086.13-.195.288c-.335.48-.83 1.12-1.465 1.755-.165.165-.337.328-.517.486z" />
-                      <path d="M11.297 9.176a3.5 3.5 0 0 0-4.474-4.474l.823.823a2.5 2.5 0 0 1 2.829 2.829zm-2.943 1.299.822.822a3.5 3.5 0 0 1-4.474-4.474l.823.823a2.5 2.5 0 0 0 2.829 2.829" />
-                      <path d="M3.35 5.47q-.27.242-.518.487C1.597 7.22 1 8 1 8s3 5.5 8 5.5c.82 0 1.6-.14 2.327-.394l-.77-.77A6 6 0 0 1 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13 13 0 0 1 1.172 8q.086-.13.195-.288c.335-.48.83-1.12 1.465-1.755q.247-.248.517-.486z" />
-                      <path d="M13.646 14.354l-12-12 .708-.708 12 12z" />
-                    </svg>
+                    <i className='bi-eye-slash'></i>
                   ) : (
-                    /* Eye Icon */
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                      <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8M1.173 8a13 13 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5s3.879 1.168 5.168 2.457A13 13 0 0 1 14.828 8q-.086.13-.195.288c-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5s-3.879-1.168-5.168-2.457A13 13 0 0 1 1.172 8z" />
-                      <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5M4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0" />
-                    </svg>
+                    <i className='bi-eye'></i>
                   )}
                 </button>
               </div>
@@ -268,11 +257,13 @@ function Dashboard() {
         </div>
       </div>
 
+      {/* Grid Layout Container */}
       <div className="row g-4">
-        {/* Main Content Area */}
-        <div className="col-lg-8 d-flex flex-column gap-4">
-          {/* Current Assignment Details */}
-          <div className="enterprise-table-container p-4">
+
+        {/* --- ROW 1 --- */}
+        {/* Current Assignment Details */}
+        <div className="col-lg-8">
+          <div className="enterprise-table-container p-4 h-100">
             <h5 className="small fw-semibold text-uppercase text-muted mb-3">Current Active Assignment</h5>
             {currentAssignment ? (
               <div className="row g-3">
@@ -317,9 +308,38 @@ function Dashboard() {
               </div>
             )}
           </div>
+        </div>
 
-          {/* Assignments Summary Grid */}
-          <div className="enterprise-table-container p-4">
+        {/* Upcoming Deadlines (Stretched & Evenly Spaced) */}
+        <div className="col-lg-4">
+          <div className="enterprise-table-container p-4 h-100 d-flex flex-column">
+            <h5 className="small fw-semibold text-uppercase text-muted mb-3 d-flex align-items-center gap-2">
+              <i className="bi bi-calendar-event"></i> Upcoming
+            </h5>
+            {upcomingDeadlines.length > 0 ? (
+              <div className="d-flex flex-column justify-content-around flex-grow-1 py-1">
+                {upcomingDeadlines.map((dl, idx) => (
+                  <div key={idx} className="ps-2 position-relative my-1">
+                    <div className="position-absolute start-0 top-0 mt-1" style={{ color: 'var(--gf-primary)', fontSize: '1rem' }}>•</div>
+                    <div className="ms-3">
+                      <div className="small fw-semibold text-dark">{dl.title}</div>
+                      <div className="text-muted small">{dl.date}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="d-flex align-items-center justify-content-center flex-grow-1">
+                <p className="text-muted small mb-0 py-2">No upcoming deadlines.</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* --- ROW 2 --- */}
+        {/* Assignments Summary Grid */}
+        <div className="col-lg-8">
+          <div className="enterprise-table-container p-4 h-100">
             <div className="d-flex justify-content-between align-items-center mb-3">
               <h5 className="small fw-semibold text-uppercase text-muted mb-0">Assignment Placements</h5>
               <Link to="/contractor/assignments" className="text-decoration-none small fw-semibold text-primary">
@@ -348,8 +368,43 @@ function Dashboard() {
               <p className="text-muted small mb-0 py-2">No placements logged.</p>
             )}
           </div>
+        </div>
 
-          {/* Recent Timesheets Card */}
+        {/* Quick Actions (Stretched Buttons & Evenly Spaced) */}
+        <div className="col-lg-4">
+          <div className="enterprise-table-container p-4 h-100 d-flex flex-column">
+            <h5 className="small fw-semibold text-uppercase text-muted mb-3">Quick Actions</h5>
+            <div className="d-flex flex-column justify-content-between flex-grow-1 gap-3">
+              <button onClick={() => navigate('/contractor/timesheets')} className="btn-enterprise-secondary text-start py-3 px-3 d-flex gap-3 align-items-center flex-grow-1">
+                <i className="bi bi-clock fs-4 text-primary"></i>
+                <div>
+                  <div className="small fw-semibold text-dark">Fill Weekly Timesheet</div>
+                  <div className="text-muted small">Log work details & submit logs</div>
+                </div>
+              </button>
+
+              <button onClick={() => navigate('/contractor/profile')} className="btn-enterprise-secondary text-start py-3 px-3 d-flex gap-3 align-items-center flex-grow-1">
+                <i className="bi bi-person fs-4 text-primary"></i>
+                <div>
+                  <div className="small fw-semibold text-dark">Update Profile Details</div>
+                  <div className="text-muted small">Modify experience & skills</div>
+                </div>
+              </button>
+
+              <button onClick={() => navigate('/contractor/assignments')} className="btn-enterprise-secondary text-start py-3 px-3 d-flex gap-3 align-items-center flex-grow-1">
+                <i className="bi bi-clipboard-check fs-4 text-primary"></i>
+                <div>
+                  <div className="small fw-semibold text-dark">View Placements</div>
+                  <div className="text-muted small">Check SOW & agreed rates</div>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* --- ROW 3 --- */}
+        {/* Recent Timesheets Card (Full Width) */}
+        <div className="col-12">
           <div className="enterprise-table-container p-4">
             <div className="d-flex justify-content-between align-items-center mb-3">
               <h5 className="small fw-semibold text-uppercase text-muted mb-0">Recent Timesheets</h5>
@@ -383,78 +438,6 @@ function Dashboard() {
           </div>
         </div>
 
-        {/* Sidebar Panel */}
-        <div className="col-lg-4 d-flex flex-column gap-4">
-          {/* Upcoming Deadlines */}
-          {upcomingDeadlines.length > 0 && (
-            <div className="enterprise-table-container p-4">
-              <h5 className="small fw-semibold text-uppercase text-muted mb-3 d-flex align-items-center gap-2">
-                <i className="bi bi-calendar-event"></i> Upcoming
-              </h5>
-              <div className="d-flex flex-column gap-3">
-                {upcomingDeadlines.map((dl, idx) => (
-                  <div key={idx} className="ps-2 position-relative">
-                    <div className="position-absolute start-0 top-0 mt-1" style={{ color: 'var(--gf-primary)', fontSize: '1rem' }}>•</div>
-                    <div className="ms-3">
-                      <div className="small fw-semibold text-dark">{dl.title}</div>
-                      <div className="text-muted small">{dl.date}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Quick Actions */}
-          <div className="enterprise-table-container p-4">
-            <h5 className="small fw-semibold text-uppercase text-muted mb-3">Quick Actions</h5>
-            <div className="d-flex flex-column gap-2">
-              <button onClick={() => navigate('/contractor/timesheets')} className="btn-enterprise-secondary text-start py-3 px-3 d-flex gap-3 align-items-center">
-                <i className="bi bi-clock fs-4 text-primary"></i>
-                <div>
-                  <div className="small fw-semibold text-dark">Fill Weekly Timesheet</div>
-                  <div className="text-muted small">Log work details & submit logs</div>
-                </div>
-              </button>
-
-              <button onClick={() => navigate('/contractor/profile')} className="btn-enterprise-secondary text-start py-3 px-3 d-flex gap-3 align-items-center">
-                <i className="bi bi-person fs-4 text-primary"></i>
-                <div>
-                  <div className="small fw-semibold text-dark">Update Profile Details</div>
-                  <div className="text-muted small">Modify experience & skills</div>
-                </div>
-              </button>
-
-              <button onClick={() => navigate('/contractor/assignments')} className="btn-enterprise-secondary text-start py-3 px-3 d-flex gap-3 align-items-center">
-                <i className="bi bi-clipboard-check fs-4 text-primary"></i>
-                <div>
-                  <div className="small fw-semibold text-dark">View Placements</div>
-                  <div className="text-muted small">Check SOW & agreed rates</div>
-                </div>
-              </button>
-            </div>
-          </div>
-
-          {/* Recent Activity Timeline */}
-          <div className="enterprise-table-container p-4">
-            <h5 className="small fw-semibold text-uppercase text-muted mb-3">Recent Activity</h5>
-            {activities.length > 0 ? (
-              <div className="d-flex flex-column gap-3">
-                {activities.map((act) => (
-                  <div className="border-start ps-3 py-1 position-relative" key={act.NotificationID} style={{ borderColor: 'var(--gf-border)' }}>
-                    <div className="text-muted small">{new Date(act.CreatedDate).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})}</div>
-                    <div className="small fw-semibold text-dark">{act.Title || act.Category}</div>
-                    <div className="text-muted small text-truncate" style={{ maxWidth: '100%' }}>
-                      {act.Message}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-muted small mb-0 py-2">No recent system logs.</p>
-            )}
-          </div>
-        </div>
       </div>
     </div>
   );
