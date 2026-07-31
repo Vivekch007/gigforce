@@ -14,3 +14,4 @@ public class  GigForceApplication {
         SpringApplication.run(GigForceApplication.class, args);
     }
 }
+

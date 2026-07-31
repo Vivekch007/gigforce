@@ -18,7 +18,6 @@ public interface ResourceRequisitionService {
 
     ResourceRequisitionResponseDTO closeRequisition(String id);
 
-    ResourceRequisitionResponseDTO underReviewRequisition(String id);
 
     ResourceRequisitionResponseDTO getRequisitionById(String id);
 
@@ -29,6 +28,7 @@ public interface ResourceRequisitionService {
             String requiredSkillId,
             String hiringManager,
             String orgUnitId,
+            Integer minExperience,
             int page,
             int size);
 }

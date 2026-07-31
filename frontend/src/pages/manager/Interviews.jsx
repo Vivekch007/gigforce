@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Table, Button, Form, Modal, Row, Col, Alert, Spinner } from 'react-bootstrap';
 import { getInterviews, rescheduleInterview, completeInterview } from '../../services/interviewService';
 import { getErrorMessage } from '../../services/errorUtils';
+import { useToast } from '../../context/ToastContext';
 
 function Interviews() {
   const [searchParams] = useSearchParams();
@@ -10,7 +11,7 @@ function Interviews() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const { showToast } = useToast();
 
   // Interviews data
   const [interviews, setInterviews] = useState([]);
@@ -55,19 +56,18 @@ function Interviews() {
 
   const handleRescheduleSubmit = async () => {
     if (!rescheduleForm.date) {
-      setError('Date is required for rescheduling.');
+      showToast('Date is required for rescheduling.', 'error');
       return;
     }
     try {
       setSubmittingAction(true);
       setError('');
-      setSuccess('');
       await rescheduleInterview(selectedInt.id, rescheduleForm);
-      setSuccess(`Interview rescheduled successfully for ${selectedInt.candidateName}.`);
+      showToast(`Interview rescheduled successfully for ${selectedInt.candidateName}.`, 'success');
       setShowRescheduleModal(false);
       loadInterviews();
     } catch (err) {
-      setError(getErrorMessage(err));
+      showToast(getErrorMessage(err), 'error');
     } finally {
       setSubmittingAction(false);
     }
@@ -81,19 +81,18 @@ function Interviews() {
 
   const handleFeedbackSubmit = async () => {
     if (!feedbackText.trim()) {
-      setError('Feedback notes cannot be blank.');
+      showToast('Feedback notes cannot be blank.', 'error');
       return;
     }
     try {
       setSubmittingAction(true);
       setError('');
-      setSuccess('');
       await completeInterview(selectedInt.id, feedbackText);
-      setSuccess(`Interview marked as Completed. Feedback logged.`);
+      showToast('Interview marked as Completed. Feedback logged.', 'success');
       setShowFeedbackModal(false);
       loadInterviews();
     } catch (err) {
-      setError(getErrorMessage(err));
+      showToast(getErrorMessage(err), 'error');
     } finally {
       setSubmittingAction(false);
     }
@@ -137,7 +136,6 @@ function Interviews() {
       </div>
 
       {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
-      {success && <Alert variant="success" className="mb-4" onClose={() => setSuccess('')} dismissible>{success}</Alert>}
 
       {loading ? (
         <div className="text-center py-5">

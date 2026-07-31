@@ -63,7 +63,7 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Update user details", description = "Updates name and/or phone. Admins can update any user, other roles restricted to updating self.")
+    @Operation(summary = "Update user details", description = "Update phone number. Admins can update any user, other roles restricted to updating self.")
     public ResponseEntity<UserResponseDTO> updateUser(
             @PathVariable String id,
             @Valid @RequestBody UserUpdateRequestDTO request) {
@@ -72,7 +72,6 @@ public class UserController {
 
         boolean isAdmin = SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
-
 
         if (!isAdmin && !user.getEmail().equals(currentUsername)) {
             throw new AccessDeniedException("Access Denied: You are not authorized to update this user.");

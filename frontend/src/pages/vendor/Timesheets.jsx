@@ -13,6 +13,10 @@ function Timesheets() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  
+  // Date range filters
+  const [filterStartDate, setFilterStartDate] = useState('');
+  const [filterEndDate, setFilterEndDate] = useState('');
 
   // Timesheets state
   const [timesheets, setTimesheets] = useState([]);
@@ -60,12 +64,21 @@ function Timesheets() {
 
   // Local Search filtering
   const filteredTimesheets = timesheets.filter(t => {
-    if (!searchVal.trim()) return true;
-    const q = searchVal.trim().toLowerCase();
-    return (
-      t.contractorName?.toLowerCase().includes(q) ||
-      t.status?.toLowerCase().includes(q)
-    );
+    let match = true;
+    if (searchVal.trim()) {
+      const q = searchVal.trim().toLowerCase();
+      match = (
+        t.contractorName?.toLowerCase().includes(q) ||
+        t.status?.toLowerCase().includes(q)
+      );
+    }
+    if (match && filterStartDate) {
+      if (new Date(t.startDate) < new Date(filterStartDate)) match = false;
+    }
+    if (match && filterEndDate) {
+      if (new Date(t.endDate) > new Date(filterEndDate)) match = false;
+    }
+    return match;
   });
 
   return (
@@ -77,6 +90,22 @@ function Timesheets() {
       </div>
 
       {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
+
+      <div className="d-flex gap-3 mb-4 align-items-center">
+        <div style={{ maxWidth: '200px' }}>
+          <label className="form-label small text-muted mb-1">Start Date</label>
+          <input type="date" className="form-control" value={filterStartDate} onChange={(e) => setFilterStartDate(e.target.value)} />
+        </div>
+        <div style={{ maxWidth: '200px' }}>
+          <label className="form-label small text-muted mb-1">End Date</label>
+          <input type="date" className="form-control" value={filterEndDate} onChange={(e) => setFilterEndDate(e.target.value)} />
+        </div>
+        {(filterStartDate || filterEndDate) && (
+          <div className="mt-4">
+            <Button variant="outline-secondary" size="sm" onClick={() => { setFilterStartDate(''); setFilterEndDate(''); }}>Clear Filters</Button>
+          </div>
+        )}
+      </div>
 
       {loading ? (
         <LoadingSpinner message="Accessing contractor work logs..." />
@@ -157,14 +186,14 @@ function Timesheets() {
                 </thead>
                 <tbody>
                   <tr>
-                    <td>{selectedTs.mondayHours || 0}</td>
-                    <td>{selectedTs.tuesdayHours || 0}</td>
-                    <td>{selectedTs.wednesdayHours || 0}</td>
-                    <td>{selectedTs.thursdayHours || 0}</td>
-                    <td>{selectedTs.fridayHours || 0}</td>
-                    <td>{selectedTs.saturdayHours || 0}</td>
-                    <td>{selectedTs.sundayHours || 0}</td>
-                    <td className="table-primary fw-bold">{selectedTs.totalHoursLogged} hrs</td>
+                    <td>{parseFloat(selectedTs.mondayHours) || 0}</td>
+                    <td>{parseFloat(selectedTs.tuesdayHours) || 0}</td>
+                    <td>{parseFloat(selectedTs.wednesdayHours) || 0}</td>
+                    <td>{parseFloat(selectedTs.thursdayHours) || 0}</td>
+                    <td>{parseFloat(selectedTs.fridayHours) || 0}</td>
+                    <td>{parseFloat(selectedTs.saturdayHours) || 0}</td>
+                    <td>{parseFloat(selectedTs.sundayHours) || 0}</td>
+                    <td className="table-primary fw-bold">{selectedTs.totalHoursLogged || 0} hrs</td>
                   </tr>
                 </tbody>
               </Table>

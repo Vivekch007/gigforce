@@ -827,6 +827,8 @@ public class InvoiceServiceImpl implements InvoiceService {
                 .paymentDate(invoice.getPaymentDate())
                 .submittedDate(invoice.getSubmittedDate())
                 .status(invoice.getStatus().name())
+                .contractorName(invoice.getContractor() != null ? invoice.getContractor().getName() : null)
+                .vendorName(invoice.getVendor() != null ? invoice.getVendor().getName() : null)
                 .build();
     }
 }

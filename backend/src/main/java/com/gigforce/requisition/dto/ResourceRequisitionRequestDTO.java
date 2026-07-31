@@ -52,7 +52,5 @@ public class ResourceRequisitionRequestDTO {
     private String duration;
 
     private String businessUnitId;
-
-    @Size(max = 100, message = "Custom department name must not exceed 100 characters")
-    private String customDepartment;
 }
+

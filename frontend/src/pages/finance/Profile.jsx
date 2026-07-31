@@ -1,35 +1,83 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Row, Col, Form, Button, Alert } from 'react-bootstrap';
+import { Card, Row, Col, Form, Button, Alert, Spinner } from 'react-bootstrap';
 import { useAuth } from '../../hooks/useAuth';
+import { getCurrentUser, updateUser } from '../../services/userService';
+import { getErrorMessage } from '../../services/errorUtils';
 
 function Profile() {
   const { user } = useAuth();
 
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [editing, setEditing] = useState(false);
+  const [userId, setUserId] = useState('');
 
   // Profile fields
   const [formData, setFormData] = useState({
-    name: 'Sarah Jenkins',
-    email: 'sarah.j@gigforce.com',
-    phone: '+1 (555) 0122',
-    employeeId: 'EMP-94829',
+    name: '',
+    email: '',
+    phone: '',
+    employeeId: '',
+    role: '',
     department: 'Corporate Accounts & Finance',
     designation: 'Senior Accounts Officer',
   });
 
-  const handleSave = (e) => {
+  const loadProfile = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const data = await getCurrentUser();
+      setUserId(data.userId);
+      setFormData((prev) => ({
+        ...prev,
+        name: data.name || '',
+        email: data.email || '',
+        phone: data.phone || '',
+        employeeId: `${data.userId}`,
+        role: data.role || 'FINANCE',
+      }));
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadProfile();
+  }, []);
+
+  const handleSave = async (e) => {
     e.preventDefault();
     setSuccess('');
     setError('');
 
-    // Simulate save
-    setTimeout(() => {
-      setSuccess('Profile updated successfully!');
+    const normalizedPhone = formData.phone.replace(/\D/g, '');
+    if (normalizedPhone.length !== 10) {
+      setError('Phone number must be exactly 10 digits.');
+      return;
+    }
+
+    try {
+      const response = await updateUser(userId, { phone: normalizedPhone });
+      setFormData((prev) => ({ ...prev, phone: response.phone }));
+      setSuccess('Profile updated successfully.');
       setEditing(false);
-    }, 200);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '50vh' }}>
+        <Spinner animation="border" variant="primary" />
+        <span className="ms-3 text-muted">Loading profile...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="container-fluid">
@@ -55,7 +103,7 @@ function Profile() {
             <div className="text-start small text-slate-600">
               <div className="mb-2"><strong>Employee ID:</strong> {formData.employeeId}</div>
               <div className="mb-2"><strong>Department:</strong> {formData.department}</div>
-              <div><strong>System Role:</strong> {user?.role || 'FINANCE'}</div>
+              <div><strong>System Role:</strong> {formData.role}</div>
             </div>
           </Card>
         </Col>
@@ -69,7 +117,7 @@ function Profile() {
                 <Button variant="outline-primary" onClick={() => setEditing(true)}>Edit Details</Button>
               ) : (
                 <div className="d-flex gap-2">
-                  <Button variant="outline-secondary" onClick={() => setEditing(false)}>Cancel</Button>
+                  <Button variant="outline-secondary" onClick={() => { setEditing(false); loadProfile(); }}>Cancel</Button>
                   <Button className="btn-gf-primary" onClick={handleSave}>Save Changes</Button>
                 </div>
               )}
@@ -82,9 +130,8 @@ function Profile() {
                     <Form.Label className="uppercase-label">Full Name</Form.Label>
                     <Form.Control
                       type="text"
-                      disabled={!editing}
+                      disabled
                       value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     />
                   </Form.Group>
                 </Col>
@@ -93,9 +140,8 @@ function Profile() {
                     <Form.Label className="uppercase-label">Personal Email</Form.Label>
                     <Form.Control
                       type="email"
-                      disabled={!editing}
+                      disabled
                       value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     />
                   </Form.Group>
                 </Col>

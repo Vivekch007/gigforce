@@ -20,9 +20,15 @@ function Users() {
   // Users lists
   const [usersList, setUsersList] = useState([]);
 
+  // Column filters
+  const [filterOrg, setFilterOrg] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterRole, setFilterRole] = useState('');
 
-
-
+  // Extract unique options for dropdowns based on the data
+  const uniqueOrgs = [...new Set(usersList.map(u => u.organization))].filter(Boolean);
+  const uniqueRoles = [...new Set(usersList.map(u => u.role))].filter(Boolean);
+  const uniqueStatuses = [...new Set(usersList.map(u => u.status))].filter(Boolean);
   const loadUsers = async () => {
     try {
       setLoading(true);
@@ -90,15 +96,22 @@ function Users() {
     }
   };
 
-  // Local Search filtering
+  // Local Search & Column filtering
   const filteredUsers = usersList.filter(u => {
+    // 1. Global text search
     if (searchVal.trim()) {
       const q = searchVal.trim().toLowerCase();
       const matchName = u.name?.toLowerCase().includes(q);
       const matchEmail = u.email?.toLowerCase().includes(q);
       const matchEmp = u.employeeId?.toLowerCase().includes(q);
-      return matchName || matchEmail || matchEmp;
+      if (!matchName && !matchEmail && !matchEmp) return false;
     }
+
+    // 2. Column filters
+    if (filterOrg && u.organization !== filterOrg) return false;
+    if (filterStatus && u.status !== filterStatus) return false;
+    if (filterRole && u.role !== filterRole) return false;
+
     return true;
   });
 
@@ -112,6 +125,39 @@ function Users() {
         </div>
 
       </div>
+
+      {/* Advanced Column Filters */}
+      <Card className="gf-card p-3 mb-4 border-0 bg-white shadow-sm">
+        <div className="row g-3 align-items-end">
+          <div className="col-md-3">
+            <Form.Group>
+              <Form.Label className="small text-muted fw-bold">Organization</Form.Label>
+              <Form.Select size="sm" value={filterOrg} onChange={(e) => setFilterOrg(e.target.value)}>
+                <option value="">All Organizations</option>
+                {uniqueOrgs.map(org => <option key={org} value={org}>{org}</option>)}
+              </Form.Select>
+            </Form.Group>
+          </div>
+          <div className="col-md-3">
+            <Form.Group>
+              <Form.Label className="small text-muted fw-bold">Role</Form.Label>
+              <Form.Select size="sm" value={filterRole} onChange={(e) => setFilterRole(e.target.value)}>
+                <option value="">All Roles</option>
+                {uniqueRoles.map(role => <option key={role} value={role}>{role}</option>)}
+              </Form.Select>
+            </Form.Group>
+          </div>
+          <div className="col-md-3">
+            <Form.Group>
+              <Form.Label className="small text-muted fw-bold">Status</Form.Label>
+              <Form.Select size="sm" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+                <option value="">All Statuses</option>
+                {uniqueStatuses.map(status => <option key={status} value={status}>{status}</option>)}
+              </Form.Select>
+            </Form.Group>
+          </div>
+        </div>
+      </Card>
 
       {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
       {success && <Alert variant="success" className="mb-4" onClose={() => setSuccess('')} dismissible>{success}</Alert>}

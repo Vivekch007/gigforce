@@ -19,12 +19,24 @@ export function markNotificationAsRead(id) {
   return apiClient.put(`/notifications/${id}/read`).then((res) => res.data);
 }
 
+export function markNotificationAsUnread(id) {
+  return apiClient.put(`/notifications/${id}/unread`).then((res) => res.data);
+}
+
 export function dismissNotification(id) {
   return apiClient.put(`/notifications/${id}/dismiss`).then((res) => res.data);
 }
 
 export function deleteNotification(id) {
   return apiClient.delete(`/notifications/${id}`).then((res) => res.data);
+}
+
+export function markAllNotificationsAsRead() {
+  return apiClient.put(`/notifications/read-all`).then((res) => res.data);
+}
+
+export function deleteAllNotifications() {
+  return apiClient.delete(`/notifications/clear-all`).then((res) => res.data);
 }
 
 export function sendSystemNotification(payload) {

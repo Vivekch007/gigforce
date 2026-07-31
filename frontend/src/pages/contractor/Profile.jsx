@@ -1,16 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { Spinner, Alert, Button, Form, Col, Row, Card, Badge, Table, Modal } from 'react-bootstrap';
-import { 
-  getMyProfile, 
-  updateProfile, 
-  getSkills, 
-  addProfileSkill, 
-  deleteProfileSkill, 
-  getProfileCerts, 
-  addProfileCert, 
-  deleteProfileCert, 
-  getProfileEngagements, 
-  addProfileEngagement 
+import {
+  getMyProfile,
+  updateProfile,
+  getSkills,
+  addProfileSkill,
+  deleteProfileSkill,
+  getProfileCerts,
+  addProfileCert,
+  deleteProfileCert,
+  getProfileEngagements,
+  addProfileEngagement
 } from '../../services/contractorService';
 import { getErrorMessage } from '../../services/errorUtils';
 import { useToast } from '../../context/ToastContext';
@@ -114,7 +114,6 @@ function Profile() {
     const loadTabDetails = async () => {
       try {
         setTabLoading(true);
-        setTabError('');
 
         if (activeTab === 'personal') {
           // Profile context contains personal info; no additional fetch needed
@@ -153,16 +152,16 @@ function Profile() {
 
   if (profileError) {
     return (
-      <Alert variant="danger" className="gf-card mt-4">
-        <Alert.Heading>Profile Error</Alert.Heading>
-        <p>{profileError}</p>
-      </Alert>
+      <div className="text-center py-5 mt-5">
+        <i className="bi bi-exclamation-triangle fs-1 text-danger mb-3"></i>
+        <h5>Profile Error</h5>
+      </div>
     );
   }
 
   // Derive title from first skill or defaults
-  const mainTitle = profile?.skills?.length > 0 
-    ? `${profile.skills[0].skillName} Engineer` 
+  const mainTitle = profile?.skills?.length > 0
+    ? `${profile.skills[0].skillName} Engineer`
     : 'Contractor Specialist';
 
   // --- Handlers ---
@@ -171,7 +170,6 @@ function Profile() {
   const handlePersonalSubmit = async (e) => {
     e.preventDefault();
     setActionLoading(true);
-    setTabError('');
     try {
       const updated = await updateProfile(profile.id, {
         ...personalForm,
@@ -181,7 +179,7 @@ function Profile() {
       setProfile(updated);
       addToast('Success', 'Personal details updated successfully!', 'success');
     } catch (err) {
-      setTabError(getErrorMessage(err));
+      addToast(getErrorMessage(err), 'error');
     } finally {
       setActionLoading(false);
     }
@@ -195,7 +193,6 @@ function Profile() {
       return;
     }
     setActionLoading(true);
-    setTabError('');
     try {
       const updated = await addProfileSkill(profile.id, {
         skillId: skillForm.skillId,
@@ -206,7 +203,7 @@ function Profile() {
       setSkillForm({ skillId: '', proficiencyLevel: 'BEGINNER', yearsOfExperience: '' });
       addToast('Success', 'Skill mapped successfully!', 'success');
     } catch (err) {
-      setTabError(getErrorMessage(err));
+      addToast(getErrorMessage(err), 'error');
     } finally {
       setActionLoading(false);
     }
@@ -224,7 +221,7 @@ function Profile() {
       const updated = await getMyProfile();
       setProfile(updated);
     } catch (err) {
-      setTabError(getErrorMessage(err));
+      addToast(getErrorMessage(err), 'error');
     } finally {
       setActionLoading(false);
     }
@@ -234,7 +231,6 @@ function Profile() {
   const handleAddCert = async (e) => {
     e.preventDefault();
     setActionLoading(true);
-    setTabError('');
     try {
       await addProfileCert(profile.id, certForm);
       const certs = await getProfileCerts(profile.id);
@@ -243,7 +239,7 @@ function Profile() {
       setCertForm({ name: '', issuingAuthority: '', issueDate: '', expiryDate: '', certificateNumber: '' });
       addToast('Success', 'Certification added successfully!', 'success');
     } catch (err) {
-      setTabError(getErrorMessage(err));
+      addToast(getErrorMessage(err), 'error');
     } finally {
       setActionLoading(false);
     }
@@ -260,7 +256,7 @@ function Profile() {
       const certs = await getProfileCerts(profile.id);
       setCertifications(certs);
     } catch (err) {
-      setTabError(getErrorMessage(err));
+      addToast(getErrorMessage(err), 'error');
     } finally {
       setActionLoading(false);
     }
@@ -293,7 +289,7 @@ function Profile() {
       });
       addToast('Success', 'Engagement logged for verification!', 'success');
     } catch (err) {
-      setTabError(getErrorMessage(err));
+      addToast(getErrorMessage(err), 'error');
     } finally {
       setActionLoading(false);
     }
@@ -319,10 +315,18 @@ function Profile() {
     <div className="container-fluid">
       {/* Profile Header Card */}
       <div className="gf-card mb-4 p-4">
+
         <div className="d-flex align-items-center gap-4 flex-wrap">
-          <div className="user-avatar text-white fw-bold fs-2" style={{ width: '80px', height: '80px', borderRadius: '1rem' }}>
-            {profile.displayName?.substring(0, 2).toUpperCase() || 'CP'}
-          </div>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="96"
+            height="96"
+            fill="#6c757d"
+            className="bi bi-person-fill"
+            viewBox="0 0 16 16"
+          >
+            <path d="M3 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1zm5-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6"/>
+          </svg>
           <div>
             <h3 className="fw-black text-slate-800 mb-1">{profile.displayName || profile.userName}</h3>
             <p className="text-muted mb-2 fw-medium">{mainTitle}</p>
@@ -335,26 +339,26 @@ function Profile() {
 
       {/* Tabs navigation */}
       <div className="gf-nav-tabs">
-        <button 
-          onClick={() => setActiveTab('personal')} 
+        <button
+          onClick={() => setActiveTab('personal')}
           className={`gf-nav-tab ${activeTab === 'personal' ? 'active' : ''}`}
         >
           <i className="bi bi-person-fill me-2"></i>Personal Info
         </button>
-        <button 
-          onClick={() => setActiveTab('skills')} 
+        <button
+          onClick={() => setActiveTab('skills')}
           className={`gf-nav-tab ${activeTab === 'skills' ? 'active' : ''}`}
         >
           <i className="bi bi-lightning-fill me-2"></i>Skills
         </button>
-        <button 
-          onClick={() => setActiveTab('certs')} 
+        <button
+          onClick={() => setActiveTab('certs')}
           className={`gf-nav-tab ${activeTab === 'certs' ? 'active' : ''}`}
         >
           <i className="bi bi-file-earmark-check-fill me-2"></i>Certifications
         </button>
-        <button 
-          onClick={() => setActiveTab('engagements')} 
+        <button
+          onClick={() => setActiveTab('engagements')}
           className={`gf-nav-tab ${activeTab === 'engagements' ? 'active' : ''}`}
         >
           <i className="bi bi-briefcase-fill me-2"></i>Engagement History
@@ -368,7 +372,7 @@ function Profile() {
         </div>
       ) : (
         <div>
-          {tabError && <Alert variant="danger" className="mb-3">{tabError}</Alert>}
+
 
           {/* TAB 1: PERSONAL INFO */}
           {activeTab === 'personal' && (
@@ -378,10 +382,10 @@ function Profile() {
                   <Col md={6}>
                     <Form.Group className="mb-3" controlId="profileDispName">
                       <Form.Label className="uppercase-label">Full Name</Form.Label>
-                      <Form.Control 
-                        type="text" 
-                        value={personalForm.displayName} 
-                        onChange={(e) => setPersonalForm({...personalForm, displayName: e.target.value})} 
+                      <Form.Control
+                        type="text"
+                        value={personalForm.displayName}
+                        disabled
                         required
                       />
                     </Form.Group>
@@ -395,20 +399,20 @@ function Profile() {
                   <Col md={6}>
                     <Form.Group className="mb-3" controlId="profilePhone">
                       <Form.Label className="uppercase-label">Phone</Form.Label>
-                      <Form.Control 
-                        type="text" 
-                        value={personalForm.phone} 
-                        onChange={(e) => setPersonalForm({...personalForm, phone: e.target.value})} 
+                      <Form.Control
+                        type="text"
+                        value={personalForm.phone}
+                        onChange={(e) => setPersonalForm({ ...personalForm, phone: e.target.value })}
                       />
                     </Form.Group>
                   </Col>
                   <Col md={6}>
                     <Form.Group className="mb-3" controlId="profileExperience">
                       <Form.Label className="uppercase-label">Experience Years</Form.Label>
-                      <Form.Control 
-                        type="number" 
-                        value={personalForm.experienceYears} 
-                        onChange={(e) => setPersonalForm({...personalForm, experienceYears: e.target.value})} 
+                      <Form.Control
+                        type="number"
+                        value={personalForm.experienceYears}
+
                         min="0"
                         required
                       />
@@ -416,11 +420,11 @@ function Profile() {
                   </Col>
                   <Col md={6}>
                     <Form.Group className="mb-3" controlId="profileRate">
-                      <Form.Label className="uppercase-label">Hourly Rate ($)</Form.Label>
-                      <Form.Control 
-                        type="number" 
-                        value={personalForm.hourlyRate} 
-                        onChange={(e) => setPersonalForm({...personalForm, hourlyRate: e.target.value})} 
+                      <Form.Label className="uppercase-label">Hourly Rate (₹)</Form.Label>
+                      <Form.Control
+                        type="number"
+                        value={personalForm.hourlyRate}
+
                         step="0.01"
                         min="0.01"
                         required
@@ -430,9 +434,9 @@ function Profile() {
                   <Col md={6}>
                     <Form.Group className="mb-3" controlId="profilePreferred">
                       <Form.Label className="uppercase-label">Preferred Engagement</Form.Label>
-                      <Form.Select 
-                        value={personalForm.preferredEngagementType} 
-                        onChange={(e) => setPersonalForm({...personalForm, preferredEngagementType: e.target.value})}
+                      <Form.Select
+                        value={personalForm.preferredEngagementType}
+
                       >
                         <option value="REMOTE">Remote</option>
                         <option value="ONSITE">Onsite</option>
@@ -443,9 +447,9 @@ function Profile() {
                   <Col md={6}>
                     <Form.Group className="mb-3" controlId="profileAvailability">
                       <Form.Label className="uppercase-label">Availability Status</Form.Label>
-                      <Form.Select 
-                        value={personalForm.availabilityStatus} 
-                        onChange={(e) => setPersonalForm({...personalForm, availabilityStatus: e.target.value})}
+                      <Form.Select
+                        value={personalForm.availabilityStatus}
+                        onChange={(e) => setPersonalForm({ ...personalForm, availabilityStatus: e.target.value })}
                         disabled
                       >
                         <option value="AVAILABLE">Available</option>
@@ -457,11 +461,11 @@ function Profile() {
                   <Col md={12}>
                     <Form.Group className="mb-3" controlId="profileAddress">
                       <Form.Label className="uppercase-label">Address</Form.Label>
-                      <Form.Control 
-                        as="textarea" 
-                        rows={2} 
-                        value={personalForm.address} 
-                        onChange={(e) => setPersonalForm({...personalForm, address: e.target.value})} 
+                      <Form.Control
+                        as="textarea"
+                        rows={2}
+                        value={personalForm.address}
+
                       />
                     </Form.Group>
                   </Col>
@@ -483,9 +487,9 @@ function Profile() {
                 <Col md={4}>
                   <Form.Group controlId="addSkillSelect">
                     <Form.Label className="uppercase-label">Skill</Form.Label>
-                    <Form.Select 
-                      value={skillForm.skillId} 
-                      onChange={(e) => setSkillForm({...skillForm, skillId: e.target.value})}
+                    <Form.Select
+                      value={skillForm.skillId}
+                      onChange={(e) => setSkillForm({ ...skillForm, skillId: e.target.value })}
                     >
                       <option value="">Select Skill...</option>
                       {skillsCatalog.map((sk) => (
@@ -497,9 +501,9 @@ function Profile() {
                 <Col md={3}>
                   <Form.Group controlId="addSkillProficiency">
                     <Form.Label className="uppercase-label">Proficiency</Form.Label>
-                    <Form.Select 
-                      value={skillForm.proficiencyLevel} 
-                      onChange={(e) => setSkillForm({...skillForm, proficiencyLevel: e.target.value})}
+                    <Form.Select
+                      value={skillForm.proficiencyLevel}
+                      onChange={(e) => setSkillForm({ ...skillForm, proficiencyLevel: e.target.value })}
                     >
                       <option value="BEGINNER">Beginner</option>
                       <option value="INTERMEDIATE">Intermediate</option>
@@ -510,10 +514,10 @@ function Profile() {
                 <Col md={3}>
                   <Form.Group controlId="addSkillExperience">
                     <Form.Label className="uppercase-label">Experience (Years)</Form.Label>
-                    <Form.Control 
-                      type="number" 
-                      value={skillForm.yearsOfExperience} 
-                      onChange={(e) => setSkillForm({...skillForm, yearsOfExperience: e.target.value})}
+                    <Form.Control
+                      type="number"
+                      value={skillForm.yearsOfExperience}
+                      onChange={(e) => setSkillForm({ ...skillForm, yearsOfExperience: e.target.value })}
                       min="0"
                       required
                     />
@@ -539,9 +543,9 @@ function Profile() {
                           <div className="small mb-1">{renderStars(skill.proficiencyLevel)} ({skill.proficiencyLevel.toLowerCase()})</div>
                           <span className="text-muted small">{skill.yearsOfExperience} Years Experience</span>
                         </div>
-                        <Button 
-                          variant="outline-danger" 
-                          size="sm" 
+                        <Button
+                          variant="outline-danger"
+                          size="sm"
                           onClick={() => handleDeleteSkill(skill.skillId)}
                           disabled={actionLoading}
                         >
@@ -583,9 +587,9 @@ function Profile() {
                           <span>Issued: {cert.issueDate}</span>
                           <span>Expires: {cert.expiryDate || 'Never'}</span>
                         </div>
-                        
-                        <Button 
-                          variant="link" 
+
+                        <Button
+                          variant="link"
                           className="text-danger p-0 border-0 position-absolute top-0 end-0 mt-2 me-2 fs-5"
                           onClick={() => handleDeleteCert(cert.id)}
                           style={{ textDecoration: 'none' }}
@@ -610,55 +614,55 @@ function Profile() {
                   <Modal.Body>
                     <Form.Group className="mb-3" controlId="certName">
                       <Form.Label className="uppercase-label">Name</Form.Label>
-                      <Form.Control 
-                        type="text" 
+                      <Form.Control
+                        type="text"
                         value={certForm.name}
-                        onChange={(e) => setCertForm({...certForm, name: e.target.value})}
-                        placeholder="e.g. AWS Developer" 
-                        required 
+                        onChange={(e) => setCertForm({ ...certForm, name: e.target.value })}
+                        placeholder="e.g. AWS Developer"
+                        required
                       />
                     </Form.Group>
                     <Form.Group className="mb-3" controlId="certIssuer">
                       <Form.Label className="uppercase-label">Issued By</Form.Label>
-                      <Form.Control 
-                        type="text" 
+                      <Form.Control
+                        type="text"
                         value={certForm.issuingAuthority}
-                        onChange={(e) => setCertForm({...certForm, issuingAuthority: e.target.value})}
-                        placeholder="e.g. Amazon Web Services" 
-                        required 
+                        onChange={(e) => setCertForm({ ...certForm, issuingAuthority: e.target.value })}
+                        placeholder="e.g. Amazon Web Services"
+                        required
                       />
                     </Form.Group>
                     <Row>
                       <Col md={6}>
                         <Form.Group className="mb-3" controlId="certIssueDate">
                           <Form.Label className="uppercase-label">Issue Date</Form.Label>
-                          <Form.Control 
-                            type="date" 
+                          <Form.Control
+                            type="date"
                             value={certForm.issueDate}
-                            onChange={(e) => setCertForm({...certForm, issueDate: e.target.value})}
-                            required 
+                            onChange={(e) => setCertForm({ ...certForm, issueDate: e.target.value })}
+                            required
                           />
                         </Form.Group>
                       </Col>
                       <Col md={6}>
                         <Form.Group className="mb-3" controlId="certExpiryDate">
                           <Form.Label className="uppercase-label">Expiry Date</Form.Label>
-                          <Form.Control 
-                            type="date" 
+                          <Form.Control
+                            type="date"
                             value={certForm.expiryDate}
-                            onChange={(e) => setCertForm({...certForm, expiryDate: e.target.value})}
-                            required 
+                            onChange={(e) => setCertForm({ ...certForm, expiryDate: e.target.value })}
+                            required
                           />
                         </Form.Group>
                       </Col>
                     </Row>
                     <Form.Group className="mb-3" controlId="certNo">
                       <Form.Label className="uppercase-label">Credential Number</Form.Label>
-                      <Form.Control 
-                        type="text" 
+                      <Form.Control
+                        type="text"
                         value={certForm.certificateNumber}
-                        onChange={(e) => setCertForm({...certForm, certificateNumber: e.target.value})}
-                        placeholder="e.g. CERT-12345" 
+                        onChange={(e) => setCertForm({ ...certForm, certificateNumber: e.target.value })}
+                        placeholder="e.g. CERT-12345"
                       />
                     </Form.Group>
                   </Modal.Body>
@@ -700,8 +704,8 @@ function Profile() {
                         <td>{eng.startDate} to {eng.endDate || 'Ongoing'}</td>
                         <td>{eng.rating ? renderStars(eng.rating) : 'Not Rated'}</td>
                         <td>
-                          <span className={`gf-badge badge-${eng.verificationStatus.toLowerCase()}`}>
-                            {eng.verificationStatus}
+                          <span className={`gf-badge badge-${(eng.status || 'PENDING').toLowerCase()}`}>
+                            {eng.status || 'PENDING'}
                           </span>
                         </td>
                       </tr>
@@ -723,54 +727,54 @@ function Profile() {
                       <Col md={6}>
                         <Form.Group className="mb-3" controlId="engClient">
                           <Form.Label className="uppercase-label">Company / Client</Form.Label>
-                          <Form.Control 
-                            type="text" 
+                          <Form.Control
+                            type="text"
                             value={engForm.clientName}
-                            onChange={(e) => setEngForm({...engForm, clientName: e.target.value})}
-                            placeholder="e.g. Acme Corp" 
-                            required 
+                            onChange={(e) => setEngForm({ ...engForm, clientName: e.target.value })}
+                            placeholder="e.g. Acme Corp"
+                            required
                           />
                         </Form.Group>
                       </Col>
                       <Col md={6}>
                         <Form.Group className="mb-3" controlId="engRole">
                           <Form.Label className="uppercase-label">Role Title</Form.Label>
-                          <Form.Control 
-                            type="text" 
+                          <Form.Control
+                            type="text"
                             value={engForm.roleTitle}
-                            onChange={(e) => setEngForm({...engForm, roleTitle: e.target.value})}
-                            placeholder="e.g. Lead Engineer" 
-                            required 
+                            onChange={(e) => setEngForm({ ...engForm, roleTitle: e.target.value })}
+                            placeholder="e.g. Lead Engineer"
+                            required
                           />
                         </Form.Group>
                       </Col>
                       <Col md={6}>
                         <Form.Group className="mb-3" controlId="engStart">
                           <Form.Label className="uppercase-label">Start Date</Form.Label>
-                          <Form.Control 
-                            type="date" 
+                          <Form.Control
+                            type="date"
                             value={engForm.startDate}
-                            onChange={(e) => setEngForm({...engForm, startDate: e.target.value})}
-                            required 
+                            onChange={(e) => setEngForm({ ...engForm, startDate: e.target.value })}
+                            required
                           />
                         </Form.Group>
                       </Col>
                       <Col md={6}>
                         <Form.Group className="mb-3" controlId="engEnd">
                           <Form.Label className="uppercase-label">End Date (Optional)</Form.Label>
-                          <Form.Control 
-                            type="date" 
+                          <Form.Control
+                            type="date"
                             value={engForm.endDate}
-                            onChange={(e) => setEngForm({...engForm, endDate: e.target.value})}
+                            onChange={(e) => setEngForm({ ...engForm, endDate: e.target.value })}
                           />
                         </Form.Group>
                       </Col>
                       <Col md={6}>
                         <Form.Group className="mb-3" controlId="engRating">
                           <Form.Label className="uppercase-label">Rating</Form.Label>
-                          <Form.Select 
+                          <Form.Select
                             value={engForm.rating}
-                            onChange={(e) => setEngForm({...engForm, rating: e.target.value})}
+                            onChange={(e) => setEngForm({ ...engForm, rating: e.target.value })}
                           >
                             <option value="5">5 Stars</option>
                             <option value="4">4 Stars</option>
@@ -784,12 +788,12 @@ function Profile() {
 
                     <Form.Group className="mb-4" controlId="engFeedback">
                       <Form.Label className="uppercase-label">Feedback Summary</Form.Label>
-                      <Form.Control 
-                        as="textarea" 
+                      <Form.Control
+                        as="textarea"
                         rows={2}
                         value={engForm.feedback}
-                        onChange={(e) => setEngForm({...engForm, feedback: e.target.value})}
-                        placeholder="Log feedback summary..." 
+                        onChange={(e) => setEngForm({ ...engForm, feedback: e.target.value })}
+                        placeholder="Log feedback summary..."
                       />
                     </Form.Group>
 
@@ -798,36 +802,36 @@ function Profile() {
                       <Col md={4}>
                         <Form.Group className="mb-3" controlId="engVName">
                           <Form.Label className="uppercase-label">Verifier Name</Form.Label>
-                          <Form.Control 
-                            type="text" 
+                          <Form.Control
+                            type="text"
                             value={engForm.verifyer_name}
-                            onChange={(e) => setEngForm({...engForm, verifyer_name: e.target.value})}
-                            placeholder="Sarah Jenkins" 
-                            required 
+                            onChange={(e) => setEngForm({ ...engForm, verifyer_name: e.target.value })}
+                            placeholder="Sarah Jenkins"
+                            required
                           />
                         </Form.Group>
                       </Col>
                       <Col md={4}>
                         <Form.Group className="mb-3" controlId="engVEmail">
                           <Form.Label className="uppercase-label">Verifier Email</Form.Label>
-                          <Form.Control 
-                            type="email" 
+                          <Form.Control
+                            type="email"
                             value={engForm.verifyer_email}
-                            onChange={(e) => setEngForm({...engForm, verifyer_email: e.target.value})}
-                            placeholder="sarah@acme.com" 
-                            required 
+                            onChange={(e) => setEngForm({ ...engForm, verifyer_email: e.target.value })}
+                            placeholder="sarah@acme.com"
+                            required
                           />
                         </Form.Group>
                       </Col>
                       <Col md={4}>
                         <Form.Group className="mb-3" controlId="engVPhone">
                           <Form.Label className="uppercase-label">Verifier Phone</Form.Label>
-                          <Form.Control 
-                            type="text" 
+                          <Form.Control
+                            type="text"
                             value={engForm.verifyer_phone}
-                            onChange={(e) => setEngForm({...engForm, verifyer_phone: e.target.value})}
-                            placeholder="1234567890" 
-                            required 
+                            onChange={(e) => setEngForm({ ...engForm, verifyer_phone: e.target.value })}
+                            placeholder="1234567890"
+                            required
                           />
                         </Form.Group>
                       </Col>

@@ -39,7 +39,7 @@ function Timesheets() {
         }
       } catch (err) {
         if (active) {
-          setError(getErrorMessage(err));
+          addToast(getErrorMessage(err), 'error');
         }
       } finally {
         if (active) {
@@ -134,10 +134,21 @@ function Timesheets() {
         }));
 
       // Validate activity description if hours are entered
+      let totalHours = 0;
       for (const line of editLines) {
+        totalHours += line.hoursWorked;
         if (line.hoursWorked > 0 && !line.activityDesc) {
           throw new Error(`Activity description is required for ${line.workDate} when hours are logged.`);
         }
+      }
+
+      const confirmed = await showConfirmation({
+        title: 'Save Draft',
+        message: `You have logged a total of ${totalHours} hours. Are you sure you want to save this timesheet as a draft?`
+      });
+      if (!confirmed) {
+        setActionLoading(false);
+        return;
       }
 
       const updated = await updateTimesheet(timesheet.id, { lines: editLines });
@@ -145,7 +156,7 @@ function Timesheets() {
       buildWeekGrid(updated);
       addToast('Success', 'Timesheet draft saved successfully!', 'success');
     } catch (err) {
-      setError(getErrorMessage(err));
+      addToast(getErrorMessage(err), 'error');
     } finally {
       setActionLoading(false);
     }
@@ -154,22 +165,29 @@ function Timesheets() {
   // Submits the timesheet (Save + Submit)
   const handleSubmit = async () => {
     if (!timesheet) return;
+    
+    // Calculate total hours first to show in confirmation
+    const editLines = linesData
+      .filter((l) => l.isPreGenerated || parseFloat(l.hoursWorked || '0') > 0)
+      .map((l) => ({
+        workDate: l.workDate,
+        hoursWorked: parseFloat(l.hoursWorked || '0'),
+        activityDesc: (l.activityDesc || '').trim(),
+      }));
+
+    let totalHours = 0;
+    for (const line of editLines) {
+      totalHours += line.hoursWorked;
+    }
+
     const confirmed = await showConfirmation({
       title: 'Submit Timesheet',
-      message: 'Are you sure you want to submit this timesheet? Once submitted, it cannot be modified until reviewed.'
+      message: `You have logged a total of ${totalHours} hours. Are you sure you want to submit this timesheet? Once submitted, it cannot be modified until reviewed.`
     });
     if (!confirmed) return;
     setActionLoading(true);
     setError('');
     try {
-      // Include weekdays, and weekends only if user entered hours > 0
-      const editLines = linesData
-        .filter((l) => l.isPreGenerated || parseFloat(l.hoursWorked || '0') > 0)
-        .map((l) => ({
-          workDate: l.workDate,
-          hoursWorked: parseFloat(l.hoursWorked || '0'),
-          activityDesc: (l.activityDesc || '').trim(),
-        }));
 
       // Validate activity description
       for (const line of editLines) {
@@ -186,7 +204,7 @@ function Timesheets() {
       buildWeekGrid(submitted);
       addToast('Success', 'Timesheet submitted successfully for review!', 'success');
     } catch (err) {
-      setError(getErrorMessage(err));
+      addToast(getErrorMessage(err), 'error');
     } finally {
       setActionLoading(false);
     }
@@ -203,7 +221,7 @@ function Timesheets() {
       setCommentText('');
       addToast('Success', 'Comment added to timesheet thread!', 'success');
     } catch (err) {
-      setError(getErrorMessage(err));
+      addToast(getErrorMessage(err), 'error');
     } finally {
       setActionLoading(false);
     }
@@ -228,7 +246,6 @@ function Timesheets() {
         </div>
       </div>
 
-      {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
 
       {/* Week Selector Selector Card */}
       <div className="gf-card">

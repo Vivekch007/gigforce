@@ -1,36 +1,85 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Row, Col, Form, Button, Alert } from 'react-bootstrap';
+import { Card, Row, Col, Form, Button, Alert, Spinner } from 'react-bootstrap';
 import { useAuth } from '../../hooks/useAuth';
+import { getCurrentUser, updateUser } from '../../services/userService';
+import { getErrorMessage } from '../../services/errorUtils';
 
 function Profile() {
   const { user } = useAuth();
 
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [editing, setEditing] = useState(false);
+  const [userId, setUserId] = useState('');
 
   // Profile fields
   const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    employeeId: '',
+    role: '',
     companyName: 'Global Staffing Partners LLC',
-    contactPerson: 'Sarah Jenkins',
-    email: 'sarah.j@globalstaffing.com',
-    phone: '+1 (555) 0122',
     gstin: '29AAAAA1111A1Z1',
     address: '100 Silicon Valley Blvd, San Jose, CA, 95112',
     bankAccount: '•••• •••• •••• 9845 (Chase Bank)',
   });
 
-  const handleSave = (e) => {
+  const loadProfile = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const data = await getCurrentUser();
+      setUserId(data.userId);
+      setFormData((prev) => ({
+        ...prev,
+        name: data.name || '',
+        email: data.email || '',
+        phone: data.phone || '',
+        employeeId: `${data.userId}`,
+        role: data.role || 'VENDOR',
+      }));
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadProfile();
+  }, []);
+
+  const handleSave = async (e) => {
     e.preventDefault();
     setSuccess('');
     setError('');
 
-    // Simulate save
-    setTimeout(() => {
-      setSuccess('Profile updated successfully!');
+    const normalizedPhone = formData.phone.replace(/\D/g, '');
+    if (normalizedPhone.length !== 10) {
+      setError('Phone number must be exactly 10 digits.');
+      return;
+    }
+
+    try {
+      const response = await updateUser(userId, { phone: normalizedPhone });
+      setFormData((prev) => ({ ...prev, phone: response.phone }));
+      setSuccess('Profile updated successfully.');
       setEditing(false);
-    }, 200);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '50vh' }}>
+        <Spinner animation="border" variant="primary" />
+        <span className="ms-3 text-muted">Loading profile...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="container-fluid">
@@ -48,15 +97,15 @@ function Profile() {
         <Col lg={4}>
           <Card className="gf-card text-center p-4 border-0 bg-white">
             <div className="mx-auto mb-3 user-avatar fs-2 fw-black" style={{ width: '80px', height: '80px' }}>
-              {formData.companyName.substring(0, 2).toUpperCase()}
+              {formData.name.substring(0, 2).toUpperCase()}
             </div>
-            <h5 className="fw-bold text-slate-800 mb-1">{formData.companyName}</h5>
-            <span className="text-muted small">Registered Vendor Partner</span>
+            <h5 className="fw-bold text-slate-800 mb-1">{formData.name}</h5>
+            <span className="text-muted small">{formData.role}</span>
             <hr />
             <div className="text-start small text-slate-600">
-              <div className="mb-2"><strong>Primary Contact:</strong> {formData.contactPerson}</div>
+              <div className="mb-2"><strong>Employee ID:</strong> {formData.employeeId}</div>
               <div className="mb-2"><strong>Email ID:</strong> {formData.email}</div>
-              <div><strong>System Role:</strong> {user?.role || 'VENDOR'}</div>
+              <div><strong>System Role:</strong> {formData.role}</div>
             </div>
           </Card>
         </Col>
@@ -70,7 +119,7 @@ function Profile() {
                 <Button variant="outline-primary" onClick={() => setEditing(true)}>Edit Profile</Button>
               ) : (
                 <div className="d-flex gap-2">
-                  <Button variant="outline-secondary" onClick={() => setEditing(false)}>Cancel</Button>
+                  <Button variant="outline-secondary" onClick={() => { setEditing(false); loadProfile(); }}>Cancel</Button>
                   <Button className="btn-gf-primary" onClick={handleSave}>Save Changes</Button>
                 </div>
               )}
@@ -79,24 +128,22 @@ function Profile() {
             <Form onSubmit={handleSave}>
               <Row className="g-3">
                 <Col md={6}>
-                  <Form.Group controlId="companyName">
-                    <Form.Label className="uppercase-label">Company Name</Form.Label>
+                  <Form.Group controlId="name">
+                    <Form.Label className="uppercase-label">Full Name</Form.Label>
                     <Form.Control
                       type="text"
-                      disabled={!editing}
-                      value={formData.companyName}
-                      onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+                      disabled
+                      value={formData.name}
                     />
                   </Form.Group>
                 </Col>
                 <Col md={6}>
-                  <Form.Group controlId="contactPerson">
-                    <Form.Label className="uppercase-label">Contact Person</Form.Label>
+                  <Form.Group controlId="employeeId">
+                    <Form.Label className="uppercase-label">Employee ID</Form.Label>
                     <Form.Control
                       type="text"
-                      disabled={!editing}
-                      value={formData.contactPerson}
-                      onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })}
+                      disabled
+                      value={formData.employeeId}
                     />
                   </Form.Group>
                 </Col>
@@ -105,9 +152,8 @@ function Profile() {
                     <Form.Label className="uppercase-label">Corporate Email</Form.Label>
                     <Form.Control
                       type="email"
-                      disabled={!editing}
+                      disabled
                       value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     />
                   </Form.Group>
                 </Col>
@@ -127,9 +173,8 @@ function Profile() {
                     <Form.Label className="uppercase-label">GSTIN / Tax ID</Form.Label>
                     <Form.Control
                       type="text"
-                      disabled={!editing}
+                      disabled
                       value={formData.gstin}
-                      onChange={(e) => setFormData({ ...formData, gstin: e.target.value })}
                     />
                   </Form.Group>
                 </Col>
@@ -138,9 +183,8 @@ function Profile() {
                     <Form.Label className="uppercase-label">Address Line</Form.Label>
                     <Form.Control
                       type="text"
-                      disabled={!editing}
+                      disabled
                       value={formData.address}
-                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                     />
                   </Form.Group>
                 </Col>
@@ -149,9 +193,8 @@ function Profile() {
                     <Form.Label className="uppercase-label">Disbursement Bank Account (Chase)</Form.Label>
                     <Form.Control
                       type="text"
-                      disabled={!editing}
+                      disabled
                       value={formData.bankAccount}
-                      onChange={(e) => setFormData({ ...formData, bankAccount: e.target.value })}
                     />
                   </Form.Group>
                 </Col>

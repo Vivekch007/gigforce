@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Form, Button, Card, Row, Col, Alert, Spinner } from 'react-bootstrap';
-import { createRequisition, publishRequisition, getDepartments } from '../../services/requisitionService';
+import { createRequisition, publishRequisition } from '../../services/requisitionService';
 import { getSkills } from '../../services/contractorService';
 import { getErrorMessage } from '../../services/errorUtils';
 
@@ -10,8 +10,6 @@ function CreateRequisition() {
   
   const [skills, setSkills] = useState([]);
   const [loadingSkills, setLoadingSkills] = useState(true);
-  const [departments, setDepartments] = useState([]);
-  const [loadingDepartments, setLoadingDepartments] = useState(true);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -30,30 +28,22 @@ function CreateRequisition() {
     experienceLevel: 'MID',
     startDate: '',
     duration: '6 Months',
-    businessUnitId: '', // loaded dynamically
-    customDepartment: '', // used only if businessUnitId === 'OTHER'
   });
 
   useEffect(() => {
     const loadMetadata = async () => {
       try {
         setLoadingSkills(true);
-        setLoadingDepartments(true);
         
-        const [skillsData, deptsData] = await Promise.all([
-          getSkills(),
-          getDepartments()
+        const [skillsData] = await Promise.all([
+          getSkills()
         ]);
 
         setSkills(skillsData || []);
-        setDepartments(deptsData || []);
 
         const initialForm = {};
         if (skillsData && skillsData.length > 0) {
           initialForm.requiredSkillId = skillsData[0].id;
-        }
-        if (deptsData && deptsData.length > 0) {
-          initialForm.businessUnitId = deptsData[0];
         }
         
         setForm(prev => ({ ...prev, ...initialForm }));
@@ -61,7 +51,6 @@ function CreateRequisition() {
         setError('Failed to load requisitions metadata catalog.');
       } finally {
         setLoadingSkills(false);
-        setLoadingDepartments(false);
       }
     };
     loadMetadata();
@@ -87,9 +76,19 @@ function CreateRequisition() {
     if (form.maxHourlyRate <= 0) return 'Budget rate must be greater than 0.';
     if (form.quantity < 1) return 'Positions required must be at least 1.';
     if (!form.startDate) return 'Start Date is required.';
-    if (form.businessUnitId === 'OTHER' && !form.customDepartment.trim()) {
-      return 'Please specify the department name.';
+
+    // Task 6: Experience level / min experience cross-validation
+    const minYrs = parseInt(form.minExperienceYears, 10) || 0;
+    if (form.experienceLevel === 'JUNIOR' && minYrs > 3) {
+      return 'For Junior level, Minimum Experience must be 3 years or less.';
     }
+    if (form.experienceLevel === 'MID' && (minYrs < 2 || minYrs > 6)) {
+      return 'For Mid-Level, Minimum Experience must be between 2 and 6 years.';
+    }
+    if (form.experienceLevel === 'SENIOR' && minYrs < 5) {
+      return 'For Senior level, Minimum Experience must be at least 5 years.';
+    }
+
     return '';
   };
 
@@ -104,10 +103,18 @@ function CreateRequisition() {
     try {
       setSubmitting(true);
       
-      // Prepare payload - only send customDepartment if department is OTHER
+      // Prepare payload - strip any extra fields
       const payload = {
-        ...form,
-        customDepartment: form.businessUnitId === 'OTHER' ? form.customDepartment.trim() : null
+        title: form.title,
+        description: form.description,
+        requiredSkillId: form.requiredSkillId,
+        minExperienceYears: form.minExperienceYears,
+        maxHourlyRate: form.maxHourlyRate,
+        quantity: form.quantity,
+        engagementType: form.engagementType,
+        experienceLevel: form.experienceLevel,
+        startDate: form.startDate,
+        duration: form.duration,
       };
 
       const newReq = await createRequisition(payload);
@@ -199,7 +206,7 @@ function CreateRequisition() {
         <Form onSubmit={(e) => e.preventDefault()}>
           <Row className="g-3">
             {/* Job Title */}
-            <Col md={6}>
+            <Col md={12}>
               <Form.Group controlId="title">
                 <Form.Label className="uppercase-label">Job Title <span className="text-danger">*</span></Form.Label>
                 <Form.Control
@@ -214,46 +221,6 @@ function CreateRequisition() {
               </Form.Group>
             </Col>
 
-            {/* Department (Exposing backend BusinessUnits enum) */}
-            <Col md={6}>
-              <Form.Group controlId="businessUnitId">
-                <Form.Label className="uppercase-label">Department <span className="text-danger">*</span></Form.Label>
-                {loadingDepartments ? (
-                  <div className="py-2"><Spinner animation="border" size="sm" /></div>
-                ) : (
-                  <Form.Select
-                    name="businessUnitId"
-                    value={form.businessUnitId}
-                    onChange={handleChange}
-                    disabled={submitting}
-                  >
-                    {departments.map((dept) => (
-                      <option key={dept} value={dept}>
-                        {formatDepartmentName(dept)}
-                      </option>
-                    ))}
-                  </Form.Select>
-                )}
-              </Form.Group>
-            </Col>
-
-            {/* Custom Department name specification (Visible only when OTHER is selected) */}
-            {form.businessUnitId === 'OTHER' && (
-              <Col md={12}>
-                <Form.Group controlId="customDepartment">
-                  <Form.Label className="uppercase-label text-warning">Specify Department <span className="text-danger">*</span></Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="customDepartment"
-                    value={form.customDepartment}
-                    onChange={handleChange}
-                    placeholder="e.g. Research & Development"
-                    disabled={submitting}
-                    required
-                  />
-                </Form.Group>
-              </Col>
-            )}
 
             {/* Required Skill */}
             <Col md={4}>

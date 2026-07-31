@@ -68,6 +68,18 @@ public class EngagementHistoryServiceImpl implements EngagementHistoryService {
                 if(request.getVerifyer_phone() == null || request.getVerifyer_phone().trim().isEmpty()) {
                         throw new IllegalArgumentException("Verifyer phone is required.");
                 }
+                List<EngagementHistory> engagementHistory = engagementHistoryRepository.findByContractorProfileId(profileId);
+
+                for (EngagementHistory e : engagementHistory) {
+                        // Overlap condition: (NewStart < ExistingEnd) AND (NewEnd > ExistingStart)
+                        boolean overlaps = request.getStartDate().isBefore(e.getEndDate())
+                                && request.getEndDate().isAfter(e.getStartDate());
+
+                        if (overlaps) {
+                                throw new IllegalArgumentException("Engagement overlaps with an existing timeline: "
+                                        + e.getStartDate() + " to " + e.getEndDate());
+                        }
+                }
 
                 EngagementHistory engagement = EngagementHistory.builder()
                                 .contractorProfile(profile)
@@ -109,6 +121,7 @@ public class EngagementHistoryServiceImpl implements EngagementHistoryService {
 
                 return engagementHistoryRepository.findByContractorProfile(profile)
                                 .stream()
+
                                 .map(this::toDto)
                                 .collect(Collectors.toList());
         }

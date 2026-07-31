@@ -143,10 +143,9 @@ public class VendorSubmissionServiceImpl implements VendorSubmissionService {
         ResourceRequisition requisition = submission.getRequisition();
 
         // Submissions can only be evaluated while the requisition is still active.
-        if (requisition.getStatus() != RequisitionStatus.OPEN
-                && requisition.getStatus() != RequisitionStatus.UNDER_REVIEW) {
+        if (requisition.getStatus() != RequisitionStatus.OPEN) {
             throw new BusinessValidationException(
-                    "Submissions can only be evaluated while the requisition is OPEN or UNDER_REVIEW (current: "
+                    "Submissions can only be evaluated while the requisition is OPEN (current: "
                             + requisition.getStatus() + ").");
         }
 

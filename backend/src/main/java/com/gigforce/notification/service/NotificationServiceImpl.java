@@ -125,6 +125,19 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     @Transactional
+    public NotificationResponseDTO markUnread(String id) {
+        Notification notification = notificationRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Notification not found with ID: " + id));
+
+        validateOwnership(notification);
+        notification.setStatus(NotificationStatus.UNREAD);
+        notification.setReadDate(null);
+        notification = notificationRepository.save(notification);
+        return mapToDto(notification);
+    }
+
+    @Override
+    @Transactional
     public NotificationResponseDTO dismiss(String id) {
         Notification notification = notificationRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Notification not found with ID: " + id));
@@ -211,6 +224,30 @@ public class NotificationServiceImpl implements NotificationService {
 
         validateOwnership(notification);
         notificationRepository.delete(notification);
+    }
+
+    @Override
+    @Transactional
+    public int markAllAsRead() {
+        User currentUser = currentUserContext.getCurrentUser();
+        if (currentUser == null) {
+            throw new AccessDeniedException("Access Denied: Unauthenticated.");
+        }
+        return notificationRepository.markAllAsReadByUserId(
+                currentUser.getId(), 
+                NotificationStatus.READ, 
+                NotificationStatus.UNREAD
+        );
+    }
+
+    @Override
+    @Transactional
+    public void deleteAllNotifications() {
+        User currentUser = currentUserContext.getCurrentUser();
+        if (currentUser == null) {
+            throw new AccessDeniedException("Access Denied: Unauthenticated.");
+        }
+        notificationRepository.deleteAllByUserId(currentUser.getId());
     }
 
     @Override

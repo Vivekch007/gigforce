@@ -7,6 +7,10 @@ export function getUsers(params) {
   return apiClient.get('/users', { params }).then((res) => res.data); // returns Page<UserResponseDTO>
 }
 
+export function getCurrentUser() {
+  return apiClient.get('/users/me').then((res) => res.data);
+}
+
 export function getUserDetails(id) {
   return apiClient.get(`/users/${id}`).then((res) => res.data);
 }

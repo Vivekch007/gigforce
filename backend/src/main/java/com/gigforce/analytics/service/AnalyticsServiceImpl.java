@@ -298,13 +298,13 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         }
 
         Long openRequisitions = entityManager.createQuery(
-                "SELECT COUNT(r.id) FROM ResourceRequisition r WHERE r.businessUnitId = :bu AND r.status = :status", Long.class)
+                "SELECT COUNT(r.id) FROM ResourceRequisition r WHERE r.orgUnitId = :bu AND r.status = :status", Long.class)
                 .setParameter("bu", businessUnit)
                 .setParameter("status", RequisitionStatus.OPEN)
                 .getSingleResult();
 
         Long filledRequisitions = entityManager.createQuery(
-                "SELECT COUNT(r.id) FROM ResourceRequisition r WHERE r.businessUnitId = :bu AND r.status = :status", Long.class)
+                "SELECT COUNT(r.id) FROM ResourceRequisition r WHERE r.orgUnitId = :bu AND r.status = :status", Long.class)
                 .setParameter("bu", businessUnit)
                 .setParameter("status", RequisitionStatus.FILLED)
                 .getSingleResult();
@@ -317,9 +317,9 @@ public class AnalyticsServiceImpl implements AnalyticsService {
 
         BigDecimal totalSpend = entityManager.createQuery(
                 "SELECT COALESCE(SUM(ci.invoiceAmount), 0) FROM ContractorInvoice ci " +
-                "WHERE ci.orgUnitId = :bu AND ci.status IN (:statuses)", BigDecimal.class)
+                "WHERE ci.orgUnitId = :bu AND ci.status = :status", BigDecimal.class)
                 .setParameter("bu", businessUnit)
-                .setParameter("statuses", List.of(InvoiceStatus.APPROVED, InvoiceStatus.PAID))
+                .setParameter("status", InvoiceStatus.PAID)
                 .getSingleResult();
 
         return BusinessUnitDashboardResponseDTO.builder()

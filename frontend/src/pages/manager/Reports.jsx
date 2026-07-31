@@ -1,12 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { Spinner, Alert, Card, Row, Col, Table, Button } from 'react-bootstrap';
-import { getRequisitions } from '../../services/requisitionService';
 import { getAssignments } from '../../services/managerAssignmentService';
 import { getTimesheetsToApprove, getLeavesToApprove } from '../../services/approvalService';
 import { getInterviews } from '../../services/interviewService';
+import { getBusinessUnitDashboard } from '../../services/managerAnalyticsService';
 import { getErrorMessage } from '../../services/errorUtils';
+import { useToast } from '../../context/ToastContext';
+import { useAuth } from '../../hooks/useAuth';
 
 function Reports() {
+  const { user } = useAuth();
+  const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -17,6 +21,7 @@ function Reports() {
     pendingInterviews: 0,
     pendingApprovals: 0,
     activeContractors: 0,
+    totalSpend: 0,
   });
 
   const [activePlacements, setActivePlacements] = useState([]);
@@ -28,41 +33,40 @@ function Reports() {
       setError('');
 
       const [
-        reqsData,
+        buDashboard,
         asnData,
         tsData,
         leavesData,
         interviewsData,
       ] = await Promise.all([
-        getRequisitions({ size: 100 }).catch(() => ({ content: [] })),
+        getBusinessUnitDashboard(user?.orgUnitId || 'all').catch(() => null),
         getAssignments({ size: 100 }).catch(() => ({ content: [] })),
         getTimesheetsToApprove().catch(() => []),
         getLeavesToApprove().catch(() => []),
         getInterviews().catch(() => []),
       ]);
 
-      const reqs = reqsData?.content || [];
       const asns = asnData?.content || [];
 
-      const openJobsCount = reqs.filter(r => r.status === 'OPEN').length;
-      const filledJobsCount = reqs.filter(r => r.status === 'FILLED').length;
       const pendingIntsCount = interviewsData.filter(i => i.status === 'SCHEDULED').length;
       const pendingApprovalsCount = tsData.filter(t => t.status === 'SUBMITTED').length + leavesData.filter(l => l.status === 'PENDING').length;
       const activeContractorsCount = asns.filter(a => a.status === 'ACTIVE').length;
 
       setSummary({
-        openJobs: openJobsCount,
-        filledJobs: filledJobsCount,
+        openJobs: buDashboard ? Number(buDashboard.openRequisitions ?? 0) : 0,
+        filledJobs: buDashboard ? Number(buDashboard.filledRequisitions ?? 0) : 0,
         pendingInterviews: pendingIntsCount,
         pendingApprovals: pendingApprovalsCount,
-        activeContractors: activeContractorsCount,
+        activeContractors: buDashboard ? Number(buDashboard.activeContractors ?? 0) : activeContractorsCount,
+        totalSpend: buDashboard ? Number(buDashboard.totalSpend ?? 0) : 0,
       });
 
       setActivePlacements(asns.filter(a => a.status === 'ACTIVE').slice(0, 5));
-      setOpenJobsList(reqs.filter(r => r.status === 'OPEN').slice(0, 5));
 
     } catch (err) {
-      setError(getErrorMessage(err));
+      const msg = getErrorMessage(err);
+      setError(msg);
+      showToast(msg, 'error');
     } finally {
       setLoading(false);
     }
@@ -140,6 +144,16 @@ function Reports() {
               <div className="gf-card mb-0 p-3 h-100 text-center">
                 <span className="text-uppercase text-muted font-bold small" style={{ fontSize: '0.65rem' }}>Active Hires</span>
                 <h3 className="fw-black text-slate-800 mt-1 mb-0">{summary.activeContractors}</h3>
+              </div>
+            </div>
+            <div className="col">
+              <div className="gf-card mb-0 p-3 h-100 text-center">
+                <span className="text-uppercase text-muted font-bold small" style={{ fontSize: '0.65rem' }}>Total BU Spend (₹)</span>
+                <h3 className="fw-black text-success mt-1 mb-0">
+                  {summary.totalSpend > 0
+                    ? `₹${Number(summary.totalSpend).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+                    : '₹0'}
+                </h3>
               </div>
             </div>
           </div>

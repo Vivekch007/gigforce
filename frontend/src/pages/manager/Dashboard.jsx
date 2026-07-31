@@ -11,6 +11,7 @@ import { getInterviews } from '../../services/interviewService';
 import { getMyNotifications } from '../../services/notificationService';
 import { getBusinessUnitDashboard } from '../../services/managerAnalyticsService';
 import { getErrorMessage } from '../../services/errorUtils';
+import { useToast } from '../../context/ToastContext';
 import KpiCard from '../../components/KpiCard';
 import Table from '../../components/Table';
 import Loader from '../../components/Loader';
@@ -21,6 +22,7 @@ Chart.register(...registerables);
 function Dashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [searchParams] = useSearchParams();
   const searchQuery = searchParams.get('search') || '';
 
@@ -304,6 +306,7 @@ function Dashboard() {
   }
 
   if (error) {
+    showToast(error, 'error');
     return <Alert variant="danger" className="enterprise-alert enterprise-alert-danger">{error}</Alert>;
   }
 

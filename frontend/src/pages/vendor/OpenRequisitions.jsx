@@ -149,17 +149,7 @@ function OpenRequisitions() {
       <div className="enterprise-table-container p-3 mb-4 bg-white" style={{ borderRadius: 'var(--gf-radius)', boxShadow: 'var(--gf-shadow)' }}>
         <div className="d-flex flex-wrap gap-3 justify-content-between align-items-center">
           <div className="d-flex flex-wrap gap-3 align-items-center">
-            <VendorFilters
-              label="Client"
-              value={clientFilter}
-              onChange={(e) => setClientFilter(e.target.value)}
-              options={[
-                { value: '', label: 'All Clients' },
-                { value: 'Google BU', label: 'Google BU' },
-                { value: 'Meta Apps', label: 'Meta Apps' },
-                { value: 'Amazon Logistics', label: 'Amazon Logistics' },
-              ]}
-            />
+
             <VendorFilters
               label="Skill"
               value={skillFilter}

@@ -5,7 +5,7 @@ export function getInterviews() {
 }
 
 export function scheduleInterview(payload) {
-  return apiClient.post('/schedule-interview', payload).then(res => res.data);
+  return apiClient.post('/interviews/schedule-interview', payload).then(res => res.data);
 }
 
 export function rescheduleInterview(id, payload) {

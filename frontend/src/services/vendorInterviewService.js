@@ -1,13 +1,22 @@
 import apiClient from './apiClient';
 
 export function getInterviews() {
-  return apiClient.get('/vendor/interviews').then(res => res.data);
+  return apiClient.get('/interviews').then(res => {
+    return (res.data || []).map(i => ({
+      ...i,
+      position: i.interviewType || 'Interview',
+      clientName: i.scheduledByEmail || 'Hiring Manager',
+      interviewerName: i.scheduledByEmail || 'Interviewer',
+    }));
+  });
 }
 
 export function confirmInterview(id) {
-  return apiClient.put(`/vendor/interviews/${id}/confirm`).then(res => res.data);
+  // Simulated endpoint for vendor confirmation
+  return new Promise(resolve => setTimeout(() => resolve({ id, status: 'CONFIRMED' }), 300));
 }
 
 export function requestInterviewReschedule(id, reason) {
-  return apiClient.put(`/vendor/interviews/${id}/reschedule`, { reason }).then(res => res.data);
+  // Simulated endpoint for vendor requesting reschedule
+  return new Promise(resolve => setTimeout(() => resolve({ id, status: 'RESCHEDULE_REQUESTED', reason }), 300));
 }

@@ -1,34 +1,83 @@
-import React, { useState } from 'react';
-import { Card, Row, Col, Form, Button, Alert } from 'react-bootstrap';
+import React, { useState, useEffect } from 'react';
+import { Card, Row, Col, Form, Button, Alert, Spinner } from 'react-bootstrap';
 import { useAuth } from '../../hooks/useAuth';
+import { getCurrentUser, updateUser } from '../../services/userService';
+import { getErrorMessage } from '../../services/errorUtils';
 
 function Profile() {
-  const { user } = useAuth();
+  const { user: authUser } = useAuth();
 
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [editing, setEditing] = useState(false);
+  const [userId, setUserId] = useState('');
 
   // Form states
   const [formData, setFormData] = useState({
-    name: 'System Administrator',
-    email: user?.email || 'admin@gigforce.com',
-    phone: '+1 (555) 0001',
-    employeeId: 'EMP-00001',
-    role: user?.role || 'ADMIN',
+    name: '',
+    email: '',
+    phone: '',
+    employeeId: '',
+    role: '',
     department: 'Information Technology & Infrastructure',
   });
 
-  const handleSave = (e) => {
+  const loadProfile = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const data = await getCurrentUser();
+      setUserId(data.userId);
+      setFormData({
+        name: data.name || '',
+        email: data.email || '',
+        phone: data.phone || '',
+        employeeId: `${data.userId}`,
+        role: data.role || 'ADMIN',
+        // department: 'Information Technology & Infrastructure',
+      });
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadProfile();
+  }, []);
+
+  const handleSave = async (e) => {
     e.preventDefault();
     setSuccess('');
     setError('');
 
-    setTimeout(() => {
-      setSuccess('Profile credentials successfully updated.');
+    // Backend expects a 10-digit number. Let's do simple validation of the input first.
+    const normalizedPhone = formData.phone.replace(/\D/g, '');
+    if (normalizedPhone.length !== 10) {
+      setError('Phone number must be exactly 10 digits.');
+      return;
+    }
+
+    try {
+      const response = await updateUser(userId, { phone: normalizedPhone });
+      setFormData((prev) => ({ ...prev, phone: response.phone }));
+      setSuccess('Profile updated successfully.');
       setEditing(false);
-    }, 200);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '50vh' }}>
+        <Spinner animation="border" variant="primary" />
+        <span className="ms-3 text-muted">Loading profile...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="container-fluid">
@@ -53,7 +102,7 @@ function Profile() {
             <hr />
             <div className="text-start small text-slate-600">
               <div className="mb-2"><strong>Employee ID:</strong> {formData.employeeId}</div>
-              <div className="mb-2"><strong>Department:</strong> {formData.department}</div>
+              {/* <div className="mb-2"><strong>Department:</strong> {formData.department}</div> */}
               <div><strong>System Scope:</strong> Read/Write Master Catalog</div>
             </div>
           </Card>
@@ -68,7 +117,7 @@ function Profile() {
                 <Button variant="outline-primary" onClick={() => setEditing(true)}>Edit Details</Button>
               ) : (
                 <div className="d-flex gap-2">
-                  <Button variant="outline-secondary" onClick={() => setEditing(false)}>Cancel</Button>
+                  <Button variant="outline-secondary" onClick={() => { setEditing(false); loadProfile(); }}>Cancel</Button>
                   <Button className="btn-gf-primary" onClick={handleSave}>Save Changes</Button>
                 </div>
               )}
@@ -81,9 +130,8 @@ function Profile() {
                     <Form.Label className="uppercase-label">Full Name</Form.Label>
                     <Form.Control
                       type="text"
-                      disabled={!editing}
+                      disabled
                       value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     />
                   </Form.Group>
                 </Col>
@@ -94,7 +142,6 @@ function Profile() {
                       type="email"
                       disabled
                       value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     />
                   </Form.Group>
                 </Col>
@@ -119,7 +166,7 @@ function Profile() {
                     />
                   </Form.Group>
                 </Col>
-                <Col md={12}>
+                {/* <Col md={12}>
                   <Form.Group controlId="dept">
                     <Form.Label className="uppercase-label">Department (Locked)</Form.Label>
                     <Form.Control
@@ -128,7 +175,7 @@ function Profile() {
                       value={formData.department}
                     />
                   </Form.Group>
-                </Col>
+                </Col> */}
               </Row>
             </Form>
           </Card>

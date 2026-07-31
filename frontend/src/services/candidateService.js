@@ -1,21 +1,36 @@
 import apiClient from './apiClient';
 
 export function getCandidates() {
-  return apiClient.get('/candidates').then(res => res.data);
+  return apiClient.get('/contractors/profiles').then(res => {
+    return (res.data?.content || []).map(p => ({
+      id: p.id,
+      name: p.displayName || p.userName,
+      email: p.userEmail,
+      phone: p.phone || '',
+      skills: p.skills ? p.skills.map(s => s.skillName).join(', ') : '',
+      experience: p.experienceYears || 0,
+      noticePeriod: 'Immediate', 
+      currentCompany: 'Freelance',
+      preferredLocation: p.preferredEngagementType || 'Remote',
+      availability: p.availabilityStatus,
+      rate: p.hourlyRate || 0,
+      resumeUrl: null
+    }));
+  });
 }
 
 export function addCandidate(payload) {
-  return apiClient.post('/candidates', payload).then(res => res.data);
+  return new Promise(resolve => setTimeout(() => resolve(payload), 300));
 }
 
 export function updateCandidate(id, payload) {
-  return apiClient.put(`/candidates/${id}`, payload).then(res => res.data);
+  return new Promise(resolve => setTimeout(() => resolve(payload), 300));
 }
 
 export function deleteCandidate(id) {
-  return apiClient.delete(`/candidates/${id}`).then(res => res.data);
+  return new Promise(resolve => setTimeout(() => resolve({ id }), 300));
 }
 
 export function uploadCandidateResume(id, fileName) {
-  return apiClient.post(`/candidates/${id}/resume`, { fileName }).then(res => res.data);
+  return new Promise(resolve => setTimeout(() => resolve({ id, fileName }), 300));
 }

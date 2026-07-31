@@ -23,4 +23,16 @@ public interface NotificationRepository extends JpaRepository<Notification, Stri
     );
 
     Long countByStatus(NotificationStatus notificationStatus);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.data.jpa.repository.Query("UPDATE Notification n SET n.status = :readStatus WHERE n.user.id = :userId AND n.status = :unreadStatus")
+    int markAllAsReadByUserId(
+            @org.springframework.data.repository.query.Param("userId") String userId,
+            @org.springframework.data.repository.query.Param("readStatus") NotificationStatus readStatus,
+            @org.springframework.data.repository.query.Param("unreadStatus") NotificationStatus unreadStatus
+    );
+
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.data.jpa.repository.Query("DELETE FROM Notification n WHERE n.user.id = :userId")
+    void deleteAllByUserId(@org.springframework.data.repository.query.Param("userId") String userId);
 }

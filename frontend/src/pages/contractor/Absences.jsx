@@ -14,6 +14,7 @@ function Absences() {
   const [absences, setAbsences] = useState([]);
   const [assignments, setAssignments] = useState([]);
   const [statusFilter, setStatusFilter] = useState('ALL'); // ALL | PENDING | APPROVED | REJECTED
+  const [monthYearFilter, setMonthYearFilter] = useState('');
 
   // Modal form states
   const [showModal, setShowModal] = useState(false);
@@ -34,7 +35,8 @@ function Absences() {
 
       // Fetch absences list
       const absencesData = await getAbsences();
-      setAbsences(absencesData || []);
+      const sorted = (absencesData || []).sort((a, b) => new Date(b.startDate) - new Date(a.startDate));
+      setAbsences(sorted);
 
       // Fetch assignments for drop-down selection
       const assignmentsData = await getAssignments();
@@ -45,7 +47,7 @@ function Absences() {
         setForm((prev) => ({ ...prev, assignmentId: list[0].id }));
       }
     } catch (err) {
-      setError(getErrorMessage(err));
+      addToast(getErrorMessage(err), 'error');
     } finally {
       if (showSpinner) setLoading(false);
     }
@@ -77,7 +79,7 @@ function Absences() {
       addToast('Success', 'Leave request submitted successfully!', 'success');
       loadData(false); // Refresh silently
     } catch (err) {
-      setError(getErrorMessage(err));
+      addToast(getErrorMessage(err), 'error');
     } finally {
       setActionLoading(false);
     }
@@ -85,8 +87,13 @@ function Absences() {
 
   // Filter list locally
   const filteredAbsences = absences.filter((ab) => {
-    if (statusFilter === 'ALL') return true;
-    return ab.status === statusFilter;
+    if (statusFilter !== 'ALL' && ab.status !== statusFilter) return false;
+    if (monthYearFilter) {
+      const date = new Date(ab.startDate);
+      const my = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      if (my !== monthYearFilter) return false;
+    }
+    return true;
   });
 
   // Calculate metrics based on list
@@ -126,7 +133,7 @@ function Absences() {
         </Button>
       </div>
 
-      {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
+
 
       {/* Metrics Row */}
       <div className="row g-3 mb-4">
@@ -172,18 +179,29 @@ function Absences() {
       </div>
 
       {/* Filter Tabs */}
-      <div className="d-flex gap-2 mb-3 overflow-x-auto pb-1">
-        {['ALL', 'PENDING', 'APPROVED', 'REJECTED'].map((filter) => (
-          <Button
-            key={filter}
-            variant={statusFilter === filter ? 'primary' : 'outline-secondary'}
+      <div className="d-flex justify-content-between align-items-center mb-3">
+        <div className="d-flex gap-2 overflow-x-auto pb-1">
+          {['ALL', 'PENDING', 'APPROVED', 'REJECTED'].map((filter) => (
+            <Button
+              key={filter}
+              variant={statusFilter === filter ? 'primary' : 'outline-secondary'}
+              size="sm"
+              onClick={() => setStatusFilter(filter)}
+              className={statusFilter === filter ? 'btn-gf-primary' : 'btn-gf-outline border-secondary text-secondary'}
+            >
+              {filter.charAt(0) + filter.slice(1).toLowerCase()}
+            </Button>
+          ))}
+        </div>
+        <div>
+          <Form.Control
+            type="month"
             size="sm"
-            onClick={() => setStatusFilter(filter)}
-            className={statusFilter === filter ? 'btn-gf-primary' : 'btn-gf-outline border-secondary text-secondary'}
-          >
-            {filter.charAt(0) + filter.slice(1).toLowerCase()}
-          </Button>
-        ))}
+            value={monthYearFilter}
+            onChange={(e) => setMonthYearFilter(e.target.value)}
+            className="border-secondary text-secondary"
+          />
+        </div>
       </div>
 
       {/* Absences Log Grid */}
@@ -219,7 +237,10 @@ function Absences() {
           </Table>
         ) : (
           <div className="text-center py-5">
-            <span className="fs-1">🌴</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor" className="bi bi-calendar-x text-muted mb-3" viewBox="0 0 16 16">
+              <path d="M6.146 7.146a.5.5 0 0 1 .708 0L8 8.293l1.146-1.147a.5.5 0 1 1 .708.708L8.707 9l1.147 1.146a.5.5 0 0 1-.708.708L8 9.707l-1.146 1.147a.5.5 0 0 1-.708-.708L7.293 9 6.146 7.854a.5.5 0 0 1 0-.708"/>
+              <path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5M1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4z"/>
+            </svg>
             <p className="text-muted small mt-2 mb-0">No leave logs match the current filter.</p>
           </div>
         )}

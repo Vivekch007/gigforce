@@ -1,16 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Spinner, Alert, Button, Table, Offcanvas } from 'react-bootstrap';
+import { Spinner, Button, Table, Offcanvas } from 'react-bootstrap';
 import { getAssignments } from '../../services/assignmentService';
 import { getErrorMessage } from '../../services/errorUtils';
+import { useToast } from '../../context/ToastContext';
 import '../../styles/contractor.css';
 
 function Assignments() {
+  const { addToast } = useToast();
   const [searchParams] = useSearchParams();
   const searchQuery = searchParams.get('search') || '';
 
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [assignments, setAssignments] = useState([]);
   
   // Selected assignment for the side drawer
@@ -22,14 +23,13 @@ function Assignments() {
     const loadAssignments = async () => {
       try {
         setLoading(true);
-        setError('');
         const data = await getAssignments();
         if (active) {
           setAssignments(data.content || []);
         }
       } catch (err) {
         if (active) {
-          setError(getErrorMessage(err));
+          addToast(getErrorMessage(err), 'error');
         }
       } finally {
         if (active) {
@@ -39,7 +39,7 @@ function Assignments() {
     };
     loadAssignments();
     return () => { active = false; };
-  }, []);
+  }, [addToast]);
 
   const handleOpenDrawer = (asn) => {
     setSelectedAsn(asn);
@@ -68,15 +68,6 @@ function Assignments() {
         <Spinner animation="border" variant="primary" />
         <span className="ms-3 text-muted">Loading assignments...</span>
       </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <Alert variant="danger" className="gf-card mt-4">
-        <Alert.Heading>Error Loading Assignments</Alert.Heading>
-        <p>{error}</p>
-      </Alert>
     );
   }
 

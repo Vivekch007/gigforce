@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Button, Form, Card, Row, Col, Alert, Spinner, Modal } from 'react-bootstrap';
+import { Table, Button, Form, Card, Row, Col, Alert, Spinner, Modal, InputGroup } from 'react-bootstrap';
 import { getInvoices, createInvoice, submitInvoice } from '../../services/invoiceCreationService';
 import { getTimesheetsToApprove, getTimesheetDetails } from '../../services/approvalService';
 import { getAssignmentDetails } from '../../services/managerAssignmentService';
@@ -13,17 +13,19 @@ function InvoiceCreation() {
   // Data states
   const [unbilledTimesheets, setUnbilledTimesheets] = useState([]);
   const [generatedInvoices, setGeneratedInvoices] = useState([]);
+  const [stagedTimesheets, setStagedTimesheets] = useState([]);
 
-  // Selection state
-  const [selectedTs, setSelectedTs] = useState(null);
-  const [loadingDetails, setLoadingDetails] = useState(false);
+  // Filtering states
+  const [filterMonth, setFilterMonth] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterContractor, setFilterContractor] = useState('');
+  const [filterDept, setFilterDept] = useState('');
+
+  // Context state for grouped invoice
   const [assignment, setAssignment] = useState(null);
-
-  // Form remarks
+  const [loadingDetails, setLoadingDetails] = useState(false);
   const [remarks, setRemarks] = useState('');
   const [submitting, setSubmitting] = useState(false);
-
-  // Preview Modal
   const [showPreviewModal, setShowPreviewModal] = useState(false);
 
   const loadInitialData = async () => {
@@ -31,14 +33,11 @@ function InvoiceCreation() {
       setLoading(true);
       setError('');
 
-      // Fetch approved timesheets and existing invoices in parallel
       const [tsData, invoicesData] = await Promise.all([
         getTimesheetsToApprove({ status: 'APPROVED' }).catch(() => []),
         getInvoices().catch(() => []),
       ]);
 
-      // Filter timesheets that are not yet billed/invoiced
-      // Note: We can filter out timesheets whose IDs are already linked in generatedInvoices
       const billedIds = new Set();
       invoicesData.forEach(inv => {
         if (inv.timesheetIds) {
@@ -49,7 +48,8 @@ function InvoiceCreation() {
       const unbilled = tsData.filter(t => !billedIds.has(t.id));
       setUnbilledTimesheets(unbilled);
       setGeneratedInvoices(invoicesData);
-
+      setStagedTimesheets([]);
+      setAssignment(null);
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -61,47 +61,64 @@ function InvoiceCreation() {
     loadInitialData();
   }, []);
 
-  const selectTimesheetForBilling = async (ts) => {
-    try {
-      setLoadingDetails(true);
-      setSelectedTs(ts);
-      setAssignment(null);
-      setRemarks('');
+  const handleInclude = async (ts) => {
+    // Restrict assignment
+    if (stagedTimesheets.length > 0 && ts.assignmentId !== stagedTimesheets[0].assignmentId) {
+      setError('You can only stage timesheets for the same assignment/contractor. Please remove existing staged timesheets or select a matching one.');
+      return;
+    }
 
-      const [tsDetails, asnDetails] = await Promise.all([
-        getTimesheetDetails(ts.id).catch(() => ts),
-        getAssignmentDetails(ts.assignmentId).catch(() => null),
-      ]);
+    setError('');
+    // Move from unbilled to staged
+    setUnbilledTimesheets(prev => prev.filter(item => item.id !== ts.id));
+    setStagedTimesheets(prev => [...prev, ts]);
 
-      setSelectedTs(tsDetails);
-      setAssignment(asnDetails);
-    } catch (err) {
-      console.error('Failed to load billing context details', err);
-    } finally {
-      setLoadingDetails(false);
+    // Load assignment details if this is the first item
+    if (stagedTimesheets.length === 0) {
+      try {
+        setLoadingDetails(true);
+        const asnDetails = await getAssignmentDetails(ts.assignmentId);
+        setAssignment(asnDetails);
+      } catch (err) {
+        console.error('Failed to load assignment details', err);
+      } finally {
+        setLoadingDetails(false);
+      }
     }
   };
 
-  const calculateAmount = () => {
-    if (!selectedTs) return 0;
-    // Return timesheet's calculated billable amount directly, which is the system-computed rate cost
-    return parseFloat(selectedTs.billableAmount || 0);
+  const handleRemove = (ts) => {
+    setStagedTimesheets(prev => prev.filter(item => item.id !== ts.id));
+    setUnbilledTimesheets(prev => [...prev, ts]);
+    if (stagedTimesheets.length === 1) { // Will become 0
+      setAssignment(null);
+    }
+  };
+
+  const calculateTotalAmount = () => {
+    return stagedTimesheets.reduce((sum, ts) => sum + parseFloat(ts.billableAmount || 0), 0);
+  };
+
+  const calculateTotalHours = () => {
+    return stagedTimesheets.reduce((sum, ts) => sum + parseFloat(ts.totalHoursLogged || 0), 0);
   };
 
   const handleAction = async (submitImmediate) => {
-    if (!selectedTs || !assignment) return;
+    if (stagedTimesheets.length === 0 || !assignment) return;
     try {
       setSubmitting(true);
       setError('');
       setSuccess('');
 
-      // Parse billing period from timesheet dates
+      const minDate = new Date(Math.min(...stagedTimesheets.map(t => new Date(t.startDate))));
+      const maxDate = new Date(Math.max(...stagedTimesheets.map(t => new Date(t.endDate))));
+
       const payload = {
-        assignmentId: selectedTs.assignmentId,
-        invoicePeriod: new Date(selectedTs.startDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
-        timesheetIds: [selectedTs.id],
-        billingStartDate: selectedTs.startDate,
-        billingEndDate: selectedTs.endDate,
+        assignmentId: assignment.id,
+        invoicePeriod: minDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+        timesheetIds: stagedTimesheets.map(t => t.id),
+        billingStartDate: minDate.toISOString().split('T')[0],
+        billingEndDate: maxDate.toISOString().split('T')[0],
         remarks: remarks,
       };
 
@@ -114,8 +131,6 @@ function InvoiceCreation() {
         setSuccess(`Invoice ${newInvoice.id} generated successfully as Draft.`);
       }
 
-      setSelectedTs(null);
-      setAssignment(null);
       setRemarks('');
       loadInitialData();
     } catch (err) {
@@ -123,11 +138,6 @@ function InvoiceCreation() {
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const showPreview = () => {
-    if (!selectedTs || !assignment) return;
-    setShowPreviewModal(true);
   };
 
   const formatInvoiceStatus = (status) => {
@@ -141,12 +151,19 @@ function InvoiceCreation() {
     }
   };
 
+  // Filtering unbilled timesheets dynamically
+  const filteredUnbilled = unbilledTimesheets.filter(ts => {
+    if (filterMonth && !ts.startDate.startsWith(filterMonth)) return false;
+    if (searchQuery && !ts.id.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    if (filterContractor && !ts.contractorName.toLowerCase().includes(filterContractor.toLowerCase())) return false;
+    return true;
+  });
+
   return (
     <div className="container-fluid">
-      {/* Header */}
       <div className="mb-4">
-        <h2 className="fw-black text-slate-800 mb-0">Invoice Generation</h2>
-        <p className="text-muted small mt-1 mb-0">Generate billing invoices from approved contractor log sheets to submit for Finance approval.</p>
+        <h2 className="fw-black text-slate-800 mb-0">Safeguard Invoices</h2>
+        <p className="text-muted small mt-1 mb-0">Generate and consolidate billing invoices from approved contractor log sheets.</p>
       </div>
 
       {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
@@ -158,256 +175,215 @@ function InvoiceCreation() {
           <p className="text-muted small mt-2">Loading billing modules...</p>
         </div>
       ) : (
-        <div className="row g-4">
-          {/* Left Column - 7 Cols */}
-          <div className="col-lg-7">
-            {/* Unbilled Timesheets */}
-            <Card className="gf-card p-4 mb-4 border-0">
-              <h5 className="fw-bold mb-3 text-slate-800"><i className="bi bi-clipboard me-2"></i>Approved Unbilled Timesheets</h5>
-              <div className="table-responsive">
-                <Table className="table table-hover align-middle mb-0">
-                  <thead className="table-light">
-                    <tr>
-                      <th>Contractor</th>
-                      <th>Week Period</th>
-                      <th>Hours</th>
-                      <th>Amount</th>
-                      <th className="text-end">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {unbilledTimesheets.length > 0 ? (
-                      unbilledTimesheets.map(ts => (
-                        <tr key={ts.id} className={selectedTs?.id === ts.id ? 'table-primary' : ''}>
-                          <td className="fw-semibold text-slate-800">{ts.contractorName}</td>
-                          <td className="small">{ts.startDate} to {ts.endDate}</td>
-                          <td>{ts.totalHoursLogged} hrs</td>
-                          <td className="text-green-600 fw-semibold">${parseFloat(ts.billableAmount || '0').toLocaleString()}</td>
-                          <td className="text-end">
-                            <Button size="sm" className="btn-gf-primary py-1" onClick={() => selectTimesheetForBilling(ts)}>
-                              Bill
-                            </Button>
+        <>
+          <div className="row g-4 mb-4">
+            {/* Left Column - Unbilled Timesheets */}
+            <div className="col-lg-7">
+              <Card className="gf-card p-4 border-0 h-100">
+                <h5 className="fw-bold mb-3 text-slate-800"><i className="bi bi-clipboard me-2"></i>Approved Unbilled Timesheets</h5>
+                
+                {/* Dynamic Filters */}
+                <Row className="g-2 mb-3">
+                  <Col md={4}>
+                    <Form.Control type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)} size="sm" className="enterprise-form-control" />
+                  </Col>
+                  <Col md={4}>
+                    <Form.Control type="text" placeholder="Search ID..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} size="sm" className="enterprise-form-control" />
+                  </Col>
+                  <Col md={4}>
+                    <Form.Control type="text" placeholder="Search Contractor..." value={filterContractor} onChange={e => setFilterContractor(e.target.value)} size="sm" className="enterprise-form-control" />
+                  </Col>
+                </Row>
+
+                {/* Fixed Height Container with Max 5 items roughly (350px) */}
+                <div className="table-responsive" style={{ maxHeight: '350px', overflowY: 'auto' }}>
+                  <Table className="table table-hover align-middle mb-0">
+                    <thead className="table-light sticky-top">
+                      <tr>
+                        <th>Contractor</th>
+                        <th>Week Period</th>
+                        <th>Hours</th>
+                        <th>Amount</th>
+                        <th className="text-end">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredUnbilled.length > 0 ? (
+                        filteredUnbilled.map(ts => (
+                          <tr key={ts.id}>
+                            <td className="fw-semibold text-slate-800">{ts.contractorName}</td>
+                            <td className="small">{ts.startDate} to {ts.endDate}</td>
+                            <td>{ts.totalHoursLogged} hrs</td>
+                            <td className="text-green-600 fw-semibold">${parseFloat(ts.billableAmount || '0').toLocaleString()}</td>
+                            <td className="text-end">
+                              <Button size="sm" className="btn-gf-primary py-1" onClick={() => handleInclude(ts)}>
+                                Include
+                              </Button>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={5} className="text-center py-4 text-muted small">
+                            No matching approved timesheets waiting for billing.
                           </td>
                         </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={5} className="text-center py-4 text-muted small">
-                          No pending approved timesheets waiting for billing.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </Table>
-              </div>
-            </Card>
+                      )}
+                    </tbody>
+                  </Table>
+                </div>
+              </Card>
+            </div>
 
-            {/* Generated Invoices */}
-            <Card className="gf-card p-4 border-0">
-              <h5 className="fw-bold mb-3 text-slate-800"><i className="bi bi-file-earmark-text me-2"></i>Generated Billing Invoices</h5>
-              <div className="table-responsive">
-                <Table className="table table-hover align-middle mb-0">
-                  <thead className="table-light">
-                    <tr>
-                      <th>Invoice ID</th>
-                      <th>Contractor</th>
-                      <th>Billing Period</th>
-                      <th>Amount</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {generatedInvoices.length > 0 ? (
-                      generatedInvoices.map(inv => (
-                        <tr key={inv.id}>
-                          <td className="fw-bold">{inv.id}</td>
-                          <td>{inv.contractorName || 'Contractor'}</td>
-                          <td className="small">{inv.billingStartDate} to {inv.billingEndDate}</td>
-                          <td className="text-green-600 fw-bold">${parseFloat(inv.invoiceAmount || '0').toLocaleString()}</td>
-                          <td>
-                            <span className={`gf-badge badge-${formatInvoiceStatus(inv.status)}`}>
-                              {inv.status}
-                            </span>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={5} className="text-center py-4 text-muted small">
-                          No generated invoices found.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </Table>
-              </div>
-            </Card>
-          </div>
+            {/* Right Column - To Be Billed / Consolidation */}
+            <div className="col-lg-5">
+              <Card className="gf-card p-4 border-0 h-100">
+                <h5 className="fw-bold mb-4 text-slate-800"><i className="bi bi-cash-stack me-2"></i>To Be Billed (Staged)</h5>
+                
+                {loadingDetails ? (
+                  <div className="text-center py-5"><Spinner animation="border" size="sm" /></div>
+                ) : stagedTimesheets.length > 0 && assignment ? (
+                  <div className="d-flex flex-column h-100">
+                    {/* Staged List */}
+                    <div className="table-responsive mb-3" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                      <Table size="sm" className="table align-middle mb-0">
+                        <thead className="table-light sticky-top">
+                          <tr>
+                            <th>Period</th>
+                            <th>Amt</th>
+                            <th className="text-end">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {stagedTimesheets.map(ts => (
+                            <tr key={ts.id}>
+                              <td className="small">{ts.startDate}</td>
+                              <td className="text-green-600 fw-bold">${parseFloat(ts.billableAmount || 0).toLocaleString()}</td>
+                              <td className="text-end">
+                                <Button size="sm" variant="outline-danger" className="py-0 px-2" onClick={() => handleRemove(ts)}>&times;</Button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </Table>
+                    </div>
 
-          {/* Right Column - 5 Cols */}
-          <div className="col-lg-5">
-            <Card className="gf-card p-4 border-0 sticky-top" style={{ top: '80px' }}>
-              <h5 className="fw-bold mb-4 text-slate-800"><i className="bi bi-cash-stack me-2"></i>Invoice Details Preview</h5>
-              {loadingDetails ? (
-                <div className="text-center py-5"><Spinner animation="border" /></div>
-              ) : selectedTs && assignment ? (
-                <div>
-                  <Row className="g-3">
-                    <Col xs={6}>
-                      <span className="small text-muted text-uppercase font-bold">Purchase Order ID</span>
-                      <div className="fw-semibold text-slate-800">{assignment.poId || 'PO-2026-082'}</div>
-                    </Col>
-                    <Col xs={6}>
-                      <span className="small text-muted text-uppercase font-bold">Billing Period</span>
-                      <div className="fw-semibold text-slate-800">{selectedTs.startDate} &mdash; {selectedTs.endDate}</div>
-                    </Col>
-                    <Col xs={12}>
-                      <hr className="my-1" />
-                    </Col>
-                    <Col xs={6}>
-                      <span className="small text-muted text-uppercase font-bold">Client</span>
-                      <div className="fw-semibold text-slate-800">{assignment.clientName || 'Internal Client'}</div>
-                    </Col>
-                    <Col xs={6}>
-                      <span className="small text-muted text-uppercase font-bold">Vendor</span>
-                      <div className="fw-semibold text-slate-800">{assignment.vendorName || 'Vendor Partner'}</div>
-                    </Col>
-                    <Col xs={6}>
-                      <span className="small text-muted text-uppercase font-bold">Contractor</span>
-                      <div className="fw-semibold text-slate-800">{selectedTs.contractorName}</div>
-                    </Col>
-                    <Col xs={6}>
-                      <span className="small text-muted text-uppercase font-bold">Job Title</span>
-                      <div className="fw-semibold text-slate-800">{assignment.requisitionTitle || 'Specialist'}</div>
-                    </Col>
-                    <Col xs={12}>
-                      <hr className="my-1" />
-                    </Col>
-                    <Col xs={4}>
-                      <span className="small text-muted text-uppercase font-bold">Approved Hours</span>
-                      <div className="fw-bold text-slate-800">{selectedTs.totalHoursLogged} hrs</div>
-                    </Col>
-                    <Col xs={4}>
-                      <span className="small text-muted text-uppercase font-bold">Daily Rate</span>
-                      <div className="fw-semibold text-slate-800">${assignment.agreedRatePerDay}/day</div>
-                    </Col>
-                    <Col xs={4}>
-                      <span className="small text-muted text-uppercase font-bold text-green-600">Invoice Amount</span>
-                      <div className="fw-black text-green-600 fs-5">${calculateAmount().toLocaleString()}</div>
-                    </Col>
-                    
-                    <Col xs={12}>
-                      <Form.Group controlId="remarks">
-                        <Form.Label className="uppercase-label">Remarks / Billing Notes</Form.Label>
-                        <Form.Control 
-                          as="textarea"
-                          rows={3}
-                          placeholder="e.g. Standard weekly billing. SOW compliance checked."
-                          value={remarks}
-                          onChange={(e) => setRemarks(e.target.value)}
-                        />
-                      </Form.Group>
-                    </Col>
-                  </Row>
-
-                  <div className="d-flex flex-column gap-2 mt-4">
-                    <Button variant="outline-primary" className="py-2 w-100" onClick={showPreview}>
-                      🔍 Preview
-                    </Button>
-                    <div className="d-flex gap-2">
-                      <Button variant="outline-secondary" className="w-50 py-2" onClick={() => handleAction(false)} disabled={submitting}>
-                        Save Draft
-                      </Button>
-                      <Button className="btn-gf-primary w-50 py-2" onClick={() => handleAction(true)} disabled={submitting}>
-                        Submit to Finance
-                      </Button>
+                    <div className="mt-auto border-top pt-3">
+                      <Row className="g-2 mb-3">
+                        <Col xs={6}>
+                          <span className="small text-muted text-uppercase font-bold">Contractor</span>
+                          <div className="fw-bold text-slate-800">{stagedTimesheets[0].contractorName}</div>
+                        </Col>
+                        <Col xs={6}>
+                          <span className="small text-muted text-uppercase font-bold text-green-600">Consolidated Amount</span>
+                          <div className="fw-black text-green-600 fs-5">${calculateTotalAmount().toLocaleString()}</div>
+                        </Col>
+                        <Col xs={12}>
+                          <Form.Group controlId="remarks">
+                            <Form.Control 
+                              as="textarea"
+                              rows={2}
+                              size="sm"
+                              placeholder="Optional billing notes..."
+                              value={remarks}
+                              onChange={(e) => setRemarks(e.target.value)}
+                            />
+                          </Form.Group>
+                        </Col>
+                      </Row>
+                      
+                      <div className="d-flex gap-2">
+                        <Button variant="outline-secondary" className="w-50 py-2" onClick={() => handleAction(false)} disabled={submitting}>
+                          Save Draft
+                        </Button>
+                        <Button className="btn-gf-primary w-50 py-2" onClick={() => handleAction(true)} disabled={submitting}>
+                          Generate Invoice
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ) : (
-                <div className="text-center py-5 text-muted small">
-                  Select an approved timesheet from the left column to preview and generate invoice details.
-                </div>
-              )}
-            </Card>
-          </div>
-        </div>
-      )}
-
-      {/* Invoice Preview Modal */}
-      <Modal show={showPreviewModal} onHide={() => setShowPreviewModal(false)} centered size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title className="fw-bold text-slate-800">Invoice Statement Preview</Modal.Title>
-        </Modal.Header>
-        <Modal.Body className="p-4">
-          {selectedTs && assignment && (
-            <div className="border p-4 rounded-3 bg-white">
-              <div className="d-flex justify-content-between mb-4 flex-wrap gap-2">
-                <div>
-                  <h4 className="fw-black text-primary mb-0">GIGFORCE</h4>
-                  <span className="text-muted small">Workforce Management Platform</span>
-                </div>
-                <div className="text-end">
-                  <h5 className="fw-bold text-slate-700">INVOICE STATEMENT</h5>
-                  <span className="text-muted small">Date: {new Date().toLocaleDateString()}</span>
-                </div>
-              </div>
-
-              <Row className="mb-4 small">
-                <Col sm={6}>
-                  <div className="text-muted font-bold">BILL FROM (VENDOR):</div>
-                  <div className="fw-bold text-slate-800">{assignment.vendorName || 'Vendor Partner'}</div>
-                  <div className="text-muted">{assignment.vendorEmail || 'partner@vendor.com'}</div>
-                </Col>
-                <Col sm={6} className="text-sm-end">
-                  <div className="text-muted font-bold">BILL TO (CLIENT):</div>
-                  <div className="fw-bold text-slate-800">{assignment.clientName || 'Internal Client'}</div>
-                  <div className="text-muted">PO Ref: {assignment.poId || 'PO-2026-082'}</div>
-                </Col>
-              </Row>
-
-              <Table bordered size="sm" className="mb-4 small text-center">
-                <thead className="table-light">
-                  <tr>
-                    <th>Item Description</th>
-                    <th>Billing Period</th>
-                    <th>Hours Approved</th>
-                    <th>Rate</th>
-                    <th>Total Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td className="text-start">
-                      <strong>{selectedTs.contractorName}</strong> &mdash; {assignment.requisitionTitle || 'Specialist'}
-                    </td>
-                    <td>{selectedTs.startDate} to {selectedTs.endDate}</td>
-                    <td>{selectedTs.totalHoursLogged} hrs</td>
-                    <td>${assignment.agreedRatePerDay}/day</td>
-                    <td className="text-green-600 fw-bold">${calculateAmount().toLocaleString()}</td>
-                  </tr>
-                </tbody>
-              </Table>
-
-              <div className="d-flex justify-content-end mb-4">
-                <div className="text-end">
-                  <span className="text-muted font-bold small text-uppercase">Total Due:</span>
-                  <h4 className="fw-black text-green-600 mt-1 mb-0">${calculateAmount().toLocaleString()}</h4>
-                </div>
-              </div>
-
-              {remarks && (
-                <div className="small border-top pt-3">
-                  <strong>Notes:</strong> {remarks}
-                </div>
-              )}
+                ) : (
+                  <div className="text-center py-5 text-muted small my-auto">
+                    Click "Include" on a timesheet to queue it for billing. You can consolidate multiple timesheets for the same assignment.
+                  </div>
+                )}
+              </Card>
             </div>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowPreviewModal(false)}>Close Preview</Button>
-        </Modal.Footer>
-      </Modal>
+          </div>
+
+          {/* Bottom Row - Generated Invoices */}
+          <div className="row">
+            <div className="col-12">
+              <Card className="gf-card p-4 border-0">
+                <h5 className="fw-bold mb-3 text-slate-800"><i className="bi bi-file-earmark-text me-2"></i>Generated Invoices</h5>
+                <div className="table-responsive">
+                  <Table className="table table-hover align-middle mb-0">
+                    <thead className="table-light">
+                      <tr>
+                        <th>Invoice Details</th>
+                        <th>Billing Period</th>
+                        <th>Parties (Contractor / Vendor)</th>
+                        <th>Amount (₹)</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {generatedInvoices.length > 0 ? (
+                        generatedInvoices.map(inv => {
+                          const issued = inv.invoiceDate || 'Pending';
+                          let due = 'Pending';
+                          if (inv.paymentDate) {
+                            due = inv.paymentDate;
+                          } else if (inv.invoiceDate) {
+                            const d = new Date(inv.invoiceDate);
+                            d.setDate(d.getDate() + 30);
+                            due = d.toISOString().split('T')[0];
+                          }
+                          return (
+                          <tr key={inv.id}>
+                            <td>
+                              <div className="fw-bold text-slate-800">{inv.invoiceNumber || inv.id}</div>
+                              <div className="small text-muted mt-1">Issue: {issued}</div>
+                              <div className="small text-muted">Due: {due}</div>
+                            </td>
+                            <td className="small">{inv.billingStartDate} to {inv.billingEndDate}</td>
+                            <td>
+                              <div className="fw-semibold text-slate-800">{inv.contractorName || 'Contractor'}</div>
+                              <div className="small text-muted">{inv.vendorName || 'Direct Hire'}</div>
+                            </td>
+                            <td className="text-green-600 fw-bold">₹{parseFloat(inv.totalAmount || inv.invoiceAmount || '0').toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                            <td>
+                              <span className={`gf-badge badge-${formatInvoiceStatus(inv.status)}`}>
+                                {inv.status}
+                              </span>
+                            </td>
+                          </tr>
+                        )})
+                      ) : (
+                        <tr>
+                          <td colSpan={5}>
+                            <div className="text-center py-5 text-muted">
+                              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mb-3 text-slate-300">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                <polyline points="14 2 14 8 20 8"></polyline>
+                                <line x1="16" y1="13" x2="8" y2="13"></line>
+                                <line x1="16" y1="17" x2="8" y2="17"></line>
+                                <polyline points="10 9 9 9 8 9"></polyline>
+                              </svg>
+                              <p className="mb-0 fw-medium">No generated invoices found.</p>
+                              <p className="small">Consolidate and submit timesheets above to create invoices.</p>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </Table>
+                </div>
+              </Card>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

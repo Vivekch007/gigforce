@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Form, Modal, Alert, Spinner } from 'react-bootstrap';
+import { Form, Modal, Alert, Spinner, Col } from 'react-bootstrap';
 import { getTimesheetsToApprove, getTimesheetDetails, approveTimesheet, rejectTimesheet } from '../../services/approvalService';
 import { getErrorMessage } from '../../services/errorUtils';
+import { useToast } from '../../context/ToastContext';
 import Table from '../../components/Table';
 import Loader from '../../components/Loader';
 
@@ -12,7 +13,7 @@ function TimesheetApprovals() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const { showToast } = useToast();
 
   // Timesheets lists
   const [timesheets, setTimesheets] = useState([]);
@@ -80,26 +81,26 @@ function TimesheetApprovals() {
 
   const handleActionSubmit = async () => {
     if (actionType === 'REJECT' && !remarksText.trim()) {
-      setError('A rejection reason/comment is mandatory.');
+      showToast('A rejection reason/comment is mandatory.', 'error');
       return;
     }
     try {
       setSubmittingAction(true);
       setError('');
-      setSuccess('');
 
       if (actionType === 'APPROVE') {
         await approveTimesheet(selectedTs.id, remarksText);
-        setSuccess(`Timesheet ${selectedTs.id} approved successfully!`);
+        showToast(`Timesheet approved successfully.`, 'success');
+        setTimesheets(prev => prev.map(t => t.id === selectedTs.id ? { ...t, status: 'APPROVED' } : t));
       } else {
         await rejectTimesheet(selectedTs.id, remarksText);
-        setSuccess(`Timesheet ${selectedTs.id} rejected and returned to contractor.`);
+        showToast(`Timesheet rejected and returned to contractor.`, 'success');
+        setTimesheets(prev => prev.map(t => t.id === selectedTs.id ? { ...t, status: 'REJECTED' } : t));
       }
 
       setShowActionModal(false);
-      loadTimesheets();
     } catch (err) {
-      setError(getErrorMessage(err));
+      showToast(getErrorMessage(err), 'error');
     } finally {
       setSubmittingAction(false);
     }
@@ -151,7 +152,6 @@ function TimesheetApprovals() {
       </div>
 
       {error && <Alert variant="danger" className="enterprise-alert enterprise-alert-danger mb-4">{error}</Alert>}
-      {success && <Alert variant="success" className="enterprise-alert enterprise-alert-success mb-4" onClose={() => setSuccess('')} dismissible>{success}</Alert>}
 
       {loading ? (
         <Loader message="Loading submitted logs..." />
@@ -182,16 +182,16 @@ function TimesheetApprovals() {
                     </td>
                     <td>
                       <div className="d-flex gap-2 justify-content-start">
-                        <button className="btn-enterprise-secondary py-1 px-3" onClick={() => viewDetails(ts)}>
+                        <button type="button" className="btn-enterprise-secondary py-1 px-3" onClick={() => viewDetails(ts)}>
                           View Logs
                         </button>
                         
                         {ts.status === 'SUBMITTED' && (
                           <>
-                            <button className="btn-enterprise-primary py-1 px-3" onClick={() => openActionModal(ts, 'APPROVE')}>
+                            <button type="button" className="btn-enterprise-primary py-1 px-3" onClick={() => openActionModal(ts, 'APPROVE')}>
                               Approve
                             </button>
-                            <button className="btn-enterprise-ghost text-danger py-1 px-3 border-0" onClick={() => openActionModal(ts, 'REJECT')}>
+                            <button type="button" className="btn-enterprise-ghost text-danger py-1 px-3 border-0" onClick={() => openActionModal(ts, 'REJECT')}>
                               Reject
                             </button>
                           </>
@@ -293,7 +293,7 @@ function TimesheetApprovals() {
           )}
         </Modal.Body>
         <Modal.Footer className="enterprise-modal-footer">
-          <button className="btn-enterprise-secondary" onClick={() => setShowViewModal(false)}>Close</button>
+          <button type="button" className="btn-enterprise-secondary" onClick={() => setShowViewModal(false)}>Close</button>
         </Modal.Footer>
       </Modal>
 
@@ -321,8 +321,9 @@ function TimesheetApprovals() {
           </Form.Group>
         </Modal.Body>
         <Modal.Footer className="enterprise-modal-footer">
-          <button className="btn-enterprise-secondary" onClick={() => setShowActionModal(false)}>Cancel</button>
+          <button type="button" className="btn-enterprise-secondary" onClick={() => setShowActionModal(false)}>Cancel</button>
           <button
+            type="button"
             className={actionType === 'APPROVE' ? 'btn-enterprise-primary' : 'btn-enterprise-primary bg-danger border-danger'}
             onClick={handleActionSubmit}
             disabled={submittingAction}

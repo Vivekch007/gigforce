@@ -214,7 +214,7 @@ public class GlobalExceptionHandler {
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.CONFLICT.value())
                 .error("Conflict")
-                .message("Record was modified by another user. Refresh and retry.")
+                .message("Assignments are created with this skill")
                 .build();
         return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
     }
@@ -225,7 +225,7 @@ public class GlobalExceptionHandler {
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.CONFLICT.value())
                 .error("Conflict")
-                .message("Record was modified by another user. Refresh and retry.")
+                .message("Assignments are created with this skill.")
                 .build();
         return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
     }

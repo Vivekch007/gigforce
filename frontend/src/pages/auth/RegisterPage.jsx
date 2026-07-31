@@ -19,6 +19,10 @@ const PASSWORD_PATTERN = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z
 const PHONE_PATTERN = /^\d{10}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// Input Character Limits
+const FIELD_MAX_LENGTH = 50; // Requested 50 character limit for inputs
+const PHONE_MAX_LENGTH = 10; // Phone constrained to 10 digits
+
 const INITIAL_FORM = {
   name: '',
   email: '',
@@ -43,6 +47,11 @@ function RegisterPage() {
 
   const handleChange = (event) => {
     const { name, value } = event.target;
+
+    // Enforce maximum length limits
+    const limit = name === 'phone' ? PHONE_MAX_LENGTH : FIELD_MAX_LENGTH;
+    if (value.length > limit) return;
+
     setForm((prev) => ({ ...prev, [name]: value }));
     setFieldErrors((prev) => ({ ...prev, [name]: undefined }));
   };
@@ -51,8 +60,8 @@ function RegisterPage() {
     const errors = {};
     const trimmedName = form.name.trim();
 
-    if (trimmedName.length < 3 || trimmedName.length > 100) {
-      errors.name = 'Name must be between 3 and 100 characters';
+    if (trimmedName.length < 3 || trimmedName.length > FIELD_MAX_LENGTH) {
+      errors.name = `Name must be between 3 and ${FIELD_MAX_LENGTH} characters`;
     }
     if (!EMAIL_PATTERN.test(form.email)) {
       errors.email = 'Email format must be valid';
@@ -139,6 +148,7 @@ function RegisterPage() {
             value={form.name}
             onChange={handleChange}
             placeholder="John Doe"
+            maxLength={FIELD_MAX_LENGTH}
             required
           />
           {fieldErrors.name && <div className="invalid-feedback text-danger mt-1 small">{fieldErrors.name}</div>}
@@ -158,6 +168,7 @@ function RegisterPage() {
             onChange={handleChange}
             placeholder="name@company.com"
             autoComplete="email"
+            maxLength={FIELD_MAX_LENGTH}
             required
           />
           {fieldErrors.email && <div className="invalid-feedback text-danger mt-1 small">{fieldErrors.email}</div>}
@@ -175,7 +186,7 @@ function RegisterPage() {
             value={form.phone}
             onChange={handleChange}
             placeholder="10 digit number"
-            maxLength={10}
+            maxLength={PHONE_MAX_LENGTH}
             inputMode="numeric"
             required
           />
@@ -194,6 +205,7 @@ function RegisterPage() {
             value={form.orgUnitId}
             onChange={handleChange}
             placeholder="e.g. ORG1"
+            maxLength={FIELD_MAX_LENGTH}
           />
           {fieldErrors.orgUnitId && <div className="invalid-feedback text-danger mt-1 small">{fieldErrors.orgUnitId}</div>}
           {!isOrgUnitRequired && !fieldErrors.orgUnitId && (
@@ -230,6 +242,7 @@ function RegisterPage() {
               onChange={handleChange}
               placeholder="••••••••"
               autoComplete="new-password"
+              maxLength={FIELD_MAX_LENGTH}
               required
             />
             <button
@@ -259,6 +272,7 @@ function RegisterPage() {
               onChange={handleChange}
               placeholder="••••••••"
               autoComplete="new-password"
+              maxLength={FIELD_MAX_LENGTH}
               required
             />
             <button
@@ -275,7 +289,7 @@ function RegisterPage() {
 
         {!fieldErrors.password && !fieldErrors.confirmPassword && (
           <span className="text-muted d-block" style={{ fontSize: '11px', marginTop: '-4px' }}>
-            At least 8 chars with an uppercase, lowercase, digit, and special char (@$!%*?&#).
+            At least 8 chars with an uppercase, lowercase, digit, and special char (@$!%*?&#). Max 50 chars.
           </span>
         )}
 

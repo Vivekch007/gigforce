@@ -4,11 +4,13 @@ import { Form, Modal, Row, Col, Alert, Spinner, Pagination } from 'react-bootstr
 import { getRequisitions, publishRequisition, cancelRequisition, closeRequisition, updateRequisition } from '../../services/requisitionService';
 import { getSkills } from '../../services/contractorService';
 import { getErrorMessage } from '../../services/errorUtils';
+import { useToast } from '../../context/ToastContext';
 import Table from '../../components/Table';
 import Loader from '../../components/Loader';
 
 function MyRequisitions() {
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const searchQuery = searchParams.get('search') || '';
 
@@ -86,36 +88,33 @@ function MyRequisitions() {
   const handlePublish = async (id) => {
     try {
       setError('');
-      setSuccess('');
       await publishRequisition(id);
-      setSuccess(`Requisition ${id} published successfully!`);
+      showToast(`Requisition ${id} published successfully!`, 'success');
       loadRequisitions();
     } catch (err) {
-      setError(getErrorMessage(err));
+      showToast(getErrorMessage(err), 'error');
     }
   };
 
   const handleCancel = async (id) => {
     try {
       setError('');
-      setSuccess('');
       await cancelRequisition(id);
-      setSuccess(`Requisition ${id} cancelled successfully!`);
+      showToast(`Requisition ${id} cancelled successfully!`, 'success');
       loadRequisitions();
     } catch (err) {
-      setError(getErrorMessage(err));
+      showToast(getErrorMessage(err), 'error');
     }
   };
 
   const handleClose = async (id) => {
     try {
       setError('');
-      setSuccess('');
       await closeRequisition(id);
-      setSuccess(`Requisition ${id} closed successfully!`);
+      showToast(`Requisition ${id} closed successfully!`, 'success');
       loadRequisitions();
     } catch (err) {
-      setError(getErrorMessage(err));
+      showToast(getErrorMessage(err), 'error');
     }
   };
 
@@ -133,7 +132,6 @@ function MyRequisitions() {
       experienceLevel: req.experienceLevel || 'MID',
       startDate: req.startDate || '',
       duration: req.duration || '6 Months',
-      businessUnitId: req.businessUnitId || 'bu1',
     });
     setShowEditModal(true);
   };
@@ -155,11 +153,11 @@ function MyRequisitions() {
       setSubmittingEdit(true);
       setError('');
       await updateRequisition(selectedReq.id, editForm);
-      setSuccess(`Requisition ${selectedReq.id} updated successfully!`);
+      showToast(`Requisition ${selectedReq.id} updated successfully!`, 'success');
       setShowEditModal(false);
       loadRequisitions();
     } catch (err) {
-      setError(getErrorMessage(err));
+      showToast(getErrorMessage(err), 'error');
     } finally {
       setSubmittingEdit(false);
     }
@@ -168,7 +166,8 @@ function MyRequisitions() {
   const getStatusClass = (status) => {
     const s = status?.toLowerCase() || '';
     if (s === 'open') return 'success';
-    if (s === 'draft' || s === 'under_review') return 'pending';
+    if (s === 'draft') return 'pending';
+    if (s === 'filled') return 'info';
     if (s === 'closed') return 'secondary';
     return 'danger'; // CANCELLED
   };
@@ -191,7 +190,7 @@ function MyRequisitions() {
             <option value="ALL">All Statuses</option>
             <option value="DRAFT">Draft</option>
             <option value="OPEN">Open (Published)</option>
-            <option value="UNDER_REVIEW">Under Review</option>
+            <option value="FILLED">Filled</option>
             <option value="CLOSED">Closed</option>
             <option value="CANCELLED">Cancelled</option>
           </Form.Select>
@@ -199,14 +198,13 @@ function MyRequisitions() {
       </div>
 
       {error && <Alert variant="danger" className="enterprise-alert enterprise-alert-danger mb-4">{error}</Alert>}
-      {success && <Alert variant="success" className="enterprise-alert enterprise-alert-success mb-4" onClose={() => setSuccess('')} dismissible>{success}</Alert>}
 
       {loading ? (
         <Loader message="Loading requisitions..." />
       ) : (
         <div>
           {requisitions.length > 0 ? (
-            <Table headers={['Job ID', 'Title', 'Department', 'Core Skill', 'Quantity', 'Rate Limit', 'Status', 'Actions']}>
+            <Table headers={['Job ID', 'Title', 'Core Skill', 'Quantity', 'Rate Limit', 'Status', 'Actions']}>
               {requisitions.map((req) => (
                 <tr key={req.id}>
                   <td className="fw-bold">{req.id}</td>
@@ -214,7 +212,6 @@ function MyRequisitions() {
                     <div className="fw-semibold text-dark">{req.title}</div>
                     <div className="text-muted small" style={{ fontSize: '11px' }}>{req.experienceLevel} &bull; {req.engagementType}</div>
                   </td>
-                  <td>{req.businessUnitId === 'bu1' ? 'Engineering' : req.businessUnitId === 'bu2' ? 'Product Ops' : req.businessUnitId === 'bu3' ? 'Finance' : 'Infrastructure'}</td>
                   <td>
                     <span className="status-pill info">{req.requiredSkillName || 'Skill'}</span>
                   </td>
@@ -353,21 +350,10 @@ function MyRequisitions() {
           {editForm && (
             <Form onSubmit={(e) => e.preventDefault()}>
               <Row className="g-3">
-                <Col md={6}>
+                <Col md={12}>
                   <Form.Group controlId="editTitle">
                     <Form.Label className="enterprise-form-label">Job Title</Form.Label>
                     <Form.Control type="text" name="title" value={editForm.title} onChange={handleEditChange} className="enterprise-form-control" required />
-                  </Form.Group>
-                </Col>
-                <Col md={6}>
-                  <Form.Group controlId="editBU">
-                    <Form.Label className="enterprise-form-label">Business Unit</Form.Label>
-                    <Form.Select name="businessUnitId" value={editForm.businessUnitId} onChange={handleEditChange} className="enterprise-form-select">
-                      <option value="bu1">Engineering</option>
-                      <option value="bu2">Product Operations</option>
-                      <option value="bu3">Corporate Finance</option>
-                      <option value="bu4">Infrastructure & Cloud</option>
-                    </Form.Select>
                   </Form.Group>
                 </Col>
                 <Col md={4}>

@@ -106,36 +106,9 @@ function Dashboard() {
           </div>
 
           <Row className="g-4">
-            {/* System Health */}
-            <Col lg={8}>
-              <div className="enterprise-table-container p-4 h-100">
-                <h5 className="small fw-semibold text-uppercase text-muted mb-4"><i className="bi bi-display me-2"></i>Platform Environment Health</h5>
-                <Row className="g-3">
-                  <Col sm={6}>
-                    <div className="p-3 border rounded-3 bg-light">
-                      <span className="small text-muted text-uppercase fw-semibold d-block mb-1">Contractor Profiles</span>
-                      <h4 className="fw-bold mb-0 text-dark">{metrics?.contractorsCount}</h4>
-                    </div>
-                  </Col>
-                  <Col sm={6}>
-                    <div className="p-3 border rounded-3 bg-light">
-                      <span className="small text-muted text-uppercase fw-semibold d-block mb-1">Staffing Vendors</span>
-                      <h4 className="fw-bold mb-0 text-dark">{metrics?.vendorsCount}</h4>
-                    </div>
-                  </Col>
-                  <Col sm={6}>
-                    <div className="p-3 border rounded-3 bg-light">
-                      <span className="small text-muted text-uppercase fw-semibold d-block mb-1">Tenant Administrators</span>
-                      <h4 className="fw-bold mb-0 text-dark">{metrics?.activeUsers}</h4>
-                    </div>
-                  </Col>
-                </Row>
-              </div>
-            </Col>
-
             {/* Recent Timeline activity */}
-            <Col lg={4}>
-              <div className="enterprise-table-container p-4 h-100">
+            <Col lg={12}>
+              <div className="enterprise-table-container p-4 h-100" style={{ maxHeight: '400px', overflowY: 'auto' }}>
                 <h5 className="small fw-semibold text-uppercase text-muted mb-3"><i className="bi bi-clock-history me-2"></i>Recent Administrative Logs</h5>
                 <ActivityTimeline activities={metrics?.recentLogs} />
               </div>

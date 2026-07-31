@@ -10,4 +10,7 @@ import java.util.List;
 @Repository
 public interface EngagementHistoryRepository extends JpaRepository<EngagementHistory, String> {
     List<EngagementHistory> findByContractorProfile(ContractorProfile profile);
+
+
+    List<EngagementHistory> findByContractorProfileId(String profileId);
 }

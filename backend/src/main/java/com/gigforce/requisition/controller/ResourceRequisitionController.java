@@ -76,13 +76,7 @@ public class ResourceRequisitionController {
         return ResponseEntity.ok(response);
     }
 
-    @PutMapping("/{id}/under-review")
-    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER')")
-    @Operation(summary = "Put a requisition under review")
-    public ResponseEntity<ResourceRequisitionResponseDTO> underReviewRequisition(@PathVariable String id) {
-        ResourceRequisitionResponseDTO response = requisitionService.underReviewRequisition(id);
-        return ResponseEntity.ok(response);
-    }
+
 
     @GetMapping("/departments")
     @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER', 'VENDOR_MANAGER', 'VENDOR', 'CONTRACTOR', 'FINANCE')")
@@ -109,10 +103,11 @@ public class ResourceRequisitionController {
             @RequestParam(required = false) String requiredSkillId,
             @RequestParam(required = false) String hiringManager,
             @RequestParam(required = false) String orgUnitId,
+            @RequestParam(required = false) Integer minExperience,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         Page<ResourceRequisitionResponseDTO> response = requisitionService.searchRequisitions(
-                requisitionId, jobTitle, status, requiredSkillId, hiringManager, orgUnitId, page, size);
+                requisitionId, jobTitle, status, requiredSkillId, hiringManager, orgUnitId, minExperience, page, size);
         return ResponseEntity.ok(response);
     }
 }

@@ -4,6 +4,8 @@ import { Card, Form, Modal, Alert } from 'react-bootstrap';
 import { getAssignments, getAssignmentDetails, requestAssignmentExtension } from '../../services/vendorAssignmentService';
 import { getErrorMessage } from '../../services/errorUtils';
 import { useToast } from '../../context/ToastContext';
+import { useAuth } from '../../hooks/useAuth';
+import apiClient from '../../services/apiClient';
 
 // Reusable components
 import AssignmentDrawer from '../../components/vendor/AssignmentDrawer';
@@ -11,6 +13,7 @@ import Loader from '../../components/Loader';
 import Table from '../../components/Table';
 
 function Assignments() {
+  const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const searchVal = searchParams.get('search') || '';
 
@@ -31,6 +34,13 @@ function Assignments() {
   const [newEndDate, setNewEndDate] = useState('');
   const [extRemarks, setExtRemarks] = useState('');
   const [submittingExt, setSubmittingExt] = useState(false);
+
+  // PO Creation Modal
+  const [showPOModal, setShowPOModal] = useState(false);
+  const [poAsn, setPoAsn] = useState(null);
+  const [poAmount, setPoAmount] = useState('');
+  const [currency, setCurrency] = useState('INR');
+  const [submittingPo, setSubmittingPo] = useState(false);
 
   const loadAssignments = async () => {
     try {
@@ -97,6 +107,35 @@ function Assignments() {
     }
   };
 
+  const openPOModal = (asn) => {
+    setPoAsn(asn);
+    setPoAmount('');
+    setCurrency('INR');
+    setShowPOModal(true);
+  };
+
+  const handleCreatePO = async () => {
+    if (!poAmount) {
+      showToast('Please enter PO amount.', 'warning');
+      return;
+    }
+    try {
+      setSubmittingPo(true);
+      await apiClient.post('/purchase-orders', {
+        AssignmentID: poAsn.id,
+        VendorID: user?.orgUnitId || 'VENDOR_ORG',
+        POAmount: parseFloat(poAmount),
+        Currency: currency
+      });
+      showToast('Purchase Order generated successfully!', 'success');
+      setShowPOModal(false);
+    } catch (err) {
+      showToast(getErrorMessage(err), 'error');
+    } finally {
+      setSubmittingPo(false);
+    }
+  };
+
   // Local Search filtering
   const filteredAssignments = assignments.filter(a => {
     if (!searchVal.trim()) return true;
@@ -112,7 +151,7 @@ function Assignments() {
     <div className="container-fluid">
       {/* Header */}
       <div className="mb-4">
-        <h1 className="page-title mb-1">Assignments Tracker</h1>
+        <h1 className="page-title mb-1">{user?.name || 'Vendor'} Assignments Tracker</h1>
         <p className="muted-text">Track active contractor placements, review SOW agreements, and request contract extensions.</p>
       </div>
 
@@ -136,14 +175,19 @@ function Assignments() {
                 </span>
               </td>
               <td>
-                <div className="d-flex gap-2 justify-content-start">
+                <div className="d-flex gap-2 justify-content-start flex-wrap">
                   <button className="btn-enterprise-secondary py-1 px-3" onClick={() => openDrawer(a.id)}>
                     View Agreement
                   </button>
                   {a.status === 'ACTIVE' && (
-                    <button className="btn-enterprise-primary py-1 px-3" onClick={() => openExtensionModal(a)}>
-                      Request Extension
-                    </button>
+                    <>
+                      <button className="btn-enterprise-primary py-1 px-3" onClick={() => openExtensionModal(a)}>
+                        Request Extension
+                      </button>
+                      <button className="btn-enterprise-primary py-1 px-3" onClick={() => openPOModal(a)}>
+                        Create PO
+                      </button>
+                    </>
                   )}
                 </div>
               </td>
@@ -161,11 +205,11 @@ function Assignments() {
       <AssignmentDrawer show={showDrawer} onHide={() => setShowDrawer(false)} assignment={selectedAsn} />
 
       {/* Extension request modal */}
-      <Modal show={showExtensionModal} onHide={() => setShowExtensionModal(false)} centered className="enterprise-modal-content">
-        <Modal.Header closeButton className="enterprise-modal-header">
+      <Modal show={showExtensionModal} onHide={() => setShowExtensionModal(false)} backdrop="static" centered style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <Modal.Header closeButton className="bg-white border-bottom-0">
           <Modal.Title className="fw-bold text-dark">Request Assignment Extension</Modal.Title>
         </Modal.Header>
-        <Modal.Body className="enterprise-modal-body">
+        <Modal.Body className="bg-white">
           {extAsn && (
             <div>
               <div className="mb-3">
@@ -199,10 +243,55 @@ function Assignments() {
             </div>
           )}
         </Modal.Body>
-        <Modal.Footer className="enterprise-modal-footer">
+        <Modal.Footer className="bg-white border-top-0">
           <button className="btn-enterprise-secondary" onClick={() => setShowExtensionModal(false)}>Cancel</button>
           <button className="btn-enterprise-primary" onClick={handleRequestExtension} disabled={submittingExt}>
             {submittingExt ? 'Submitting...' : 'Request Extension'}
+          </button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* PO Creation modal */}
+      <Modal show={showPOModal} onHide={() => setShowPOModal(false)} backdrop="static" centered style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <Modal.Header closeButton className="bg-white border-bottom-0">
+          <Modal.Title className="fw-bold text-dark">Create Purchase Order</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="bg-white">
+          {poAsn && (
+            <div>
+              <div className="mb-3">
+                <span className="text-muted small">Generate PO for Assignment:</span>
+                <h6 className="fw-bold text-dark mt-1">{poAsn.id} - {poAsn.contractorName}</h6>
+              </div>
+              <Form.Group className="mb-3" controlId="poAmount">
+                <Form.Label className="enterprise-form-label">PO Amount</Form.Label>
+                <Form.Control
+                  type="number"
+                  required
+                  className="enterprise-form-control"
+                  value={poAmount}
+                  onChange={(e) => setPoAmount(e.target.value)}
+                />
+              </Form.Group>
+              <Form.Group className="mb-3" controlId="poCurrency">
+                <Form.Label className="enterprise-form-label">Currency</Form.Label>
+                <Form.Select
+                  className="enterprise-form-select"
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value)}
+                >
+                  <option value="INR">INR (₹)</option>
+                  <option value="USD">USD ($)</option>
+                  <option value="EUR">EUR (€)</option>
+                </Form.Select>
+              </Form.Group>
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer className="bg-white border-top-0">
+          <button className="btn-enterprise-secondary" onClick={() => setShowPOModal(false)}>Cancel</button>
+          <button className="btn-enterprise-primary" onClick={handleCreatePO} disabled={submittingPo}>
+            {submittingPo ? 'Creating...' : 'Generate PO'}
           </button>
         </Modal.Footer>
       </Modal>

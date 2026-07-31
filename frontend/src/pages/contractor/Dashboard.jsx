@@ -23,9 +23,11 @@ function Dashboard() {
   const [activities, setActivities] = useState([]);
   const [upcomingDeadlines, setUpcomingDeadlines] = useState([]);
   const [recentTimesheets, setRecentTimesheets] = useState([]);
-  const [showTotalEarnings, setShowTotalEarnings] = useState(() => sessionStorage.getItem('gf_earnings_visible') === 'true');
+
+  // Session-synchronized visibility state
+  const [showTotalEarnings, setShowTotalEarnings] = useState(() => sessionStorage.getItem('gf_dashboard_earnings_visible') === 'false');
   const [isAnimating, setIsAnimating] = useState(false);
-  const [displayEarnings, setDisplayEarnings] = useState(() => sessionStorage.getItem('gf_earnings_visible') === 'true');
+  const [displayEarnings, setDisplayEarnings] = useState(() => sessionStorage.getItem('gf_dashboard_earnings_visible') === 'false');
 
   useEffect(() => {
     setIsAnimating(true);
@@ -37,11 +39,7 @@ function Dashboard() {
   }, [showTotalEarnings]);
 
   const toggleEarnings = () => {
-    setShowTotalEarnings(prev => {
-      const next = !prev;
-      sessionStorage.setItem('gf_earnings_visible', next ? 'true' : 'false');
-      return next;
-    });
+    setShowTotalEarnings(prev => !prev);
   };
 
   const formatRupees = (amount) => {
@@ -50,7 +48,7 @@ function Dashboard() {
       maximumFractionDigits: 0,
       minimumFractionDigits: 0
     });
-    return `₹ ${formatted}`;
+    return `₹${formatted}`;
   };
 
   useEffect(() => {
@@ -167,13 +165,13 @@ function Dashboard() {
 
   if (error) {
     return (
-      <Alert variant="danger" className="enterprise-alert enterprise-alert-danger mt-4">
+      <div className="text-center py-5 mt-5">
+        <i className="bi bi-exclamation-triangle fs-1 text-danger mb-3"></i>
         <h5>Error Loading Dashboard</h5>
-        <p>{error}</p>
-        <button className="btn-enterprise-secondary mt-2" onClick={() => window.location.reload()}>
+        <button className="btn-enterprise-secondary mt-3" onClick={() => window.location.reload()}>
           Retry Loading
         </button>
-      </Alert>
+      </div>
     );
   }
 
@@ -187,7 +185,7 @@ function Dashboard() {
           <h1 className="page-title mb-1">Welcome, {welcomeName}</h1>
           <p className="muted-text">Monitor assignments, enter weekly timesheets, and track leave requests.</p>
         </div>
-        <div className="d-flex gap-2">
+        <div className="d-flex gap-2 align-items-center">
           {profile?.availabilityStatus && (
             <span className="status-pill info">
               Availability: {profile.availabilityStatus.replace('_', ' ')}
@@ -231,32 +229,42 @@ function Dashboard() {
         </div>
 
         <div className="col-md-3">
-          <div className="enterprise-kpi-card position-relative">
-            <button
-              onClick={toggleEarnings}
-              className="border-0 bg-transparent p-0 text-muted position-absolute"
-              style={{ top: '16px', right: '16px', cursor: 'pointer', outline: 'none' }}
-              title={showTotalEarnings ? "Hide earnings" : "Show earnings"}
-              aria-label={showTotalEarnings ? "Hide earnings" : "Show earnings"}
-            >
-              <i className={`bi ${showTotalEarnings ? 'bi-eye-slash' : 'bi-eye'}`} style={{ fontSize: '15px' }}></i>
-            </button>
-            <div className="kpi-card-header">
-              <span className="kpi-card-label">Total Earnings</span>
-            </div>
-            <div className="kpi-card-body d-flex justify-content-between align-items-baseline" style={{ marginTop: '12px' }}>
-              <h3 className={`kpi-card-number earnings-amount ${isAnimating ? 'fade-out' : ''}`} style={{ minWidth: '160px', display: 'inline-block' }}>
-                {displayEarnings
-                  ? formatRupees(personalStats?.totalPaidAmount)
-                  : '₹ ********'}
-              </h3>
-              {personalStats?.totalPaidAmount && (
-                <span className="kpi-card-trend up">
-                  <i className="bi bi-arrow-up-short"></i> Settled
-                </span>
-              )}
-            </div>
-          </div>
+          <KpiCard
+            label={
+              <div className="d-inline-flex align-items-center gap-2">
+                <span>Total Earnings</span>
+                <button
+                  onClick={toggleEarnings}
+                  className="border-0 bg-transparent p-0 text-muted d-inline-flex align-items-center"
+                  style={{ cursor: 'pointer', outline: 'none' }}
+                  title={showTotalEarnings ? "Hide earnings" : "Show earnings"}
+                  aria-label={showTotalEarnings ? "Hide earnings" : "Show earnings"}
+                >
+                  {showTotalEarnings ? (
+                    /* Eye Slash Icon */
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                      <path d="M13.359 11.238C15.06 9.72 16 8 16 8s-3-5.5-8-5.5a7 7 0 0 0-2.79.588l.77.771A6 6 0 0 1 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13 13 0 0 1 14.828 8q-.086.13-.195.288c-.335.48-.83 1.12-1.465 1.755-.165.165-.337.328-.517.486z" />
+                      <path d="M11.297 9.176a3.5 3.5 0 0 0-4.474-4.474l.823.823a2.5 2.5 0 0 1 2.829 2.829zm-2.943 1.299.822.822a3.5 3.5 0 0 1-4.474-4.474l.823.823a2.5 2.5 0 0 0 2.829 2.829" />
+                      <path d="M3.35 5.47q-.27.242-.518.487C1.597 7.22 1 8 1 8s3 5.5 8 5.5c.82 0 1.6-.14 2.327-.394l-.77-.77A6 6 0 0 1 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13 13 0 0 1 1.172 8q.086-.13.195-.288c.335-.48.83-1.12 1.465-1.755q.247-.248.517-.486z" />
+                      <path d="M13.646 14.354l-12-12 .708-.708 12 12z" />
+                    </svg>
+                  ) : (
+                    /* Eye Icon */
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                      <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8M1.173 8a13 13 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5s3.879 1.168 5.168 2.457A13 13 0 0 1 14.828 8q-.086.13-.195.288c-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5s-3.879-1.168-5.168-2.457A13 13 0 0 1 1.172 8z" />
+                      <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5M4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            }
+            value={
+              <span className={`earnings-amount text-truncate d-block ${isAnimating ? 'fade-out' : ''}`}>
+                {displayEarnings ? formatRupees(personalStats?.totalPaidAmount) : '₹********'}
+              </span>
+            }
+            trend={personalStats?.totalPaidAmount ? { value: 'Settled', direction: 'up' } : null}
+          />
         </div>
       </div>
 
@@ -287,7 +295,7 @@ function Dashboard() {
                       <div className="col-6">
                         <span className="text-muted small block">Day Rate</span>
                         <p className={`fw-semibold text-success small mb-0 earnings-amount ${isAnimating ? 'fade-out' : ''}`} style={{ minWidth: '100px', display: 'inline-block' }}>
-                          {displayEarnings ? formatRupees(currentAssignment.agreedRatePerDay) : '₹ ********'}
+                          {displayEarnings ? formatRupees(currentAssignment.agreedRatePerDay) : '₹********'}
                         </p>
                       </div>
                       <div className="col-6">
@@ -326,7 +334,7 @@ function Dashboard() {
                     <td>{asn.startDate}</td>
                     <td>{asn.endDate}</td>
                     <td className={`text-success fw-semibold text-end earnings-amount ${isAnimating ? 'fade-out' : ''}`} style={{ minWidth: '120px' }}>
-                      {displayEarnings ? `${formatRupees(asn.agreedRatePerDay)}/day` : '₹ ********'}
+                      {displayEarnings ? `${formatRupees(asn.agreedRatePerDay)}/day` : '₹********'}
                     </td>
                     <td>
                       <span className={`status-pill ${asn.status === 'ACTIVE' ? 'success' : 'secondary'}`}>
@@ -359,7 +367,7 @@ function Dashboard() {
                     <td>{ts.hoursLogged ?? '0.00'} hrs</td>
                     <td>{ts.overtimeLogged ?? '0.00'} hrs</td>
                     <td className={`text-success fw-semibold text-end earnings-amount ${isAnimating ? 'fade-out' : ''}`} style={{ minWidth: '120px' }}>
-                      {displayEarnings ? formatRupees(ts.billableAmount) : '₹ ********'}
+                      {displayEarnings ? formatRupees(ts.billableAmount) : '₹********'}
                     </td>
                     <td>
                       <span className={`status-pill ${ts.status === 'APPROVED' ? 'success' : ts.status === 'SUBMITTED' ? 'info' : 'secondary'}`}>

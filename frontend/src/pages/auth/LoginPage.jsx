@@ -6,6 +6,10 @@ import { useAuth } from '../../hooks/useAuth';
 import { getDashboardPathForRole } from '../../utils/roleRouting';
 import { getErrorMessage } from '../../services/errorUtils';
 
+// Define input character limits
+const EMAIL_MAX_LENGTH = 50; // Standard maximum length for RFC 5321 email addresses
+const PASSWORD_MAX_LENGTH = 50; // Standard maximum limit for security and performance
+
 function LoginPage() {
   const { loginUser } = useAuth();
   const navigate = useNavigate();
@@ -18,6 +22,11 @@ function LoginPage() {
 
   const handleChange = (event) => {
     const { name, value } = event.target;
+
+    // Enforce max lengths programmatically
+    if (name === 'email' && value.length > EMAIL_MAX_LENGTH) return;
+    if (name === 'password' && value.length > PASSWORD_MAX_LENGTH) return;
+
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -67,6 +76,7 @@ function LoginPage() {
             onChange={handleChange}
             placeholder="name@company.com"
             autoComplete="username"
+            maxLength={EMAIL_MAX_LENGTH}
             required
           />
         </div>
@@ -85,6 +95,7 @@ function LoginPage() {
               onChange={handleChange}
               placeholder="••••••••"
               autoComplete="current-password"
+              maxLength={PASSWORD_MAX_LENGTH}
               required
             />
             <button

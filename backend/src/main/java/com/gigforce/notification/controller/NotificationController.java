@@ -57,6 +57,13 @@ public class NotificationController {
         return ResponseEntity.ok(response);
     }
 
+    @PutMapping("/{id}/unread")
+    @Operation(summary = "Mark notification as UNREAD")
+    public ResponseEntity<NotificationResponseDTO> markUnread(@PathVariable String id) {
+        NotificationResponseDTO response = notificationService.markUnread(id);
+        return ResponseEntity.ok(response);
+    }
+
     @PutMapping("/{id}/dismiss")
     @Operation(summary = "Mark notification as DISMISSED")
     public ResponseEntity<NotificationResponseDTO> dismiss(@PathVariable String id) {
@@ -68,6 +75,20 @@ public class NotificationController {
     @Operation(summary = "Delete notification by ID")
     public ResponseEntity<Void> deleteNotification(@PathVariable String id) {
         notificationService.deleteNotification(id);
+        return ResponseEntity.ok().build();
+    }
+
+    @PutMapping("/read-all")
+    @Operation(summary = "Mark all notifications as READ for current user")
+    public ResponseEntity<Void> markAllRead() {
+        notificationService.markAllAsRead();
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/clear-all")
+    @Operation(summary = "Delete all notifications for current user")
+    public ResponseEntity<Void> clearAll() {
+        notificationService.deleteAllNotifications();
         return ResponseEntity.ok().build();
     }
 

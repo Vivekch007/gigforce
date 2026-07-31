@@ -18,6 +18,8 @@ import com.gigforce.requisition.enums.EngagementType;
 import com.gigforce.requisition.enums.ExperienceLevel;
 import com.gigforce.requisition.repository.ResourceRequisitionRepository;
 import com.gigforce.requisition.repository.VendorSubmissionRepository;
+import com.gigforce.assignment.repository.AssignmentRepository;
+import com.gigforce.assignment.enums.AssignmentStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -44,6 +46,7 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
     private final CurrentUserContext currentUserContext;
     private final NotificationPublisher notificationPublisher;
     private final VendorSubmissionRepository submissionRepository;
+    private final AssignmentRepository assignmentRepository;
 
     public ResourceRequisitionServiceImpl(
             ResourceRequisitionRepository requisitionRepository,
@@ -52,7 +55,8 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
             AuditService auditService,
             CurrentUserContext currentUserContext,
             NotificationPublisher notificationPublisher,
-            VendorSubmissionRepository submissionRepository) {
+            VendorSubmissionRepository submissionRepository,
+            AssignmentRepository assignmentRepository) {
         this.requisitionRepository = requisitionRepository;
         this.skillRepository = skillRepository;
         this.userRepository = userRepository;
@@ -60,6 +64,7 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
         this.currentUserContext = currentUserContext;
         this.notificationPublisher = notificationPublisher;
         this.submissionRepository = submissionRepository;
+        this.assignmentRepository = assignmentRepository;
     }
 
     @Override
@@ -106,7 +111,6 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
                 .startDate(request.getStartDate() != null ? request.getStartDate() : java.time.LocalDate.now())
                 .duration(request.getDuration() != null ? request.getDuration().trim() : "6 months")
                 .businessUnitId(businessUnits != null ? businessUnits.name() : null)
-                .customDepartment(request.getCustomDepartment() != null ? request.getCustomDepartment().trim() : null)
                 .build();
 
         ResourceRequisition saved = requisitionRepository.save(requisition);
@@ -166,7 +170,6 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
             }
         }
         requisition.setBusinessUnitId(businessUnits != null ? businessUnits.name() : null);
-        requisition.setCustomDepartment(request.getCustomDepartment() != null ? request.getCustomDepartment().trim() : null);
 
         ResourceRequisition updated = requisitionRepository.save(requisition);
 
@@ -232,6 +235,17 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
             throw new AccessDeniedException("Access Denied: You are not authorized to cancel this requisition.");
         }
 
+        // Block cancellation if there are any ACTIVE or EXTENDED assignments tied to this requisition
+        long activeAssignmentCount = assignmentRepository.countByRequisitionIdAndStatus(
+                        id, AssignmentStatus.ACTIVE)
+                + assignmentRepository.countByRequisitionIdAndStatus(
+                        id, AssignmentStatus.EXTENDED);
+        if (activeAssignmentCount > 0) {
+            throw new BusinessValidationException(
+                    "Cannot cancel requisition '" + requisition.getTitle() + "': it has " + activeAssignmentCount +
+                    " active or extended assignment(s). Please terminate the active placements before cancelling.");
+        }
+
         requisition.setStatus(RequisitionStatus.CANCELLED);
         ResourceRequisition updated = requisitionRepository.save(requisition);
 
@@ -245,6 +259,7 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
 
         return toDto(updated);
     }
+
 
     @Override
     public ResourceRequisitionResponseDTO getRequisitionById(String id) {
@@ -300,6 +315,7 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
             String requiredSkillId,
             String hiringManager,
             String orgUnitId,
+            Integer minExperience,
             int page,
             int size) {
         Pageable pageable = PageRequest.of(page, size);
@@ -356,7 +372,10 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
         }
 
         if (requiredSkillId != null && !requiredSkillId.trim().isEmpty()) {
-            spec = spec.and((root, query, cb) -> cb.equal(root.get("requiredSkill").get("id"), requiredSkillId.trim()));
+            spec = spec.and((root, query, cb) -> cb.or(
+                cb.equal(root.get("requiredSkill").get("id"), requiredSkillId.trim()),
+                cb.like(cb.lower(root.get("requiredSkill").get("name")), "%" + requiredSkillId.trim().toLowerCase() + "%")
+            ));
         }
 
         if (hiringManager != null && !hiringManager.trim().isEmpty()) {
@@ -365,6 +384,10 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
 
         if (orgUnitId != null && !orgUnitId.trim().isEmpty()) {
             spec = spec.and((root, query, cb) -> cb.equal(root.get("orgUnitId"), orgUnitId.trim()));
+        }
+
+        if (minExperience != null) {
+            spec = spec.and((root, query, cb) -> cb.greaterThanOrEqualTo(root.get("minExperienceYears"), minExperience));
         }
 
         return requisitionRepository.findAll(spec, pageable).map(this::toDto);
@@ -403,7 +426,6 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
                 .startDate(requisition.getStartDate())
                 .duration(requisition.getDuration())
                 .businessUnitId(requisition.getBusinessUnitId())
-                .customDepartment(requisition.getCustomDepartment())
                 .createdAt(requisition.getCreatedAt())
                 .updatedAt(requisition.getUpdatedAt())
                 .build();
@@ -442,36 +464,6 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
         return toDto(updated);
     }
 
-    @Override
-    @Transactional
-    public ResourceRequisitionResponseDTO underReviewRequisition(String id) {
-        ResourceRequisition requisition = requisitionRepository.findById(id)
-                .orElseThrow(() -> new RequisitionNotFoundException("Requisition not found with ID: " + id));
-
-        String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
-        User currentUser = userRepository.findByEmail(currentUsername)
-                .orElseThrow(() -> new UserNotFoundException("User not found with email: " + currentUsername));
-
-        boolean isAdmin = currentUser.getRole().name().equals("ADMIN");
-        if (!isAdmin && !requisition.getCreator().getId().equals(currentUser.getId())) {
-            throw new AccessDeniedException("Access Denied: You are not authorized to put this requisition under review.");
-        }
-
-        RequisitionStatus oldStatus = requisition.getStatus();
-        validateRequisitionStatusTransition(oldStatus, RequisitionStatus.UNDER_REVIEW);
-        requisition.setStatus(RequisitionStatus.UNDER_REVIEW);
-        ResourceRequisition updated = requisitionRepository.save(requisition);
-
-        auditService.logAction(
-                currentUser.getId(),
-                "REQUISITION_STATUS_CHANGED",
-                "ResourceRequisition",
-                updated.getId(),
-                String.format("Requisition '%s' put under review (%s -> UNDER_REVIEW) by %s", updated.getTitle(), oldStatus,
-                        currentUser.getEmail()));
-
-        return toDto(updated);
-    }
 
     private void validateRequisitionStatusTransition(RequisitionStatus current, RequisitionStatus target) {
         if (current == target) {
@@ -483,13 +475,9 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
                 valid = target == RequisitionStatus.OPEN || target == RequisitionStatus.CANCELLED;
                 break;
             case OPEN:
-                valid = target == RequisitionStatus.UNDER_REVIEW 
-                        || target == RequisitionStatus.FILLED 
-                        || target == RequisitionStatus.CANCELLED;
-                break;
-            case UNDER_REVIEW:
-                valid = target == RequisitionStatus.FILLED 
-                        || target == RequisitionStatus.CANCELLED;
+                valid = target == RequisitionStatus.FILLED
+                        || target == RequisitionStatus.CANCELLED
+                        || target == RequisitionStatus.CLOSED;
                 break;
             case FILLED:
                 valid = target == RequisitionStatus.CLOSED;
