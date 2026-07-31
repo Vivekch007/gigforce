@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Table, Alert } from 'react-bootstrap';
+import { Card, Table, Alert, Form, Pagination } from 'react-bootstrap';
 import { getOrganizations } from '../../services/organizationService';
 import { getErrorMessage } from '../../services/errorUtils';
 
@@ -13,12 +13,34 @@ function Organizations() {
   // Orgs list
   const [orgsList, setOrgsList] = useState([]);
 
-  const loadOrgs = async () => {
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(0); // 0-indexed for Spring Boot API
+  const [pageSize, setPageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+
+  const loadOrgs = async (page = currentPage, size = pageSize) => {
     try {
       setLoading(true);
       setError('');
-      const data = await getOrganizations();
-      setOrgsList(data || []);
+
+      const response = await getOrganizations({ page, size });
+
+      // Check if API returns Spring Boot Page object or a plain array
+      if (response && response.content) {
+        setOrgsList(response.content || []);
+        setTotalPages(response.totalPages || 0);
+        setTotalElements(response.totalElements || 0);
+      } else if (Array.isArray(response)) {
+        // Fallback for unpaginated client-side slicing
+        setOrgsList(response);
+        setTotalPages(Math.ceil(response.length / size));
+        setTotalElements(response.length);
+      } else {
+        setOrgsList([]);
+        setTotalPages(0);
+        setTotalElements(0);
+      }
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -27,12 +49,29 @@ function Organizations() {
   };
 
   useEffect(() => {
-    loadOrgs();
-  }, []);
+    loadOrgs(currentPage, pageSize);
+  }, [currentPage, pageSize]);
+
+  const handlePageChange = (newPage) => {
+    if (newPage >= 0 && newPage < totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
+
+  const handlePageSizeChange = (e) => {
+    const newSize = parseInt(e.target.value, 10);
+    setPageSize(newSize);
+    setCurrentPage(0); // Reset to first page when changing page size
+  };
 
   const getStatusBadge = (status) => {
     return status?.toUpperCase() === 'ACTIVE' ? 'approved' : 'rejected';
   };
+
+  // Slice list locally if API returns raw unpaginated array
+  const displayedOrgs = Array.isArray(orgsList) && totalPages > 0 && !orgsList.content
+    ? orgsList.slice(currentPage * pageSize, (currentPage + 1) * pageSize)
+    : orgsList;
 
   return (
     <div className="container-fluid">
@@ -48,7 +87,7 @@ function Organizations() {
 
       {loading ? (
         <LoadingSpinner message="Querying corporate registries..." />
-      ) : orgsList.length > 0 ? (
+      ) : displayedOrgs.length > 0 ? (
         <Card className="gf-card p-4 border-0 bg-white">
           <div className="table-responsive">
             <Table className="table table-hover align-middle mb-0">
@@ -60,8 +99,8 @@ function Organizations() {
                 </tr>
               </thead>
               <tbody>
-                {orgsList.map((o) => (
-                  <tr key={o.id}>
+                {displayedOrgs.map((o) => (
+                  <tr key={o.id || o.code}>
                     <td className="fw-bold">{o.code}</td>
                     <td>
                       <span className="badge bg-secondary rounded-pill">
@@ -77,6 +116,51 @@ function Organizations() {
                 ))}
               </tbody>
             </Table>
+          </div>
+
+          {/* Pagination Controls */}
+          <div className="d-flex justify-content-between align-items-center mt-4 pt-3 border-top flex-wrap gap-2">
+            <div className="d-flex align-items-center gap-2 text-muted small">
+              <span>Showing {currentPage * pageSize + 1} to {Math.min((currentPage + 1) * pageSize, totalElements)} of {totalElements} entries</span>
+              <Form.Select
+                size="sm"
+                style={{ width: '80px' }}
+                value={pageSize}
+                onChange={handlePageSizeChange}
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </Form.Select>
+              <span>per page</span>
+            </div>
+
+            <Pagination size="sm" className="mb-0">
+              <Pagination.First onClick={() => handlePageChange(0)} disabled={currentPage === 0} />
+              <Pagination.Prev onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 0} />
+
+              {[...Array(totalPages)].map((_, idx) => {
+                // Show current page, first, last, and immediate neighbor pages
+                if (idx === currentPage || idx === currentPage - 1 || idx === currentPage + 1 || idx === 0 || idx === totalPages - 1) {
+                  return (
+                    <Pagination.Item
+                      key={idx}
+                      active={idx === currentPage}
+                      onClick={() => handlePageChange(idx)}
+                    >
+                      {idx + 1}
+                    </Pagination.Item>
+                  );
+                } else if (idx === currentPage - 2 || idx === currentPage + 2) {
+                  return <Pagination.Ellipsis key={idx} disabled />;
+                }
+                return null;
+              })}
+
+              <Pagination.Next onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages - 1 || totalPages === 0} />
+              <Pagination.Last onClick={() => handlePageChange(totalPages - 1)} disabled={currentPage === totalPages - 1 || totalPages === 0} />
+            </Pagination>
           </div>
         </Card>
       ) : (

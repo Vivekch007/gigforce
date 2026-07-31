@@ -13,7 +13,7 @@ function SharedNotificationCenter({ title = "Notifications", subtitle = "Manage 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [notifications, setNotifications] = useState([]);
-  
+
   const [statusFilter, setStatusFilter] = useState('UNREAD');
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -108,7 +108,7 @@ function SharedNotificationCenter({ title = "Notifications", subtitle = "Manage 
 
     const query = searchQuery.trim().toLowerCase();
     if (!query) return true;
-    
+
     const t = n.title || n.Title || '';
     const m = n.message || n.Message || '';
     const c = n.category || n.Category || '';
@@ -127,7 +127,7 @@ function SharedNotificationCenter({ title = "Notifications", subtitle = "Manage 
 
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    
+
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
 
@@ -207,9 +207,9 @@ function SharedNotificationCenter({ title = "Notifications", subtitle = "Manage 
         </div>
         <div className="d-flex gap-2">
           {totalUnread > 0 && statusFilter === 'UNREAD' && (
-            <Button 
-              variant="outline-primary" 
-              className="btn-gf-outline" 
+            <Button
+              variant="outline-primary"
+              className="btn-gf-outline"
               onClick={handleMarkAllRead}
               disabled={actionLoading}
             >
@@ -217,9 +217,9 @@ function SharedNotificationCenter({ title = "Notifications", subtitle = "Manage 
             </Button>
           )}
           {totalNotifications > 0 && (
-            <Button 
-              variant="outline-danger" 
-              className="btn-gf-outline" 
+            <Button
+              variant="outline-danger"
+              className="btn-gf-outline"
               onClick={handleClearAll}
               disabled={actionLoading}
             >
@@ -262,7 +262,7 @@ function SharedNotificationCenter({ title = "Notifications", subtitle = "Manage 
               <h6 className="fw-bold text-uppercase text-slate-500 mb-3" style={{ fontSize: '0.75rem', letterSpacing: '0.05em' }}>
                 {group.title}
               </h6>
-              
+
               <div className="d-flex flex-column gap-3">
                 {group.items.map((n) => {
                   const id = n.notificationId || n.NotificationID;
@@ -271,10 +271,10 @@ function SharedNotificationCenter({ title = "Notifications", subtitle = "Manage 
                   const t = n.title || n.Title || cat;
                   const m = n.message || n.Message;
                   const d = n.createdDate || n.CreatedDate;
-                  
+
                   return (
-                    <Card 
-                      key={id} 
+                    <Card
+                      key={id}
                       className={`gf-card p-3 mb-0 border-0 ${stat === 'UNREAD' ? 'border-start border-primary border-4 shadow-sm' : ''}`}
                       style={{ backgroundColor: stat === 'UNREAD' ? '#ffffff' : '#f8fafc' }}
                     >
@@ -295,9 +295,9 @@ function SharedNotificationCenter({ title = "Notifications", subtitle = "Manage 
                         </div>
                         <div className="d-flex align-items-center gap-3 ms-auto">
                           {stat === 'UNREAD' && (
-                            <Button 
-                              variant="link" 
-                              className="p-1 text-primary text-decoration-none small fw-semibold text-xs" 
+                            <Button
+                              variant="link"
+                              className="p-1 text-primary text-decoration-none small fw-semibold text-xs"
                               onClick={() => handleMarkRead(id)}
                               disabled={actionLoading}
                             >
@@ -305,18 +305,18 @@ function SharedNotificationCenter({ title = "Notifications", subtitle = "Manage 
                             </Button>
                           )}
                           {stat === 'READ' && (
-                            <Button 
-                              variant="link" 
-                              className="p-1 text-primary text-decoration-none small fw-semibold text-xs" 
+                            <Button
+                              variant="link"
+                              className="p-1 text-primary text-decoration-none small fw-semibold text-xs"
                               onClick={() => handleMarkUnread(id)}
                               disabled={actionLoading}
                             >
                               Mark Unread
                             </Button>
                           )}
-                          <Button 
-                            variant="link" 
-                            className="p-1 text-danger text-decoration-none" 
+                          <Button
+                            variant="link"
+                            className="p-1 text-danger text-decoration-none"
                             onClick={() => handleDelete(id)}
                             disabled={actionLoading}
                             title="Delete"

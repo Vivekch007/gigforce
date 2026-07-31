@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Spinner, Button, Table, Modal, Form, Row, Col, InputGroup } from 'react-bootstrap';
+import { Spinner, Button, Table, Modal, Form, Row, Col, InputGroup, Pagination } from 'react-bootstrap';
 import { getAbsences, requestAbsence } from '../../services/contractorService';
 import { getAssignments } from '../../services/assignmentService';
 import { getErrorMessage } from '../../services/errorUtils';
@@ -21,6 +21,10 @@ function Absences() {
   const [filterType, setFilterType] = useState('all'); // 'all', 'monthly', 'yearly'
   const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth()); // 0 - 11
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Modal form states
   const [showModal, setShowModal] = useState(false);
@@ -104,26 +108,39 @@ function Absences() {
   }, [absences]);
 
   // Combined Status and Calendar Filtering Logic
-  const filteredAbsences = absences.filter((ab) => {
-    // 1. Status Filter
-    if (statusFilter !== 'ALL' && ab.status !== statusFilter) return false;
+  const filteredAbsences = useMemo(() => {
+    return absences.filter((ab) => {
+      // 1. Status Filter
+      if (statusFilter !== 'ALL' && ab.status !== statusFilter) return false;
 
-    // 2. Date/Calendar Filter
-    if (!ab.startDate) return filterType === 'all';
+      // 2. Date/Calendar Filter
+      if (!ab.startDate) return filterType === 'all';
 
-    const itemDate = new Date(ab.startDate);
+      const itemDate = new Date(ab.startDate);
 
-    if (filterType === 'monthly') {
-      return (
-        itemDate.getFullYear() === parseInt(selectedYear, 10) &&
-        itemDate.getMonth() === parseInt(selectedMonth, 10)
-      );
-    } else if (filterType === 'yearly') {
-      return itemDate.getFullYear() === parseInt(selectedYear, 10);
-    }
+      if (filterType === 'monthly') {
+        return (
+          itemDate.getFullYear() === parseInt(selectedYear, 10) &&
+          itemDate.getMonth() === parseInt(selectedMonth, 10)
+        );
+      } else if (filterType === 'yearly') {
+        return itemDate.getFullYear() === parseInt(selectedYear, 10);
+      }
 
-    return true; // 'all'
-  });
+      return true; // 'all'
+    });
+  }, [absences, statusFilter, filterType, selectedYear, selectedMonth]);
+
+  // Reset to first page whenever filter rules change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, filterType, selectedYear, selectedMonth]);
+
+  // Pagination Slice
+  const totalPages = Math.ceil(filteredAbsences.length / itemsPerPage) || 1;
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const paginatedAbsences = filteredAbsences.slice(indexOfFirstItem, indexOfLastItem);
 
   // Metrics based on full list
   const approvedCasual = absences
@@ -281,36 +298,95 @@ function Absences() {
       </div>
 
       {/* Absences Log Grid */}
-      <div className="gf-card p-0 overflow-hidden">
-        {filteredAbsences.length > 0 ? (
-          <Table responsive hover className="align-middle text-sm mb-0">
-            <thead className="bg-light">
-              <tr className="text-uppercase text-muted border-bottom" style={{ fontSize: '0.75rem' }}>
-                <th className="p-3">Type</th>
-                <th className="p-3">Duration</th>
-                <th className="p-3">Start Date</th>
-                <th className="p-3">End Date</th>
-                <th className="p-3">Reason</th>
-                <th className="p-3">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredAbsences.map((ab) => (
-                <tr key={ab.id}>
-                  <td className="p-3 fw-bold text-slate-800">{ab.absenceType.replace('_', ' ')}</td>
-                  <td className="p-3">{ab.duration.replace('_', ' ')}</td>
-                  <td className="p-3">{ab.startDate}</td>
-                  <td className="p-3">{ab.endDate}</td>
-                  <td className="p-3 text-muted text-truncate" style={{ maxWidth: '250px' }}>{ab.reason}</td>
-                  <td className="p-3">
-                    <span className={`gf-badge badge-${ab.status.toLowerCase()}`}>
-                      {ab.status}
-                    </span>
-                  </td>
+      <div className="gf-card p-0 overflow-hidden mb-4">
+        {paginatedAbsences.length > 0 ? (
+          <>
+            <Table responsive hover className="align-middle text-sm mb-0">
+              <thead className="bg-light">
+                <tr className="text-uppercase text-muted border-bottom" style={{ fontSize: '0.75rem' }}>
+                  <th className="p-3">Type</th>
+                  <th className="p-3">Duration</th>
+                  <th className="p-3">Start Date</th>
+                  <th className="p-3">End Date</th>
+                  <th className="p-3">Reason</th>
+                  <th className="p-3">Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </Table>
+              </thead>
+              <tbody>
+                {paginatedAbsences.map((ab) => (
+                  <tr key={ab.id}>
+                    <td className="p-3 fw-bold text-slate-800">{ab.absenceType.replace('_', ' ')}</td>
+                    <td className="p-3">{ab.duration.replace('_', ' ')}</td>
+                    <td className="p-3">{ab.startDate}</td>
+                    <td className="p-3">{ab.endDate}</td>
+                    <td className="p-3 text-muted text-truncate" style={{ maxWidth: '250px' }}>{ab.reason}</td>
+                    <td className="p-3">
+                      <span className={`gf-badge badge-${ab.status.toLowerCase()}`}>
+                        {ab.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+
+            {/* Pagination Controls Footer */}
+            <div className="d-flex justify-content-between align-items-center p-3 border-top flex-wrap gap-2 bg-light">
+              <div className="d-flex align-items-center gap-2">
+                <span className="text-muted small">Show</span>
+                <Form.Select
+                  size="sm"
+                  style={{ width: '70px' }}
+                  value={itemsPerPage}
+                  onChange={(e) => {
+                    setItemsPerPage(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                >
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                </Form.Select>
+                <span className="text-muted small">
+                  entries | Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredAbsences.length)} of {filteredAbsences.length}
+                </span>
+              </div>
+
+              {totalPages > 1 && (
+                <Pagination size="sm" className="mb-0">
+                  <Pagination.First
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(1)}
+                  />
+                  <Pagination.Prev
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                  />
+                  {[...Array(totalPages)].map((_, idx) => {
+                    const pageNum = idx + 1;
+                    return (
+                      <Pagination.Item
+                        key={pageNum}
+                        active={pageNum === currentPage}
+                        onClick={() => setCurrentPage(pageNum)}
+                      >
+                        {pageNum}
+                      </Pagination.Item>
+                    );
+                  })}
+                  <Pagination.Next
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                  />
+                  <Pagination.Last
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage(totalPages)}
+                  />
+                </Pagination>
+              )}
+            </div>
+          </>
         ) : (
           <div className="text-center py-5">
             <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor" className="bi bi-calendar-x text-muted mb-3" viewBox="0 0 16 16">

@@ -17,18 +17,25 @@ function Topbar({
   profilePath = '/profile',
   userName = '',
   userInitials = '',
-  toggleSidebar
+  toggleSidebar,
+  isAdmin = false // Pass true if the logged in user is Admin
 }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
-  
+
   const location = useLocation();
   const navigate = useNavigate();
   const popoverRef = useRef(null);
 
+  // Check if role badge explicitly indicates Admin
+  const isUserAdmin = isAdmin || userRoleBadge.toLowerCase().includes('admin');
+
   const fetchCount = () => {
+    // Skip network request if user is Admin
+    if (isUserAdmin) return;
+
     getUnreadCount()
       .then((count) => {
         setUnreadCount(Number(count || 0));
@@ -39,11 +46,20 @@ function Topbar({
   };
 
   const fetchNotificationsList = () => {
+    if (isUserAdmin) return;
+
     setLoading(true);
     getMyNotifications()
       .then((data) => {
-        // Filter out dismissed notifications if any status dismissed exists
-        const active = (data || []).filter(n => n.Status !== 'DISMISSED');
+        const normalized = (data || []).map((n) => ({
+          id: n.notificationId || n.NotificationID || n.id,
+          title: n.title || n.Title || n.category || n.Category || 'Alert',
+          message: n.message || n.Message || '',
+          status: (n.status || n.Status || 'READ').toUpperCase(),
+          createdDate: n.createdDate || n.CreatedDate || n.createdAt,
+        }));
+
+        const active = normalized.filter((n) => n.status !== 'DISMISSED');
         setNotifications(active);
       })
       .catch((err) => {
@@ -55,11 +71,12 @@ function Topbar({
   };
 
   useEffect(() => {
+    if (isUserAdmin) return;
+
     fetchCount();
-    // Poll every 30 seconds for live count updates
     const interval = setInterval(fetchCount, 30000);
     return () => clearInterval(interval);
-  }, [location.pathname]);
+  }, [location.pathname, isUserAdmin]);
 
   // Click outside listener
   useEffect(() => {
@@ -95,10 +112,10 @@ function Topbar({
 
   const handleMarkAllRead = async () => {
     try {
-      const unreadList = notifications.filter(n => n.Status === 'UNREAD');
-      await Promise.all(unreadList.map(n => markNotificationAsRead(n.NotificationID)));
-      
-      setNotifications(prev => prev.map(n => ({ ...n, Status: 'READ' })));
+      const unreadList = notifications.filter((n) => n.status === 'UNREAD');
+      await Promise.all(unreadList.map((n) => markNotificationAsRead(n.id)));
+
+      setNotifications((prev) => prev.map((n) => ({ ...n, status: 'READ' })));
       setUnreadCount(0);
     } catch (err) {
       console.error('Failed to mark all as read', err);
@@ -108,9 +125,9 @@ function Topbar({
   const handleDismiss = async (id, isUnread) => {
     try {
       await dismissNotification(id);
-      setNotifications(prev => prev.filter(n => n.NotificationID !== id));
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
       if (isUnread) {
-        setUnreadCount(prev => Math.max(0, prev - 1));
+        setUnreadCount((prev) => Math.max(0, prev - 1));
       }
     } catch (err) {
       console.error('Failed to dismiss notification', err);
@@ -123,13 +140,13 @@ function Topbar({
     const date = new Date(dateString);
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
-    
+
     if (diffMins < 1) return 'Just now';
     if (diffMins < 60) return `${diffMins} min${diffMins > 1 ? 's' : ''} ago`;
-    
+
     const diffHours = Math.floor(diffMins / 60);
     if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
-    
+
     const diffDays = Math.floor(diffHours / 24);
     return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
   }
@@ -159,99 +176,100 @@ function Topbar({
       <div className="topbar-actions">
         {userRoleBadge && <span className="topbar-role-badge">{userRoleBadge}</span>}
 
-        <div className="position-relative d-inline-flex" ref={popoverRef}>
-          <button 
-            className={`topbar-bell-btn text-decoration-none position-relative border-0 bg-transparent ${isOpen ? 'active' : ''}`}
-            onClick={handleBellClick}
-            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-            title="Toggle Notifications"
-          >
-            <i className="bi bi-bell"></i>
-            {unreadCount > 0 && (
-              <span 
-                className="position-absolute translate-middle badge rounded-pill bg-danger" 
-                style={{ 
-                  top: '4px', 
-                  left: '26px', 
-                  fontSize: '10px', 
-                  padding: '4px 6px',
-                  minWidth: '18px',
-                  height: '18px',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  border: '2px solid var(--gf-card)'
-                }}
-              >
-                {unreadCount}
-              </span>
-            )}
-          </button>
-
-          {isOpen && (
-            <div className="notification-popover">
-              <div className="notification-popover-header">
-                <h6>Notifications</h6>
-                {notifications.some(n => n.Status === 'UNREAD') && (
-                  <button onClick={handleMarkAllRead}>Mark all as read</button>
-                )}
-              </div>
-
-              <div className="notification-list">
-                {loading ? (
-                  <div className="p-4 text-center text-muted">
-                    <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                    Loading...
-                  </div>
-                ) : notifications.length > 0 ? (
-                  notifications.map((notif) => {
-                    const isUnread = notif.Status === 'UNREAD';
-                    return (
-                      <div 
-                        key={notif.NotificationID} 
-                        className={`notification-card ${isUnread ? 'unread' : ''}`}
-                      >
-                        <button 
-                          className="notification-dismiss-btn" 
-                          onClick={() => handleDismiss(notif.NotificationID, isUnread)}
-                          title="Dismiss"
-                        >
-                          <i className="bi bi-x"></i>
-                        </button>
-                        <h6 className="notification-card-title">
-                          {notif.Title || notif.Category || 'Alert'}
-                        </h6>
-                        <p className="notification-card-msg">{notif.Message}</p>
-                        <span className="notification-card-time">
-                          {formatRelativeTime(notif.CreatedDate)}
-                        </span>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="notification-empty-state">
-                    <i className="bi bi-inbox text-muted"></i>
-                    <p>You're all caught up! No new notifications.</p>
-                  </div>
-                )}
-              </div>
-
-              <div className="notification-popover-footer">
-                <button 
-                  onClick={() => {
-                    setIsOpen(false);
-                    navigate(notificationsPath);
+        {/* Hide bell icon completely if user is Admin */}
+        {!isUserAdmin && (
+          <div className="position-relative d-inline-flex" ref={popoverRef}>
+            <button
+              className={`topbar-bell-btn text-decoration-none position-relative border-0 bg-transparent ${isOpen ? 'active' : ''}`}
+              onClick={handleBellClick}
+              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+              title="Toggle Notifications"
+            >
+              <i className="bi bi-bell" style={{ fontSize: '1.25rem' }}></i>
+              {unreadCount > 0 && (
+                <span
+                  className="position-absolute translate-middle badge rounded-pill bg-danger"
+                  style={{
+                    top: '4px',
+                    left: '26px',
+                    fontSize: '10px',
+                    padding: '4px 6px',
+                    minWidth: '18px',
+                    height: '18px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: '2px solid var(--gf-card, #fff)'
                   }}
                 >
-                  View all notifications
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
+                  {unreadCount}
+                </span>
+              )}
+            </button>
 
-        <NavLink 
-          to={profilePath} 
+            {isOpen && (
+              <div className="notification-popover">
+                <div className="notification-popover-header d-flex justify-content-between align-items-center">
+                  <h6>Notifications</h6>
+                  {notifications.some((n) => n.status === 'UNREAD') && (
+                    <button onClick={handleMarkAllRead}>Mark all as read</button>
+                  )}
+                </div>
+
+                <div className="notification-list">
+                  {loading ? (
+                    <div className="p-4 text-center text-muted">
+                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                      Loading...
+                    </div>
+                  ) : notifications.length > 0 ? (
+                    notifications.map((notif) => {
+                      const isUnread = notif.status === 'UNREAD';
+                      return (
+                        <div
+                          key={notif.id}
+                          className={`notification-card ${isUnread ? 'unread' : ''}`}
+                        >
+                          <button
+                            className="notification-dismiss-btn"
+                            onClick={() => handleDismiss(notif.id, isUnread)}
+                            title="Dismiss"
+                          >
+                            <i className="bi bi-x"></i>
+                          </button>
+                          <h6 className="notification-card-title">{notif.title}</h6>
+                          <p className="notification-card-msg">{notif.message}</p>
+                          <span className="notification-card-time">
+                            {formatRelativeTime(notif.createdDate)}
+                          </span>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="notification-empty-state text-center py-4 text-muted">
+                      <i className="bi bi-inbox d-block mb-2" style={{ fontSize: '1.5rem' }}></i>
+                      <p className="mb-0 small">You&apos;re all caught up! No new notifications.</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="notification-popover-footer">
+                  <button
+                    onClick={() => {
+                      setIsOpen(false);
+                      navigate(notificationsPath);
+                    }}
+                  >
+                    View all notifications
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        <NavLink
+          to={profilePath}
           className={({ isActive }) => `topbar-profile-area text-decoration-none d-flex align-items-center gap-2 ${isActive ? 'active-profile' : ''}`}
         >
           {userName && <span className="d-none d-md-inline text-dark small fw-medium">{userName}</span>}

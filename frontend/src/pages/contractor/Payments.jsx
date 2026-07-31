@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Spinner, Card, Form, InputGroup } from 'react-bootstrap';
+import { Spinner, Card, Form, InputGroup, Pagination } from 'react-bootstrap';
 import { getInvoices } from '../../services/invoiceService';
 import { getErrorMessage } from '../../services/errorUtils';
 import { useToast } from '../../context/ToastContext';
@@ -18,6 +18,10 @@ function Payments() {
   const [filterType, setFilterType] = useState('all'); // 'all', 'monthly', 'yearly'
   const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth()); // 0 - 11
+
+  // Pagination States
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Unified session-synchronized visibility state
   const [showEarnings, setShowEarnings] = useState(() => sessionStorage.getItem('gf_payments_earnings_visible') === 'true');
@@ -129,34 +133,47 @@ function Payments() {
   }, [earnings]);
 
   // Combined Search & Calendar Filter Logic
-  const filteredEarnings = earnings.filter((item) => {
-    const query = searchQuery.trim().toLowerCase();
+  const filteredEarnings = useMemo(() => {
+    return earnings.filter((item) => {
+      const query = searchQuery.trim().toLowerCase();
 
-    // 1. Search Query Filter
-    const matchesSearch = !query || (
-      (item.invoicePeriod && item.invoicePeriod.toLowerCase().includes(query)) ||
-      (item.status && item.status.toLowerCase().includes(query))
-    );
-
-    if (!matchesSearch) return false;
-
-    // 2. Calendar/Date Filter
-    const targetDateStr = item.paymentDate || item.InvoiceDate || item.invoiceDate;
-    if (!targetDateStr) return filterType === 'all';
-
-    const itemDate = new Date(targetDateStr);
-
-    if (filterType === 'monthly') {
-      return (
-        itemDate.getFullYear() === parseInt(selectedYear, 10) &&
-        itemDate.getMonth() === parseInt(selectedMonth, 10)
+      // 1. Search Query Filter
+      const matchesSearch = !query || (
+        (item.invoicePeriod && item.invoicePeriod.toLowerCase().includes(query)) ||
+        (item.status && item.status.toLowerCase().includes(query))
       );
-    } else if (filterType === 'yearly') {
-      return itemDate.getFullYear() === parseInt(selectedYear, 10);
-    }
 
-    return true; // 'all'
-  });
+      if (!matchesSearch) return false;
+
+      // 2. Calendar/Date Filter
+      const targetDateStr = item.paymentDate || item.InvoiceDate || item.invoiceDate;
+      if (!targetDateStr) return filterType === 'all';
+
+      const itemDate = new Date(targetDateStr);
+
+      if (filterType === 'monthly') {
+        return (
+          itemDate.getFullYear() === parseInt(selectedYear, 10) &&
+          itemDate.getMonth() === parseInt(selectedMonth, 10)
+        );
+      } else if (filterType === 'yearly') {
+        return itemDate.getFullYear() === parseInt(selectedYear, 10);
+      }
+
+      return true; // 'all'
+    });
+  }, [earnings, searchQuery, filterType, selectedYear, selectedMonth]);
+
+  // Reset to first page whenever search query or filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filterType, selectedYear, selectedMonth]);
+
+  // Pagination Slice
+  const totalPages = Math.ceil(filteredEarnings.length / itemsPerPage) || 1;
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const paginatedEarnings = filteredEarnings.slice(indexOfFirstItem, indexOfLastItem);
 
   const formatPaymentDate = (dateStr) => {
     if (!dateStr) return '—';
@@ -319,46 +336,105 @@ function Payments() {
             )}
 
             {/* Earnings List */}
-            <div className="d-flex flex-column gap-3">
-              {filteredEarnings.length > 0 ? (
-                filteredEarnings.map((item) => (
-                  <Card key={item.id} className="gf-card p-4 mb-0 border-0 bg-white">
-                    <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                      <div>
-                        <h5 className="fw-black text-slate-800 mb-1">{item.invoicePeriod.toUpperCase()}</h5>
-                        <div className="text-muted small">
-                          Invoice : {' '} <span className="fw-semibold text-slate-700">{item.id}</span>
-                           <br/> Payment Date:{' '}
-                          <span className="fw-semibold text-slate-700">{formatPaymentDate(item.paymentDate)}</span>
-                        </div>
-                      </div>
-                      <div className="text-md-end d-flex align-items-center gap-4 flex-wrap">
-                        <div style={{ textAlign: 'right' }}>
-                          <span className="text-uppercase text-muted font-bold block" style={{ fontSize: '0.65rem' }}>
-                            {item.status === 'PAID' ? 'Amount Received' : 'Invoice Amount'}
-                          </span>
-                          <div className={`fs-5 fw-black text-green-600 earnings-amount ${isAnimating ? 'fade-out' : ''}`} style={{ minWidth: '120px', display: 'inline-block' }}>
-                            {displayEarnings
-                              ? formatRupees(item.totalAmount)
-                              : '₹********'}
+            {paginatedEarnings.length > 0 ? (
+              <>
+                <div className="d-flex flex-column gap-3 mb-4">
+                  {paginatedEarnings.map((item) => (
+                    <Card key={item.id} className="gf-card p-4 mb-0 border-0 bg-white">
+                      <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <div>
+                          <h5 className="fw-black text-slate-800 mb-1">{item.invoicePeriod.toUpperCase()}</h5>
+                          <div className="text-muted small">
+                            Invoice : {' '} <span className="fw-semibold text-slate-700">{item.id}</span>
+                            <br/> Payment Date:{' '}
+                            <span className="fw-semibold text-slate-700">{formatPaymentDate(item.paymentDate)}</span>
                           </div>
                         </div>
-                        <div>
-                          <span className={`status-pill ${item.status?.toLowerCase() === 'paid' ? 'success' : 'warning'}`}>
-                            {item.status}
-                          </span>
+                        <div className="text-md-end d-flex align-items-center gap-4 flex-wrap">
+                          <div style={{ textAlign: 'right' }}>
+                            <span className="text-uppercase text-muted font-bold block" style={{ fontSize: '0.65rem' }}>
+                              {item.status === 'PAID' ? 'Amount Received' : 'Invoice Amount'}
+                            </span>
+                            <div className={`fs-5 fw-black text-green-600 earnings-amount ${isAnimating ? 'fade-out' : ''}`} style={{ minWidth: '120px', display: 'inline-block' }}>
+                              {displayEarnings
+                                ? formatRupees(item.totalAmount)
+                                : '₹********'}
+                            </div>
+                          </div>
+                          <div>
+                            <span className={`status-pill ${item.status?.toLowerCase() === 'paid' ? 'success' : 'warning'}`}>
+                              {item.status}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </Card>
-                ))
-              ) : (
-                <div className="text-center py-5 gf-card border-0 bg-white">
-                  <i className="bi bi-wallet2 fs-2 text-muted"></i>
-                  <p className="text-muted small mt-2 mb-0">No earnings logs found for the selected period.</p>
+                    </Card>
+                  ))}
                 </div>
-              )}
-            </div>
+
+                {/* Pagination Controls */}
+                <div className="gf-card p-3 border-0 bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+                  <div className="d-flex align-items-center gap-2">
+                    <span className="text-muted small">Show</span>
+                    <Form.Select
+                      size="sm"
+                      style={{ width: '70px' }}
+                      value={itemsPerPage}
+                      onChange={(e) => {
+                        setItemsPerPage(Number(e.target.value));
+                        setCurrentPage(1);
+                      }}
+                    >
+                      <option value={5}>5</option>
+                      <option value={10}>10</option>
+                      <option value={20}>20</option>
+                      <option value={50}>50</option>
+                    </Form.Select>
+                    <span className="text-muted small">
+                      entries | Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredEarnings.length)} of {filteredEarnings.length}
+                    </span>
+                  </div>
+
+                  {totalPages > 1 && (
+                    <Pagination size="sm" className="mb-0">
+                      <Pagination.First
+                        disabled={currentPage === 1}
+                        onClick={() => setCurrentPage(1)}
+                      />
+                      <Pagination.Prev
+                        disabled={currentPage === 1}
+                        onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                      />
+                      {[...Array(totalPages)].map((_, idx) => {
+                        const pageNum = idx + 1;
+                        return (
+                          <Pagination.Item
+                            key={pageNum}
+                            active={pageNum === currentPage}
+                            onClick={() => setCurrentPage(pageNum)}
+                          >
+                            {pageNum}
+                          </Pagination.Item>
+                        );
+                      })}
+                      <Pagination.Next
+                        disabled={currentPage === totalPages}
+                        onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                      />
+                      <Pagination.Last
+                        disabled={currentPage === totalPages}
+                        onClick={() => setCurrentPage(totalPages)}
+                      />
+                    </Pagination>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-5 gf-card border-0 bg-white">
+                <i className="bi bi-wallet2 fs-2 text-muted"></i>
+                <p className="text-muted small mt-2 mb-0">No earnings logs found for the selected period.</p>
+              </div>
+            )}
           </div>
         )}
       </div>

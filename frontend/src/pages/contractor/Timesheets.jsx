@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import Select from 'react-select';
 import { Spinner, Button, Form, Table } from 'react-bootstrap';
 import { getTimesheets, getTimesheetDetails, updateTimesheet, submitTimesheet, addTimesheetComment } from '../../services/timesheetService';
 import { getErrorMessage } from '../../services/errorUtils';
@@ -64,7 +65,7 @@ function Timesheets() {
     };
     loadTimesheets();
     return () => { active = false; };
-  }, []);
+  }, [addToast]);
 
   // 2. Fetch specific timesheet details on dropdown change
   useEffect(() => {
@@ -123,12 +124,13 @@ function Timesheets() {
       let hoursWorked = '';
       let activityDesc = '';
 
-      if (fallbackLocalLine) {
-        hoursWorked = fallbackLocalLine.hoursWorked ?? '';
+      if (fallbackLocalLine && fallbackLocalLine.hoursWorked !== undefined && fallbackLocalLine.hoursWorked !== '') {
+        hoursWorked = fallbackLocalLine.hoursWorked;
         activityDesc = fallbackLocalLine.activityDesc || '';
       } else if (existingLine) {
         const val = existingLine.hoursWorked;
-        hoursWorked = (val !== null && val !== undefined && val !== 0 && val !== '0') ? String(val) : '';
+        // Preserves 0 and positive numeric values when fetched back from server
+        hoursWorked = (val !== null && val !== undefined && val !== '') ? String(val) : '';
         activityDesc = existingLine.activityDesc || '';
       }
 
@@ -163,7 +165,7 @@ function Timesheets() {
       }
     }
 
-    // Process edit lines and check descriptions
+    // Process edit lines and check descriptions (includes weekends if hours > 0 or pre-existing)
     const editLines = linesData
       .filter((l) => l.isPreGenerated || parseFloat(l.hoursWorked || '0') > 0)
       .map((l) => ({
@@ -278,6 +280,14 @@ function Timesheets() {
     );
   }
 
+  // Format timesheets for react-select dropdown options
+  const dropdownOptions = timesheetList.map((ts) => ({
+    value: ts.id,
+    label: `Week starting: ${normalizeDate(ts.weekStartDate)} to ${normalizeDate(ts.weekEndDate)} (${ts.status})`
+  }));
+
+  const selectedOption = dropdownOptions.find((opt) => opt.value === selectedId) || null;
+
   // Raw sum directly computed from what the user entered across Monday - Sunday
   const computedWeekTotal = linesData
     .reduce((sum, line) => sum + (parseFloat(line.hoursWorked) || 0), 0)
@@ -309,21 +319,28 @@ function Timesheets() {
       <div className="gf-card mb-4">
         <Form.Group controlId="weekSelectDropdown">
           <Form.Label className="uppercase-label">Select Timesheet Week</Form.Label>
-          <Form.Select
-            value={selectedId}
-            onChange={(e) => setSelectedId(e.target.value)}
-            disabled={timesheetList.length === 0}
-          >
-            {timesheetList.length === 0 ? (
-              <option>No timesheets initialized...</option>
-            ) : (
-              timesheetList.map((ts) => (
-                <option key={ts.id} value={ts.id}>
-                  Week starting: {normalizeDate(ts.weekStartDate)} to {normalizeDate(ts.weekEndDate)} ({ts.status})
-                </option>
-              ))
-            )}
-          </Form.Select>
+          <Select
+            options={dropdownOptions}
+            value={selectedOption}
+            onChange={(selected) => setSelectedId(selected ? selected.value : '')}
+            isDisabled={timesheetList.length === 0}
+            placeholder="Search or select a timesheet week..."
+            maxMenuHeight={220} // Caps menu height at 220px and forces a scrollbar
+            isSearchable
+            styles={{
+              control: (base) => ({
+                ...base,
+                borderColor: '#cbd5e1',
+                borderRadius: '0.375rem',
+                boxShadow: 'none',
+                '&:hover': { borderColor: '#94a3b8' }
+              }),
+              menuList: (base) => ({
+                ...base,
+                maxHeight: '220px', // Ensures scrollability for long lists
+              })
+            }}
+          />
         </Form.Group>
       </div>
 

@@ -32,7 +32,7 @@ export function deleteNotification(id) {
 }
 
 export function markAllNotificationsAsRead() {
-  return apiClient.put(`/notifications/read-all`).then((res) => res.data);
+  return apiClient.put('/notifications/read-all').then((res) => res.data);
 }
 
 export function deleteAllNotifications() {
