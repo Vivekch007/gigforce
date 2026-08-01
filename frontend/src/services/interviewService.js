@@ -5,7 +5,16 @@ export function getInterviews() {
 }
 
 export function scheduleInterview(payload) {
-  return apiClient.post('/interviews/schedule-interview', payload).then(res => res.data);
+  // Normalize payload keys for Spring Boot validation
+  const formattedPayload = {
+    candidateName: payload.candidateName,
+    vendorSubmissionId: payload.vendorSubmissionId || payload.submissionId,
+    date: payload.date,
+    time: payload.time,
+    interviewer: payload.interviewer,
+  };
+
+  return apiClient.post('/interviews/schedule-interview', formattedPayload).then(res => res.data);
 }
 
 export function rescheduleInterview(id, payload) {

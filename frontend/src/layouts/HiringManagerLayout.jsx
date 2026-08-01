@@ -19,7 +19,7 @@ const SIDEBAR_LINKS = [
   { to: '/manager/dashboard', label: 'Dashboard', icon: 'bi bi-speedometer2' },
   { to: '/manager/create-requisition', label: 'New Requisition', icon: 'bi bi-file-earmark-plus' },
   { to: '/manager/requisitions', label: 'My Requisitions', icon: 'bi bi-folder2-open' },
-  { to: '/manager/vendor-submissions', label: 'Vendor Profiles', icon: 'bi bi-file-earmark-person' },
+  { to: '/manager/vendor-submissions', label: 'Vendor Submissions', icon: 'bi bi-file-earmark-person' },
   { to: '/manager/interviews', label: 'Interviews Queue', icon: 'bi bi-calendar3' },
   { to: '/manager/assignments', label: 'Assignments', icon: 'bi bi-briefcase' },
   { to: '/manager/timesheet-approvals', label: 'Timesheet Queue', icon: 'bi bi-check2-square' },

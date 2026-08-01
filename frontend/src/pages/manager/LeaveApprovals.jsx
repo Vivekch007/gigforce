@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Form, Modal, Alert, Spinner, Row, Col } from 'react-bootstrap';
 import { getLeavesToApprove, approveLeave, rejectLeave, getLeaveDetails } from '../../services/approvalService';
@@ -18,8 +18,13 @@ function LeaveApprovals() {
   // Leaves logs
   const [leaves, setLeaves] = useState([]);
 
-  // Filter
+  // Filter States
   const [statusFilter, setStatusFilter] = useState('PENDING'); // default filter
+  const [selectedMonthYear, setSelectedMonthYear] = useState(''); // Format: 'YYYY-MM'
+
+  // Pagination States
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Summary indicators
   const [summary, setSummary] = useState({
@@ -33,7 +38,7 @@ function LeaveApprovals() {
   const [selectedLeave, setSelectedLeave] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
-  
+
   const [rejectReason, setRejectReason] = useState('');
   const [submittingAction, setSubmittingAction] = useState(false);
 
@@ -47,20 +52,27 @@ function LeaveApprovals() {
     try {
       setLoading(true);
       setError('');
-      
+
       const params = {};
+      if (selectedMonthYear) {
+        const [year, month] = selectedMonthYear.split('-');
+        params.year = year;
+        params.month = month;
+      }
+
       const data = await getLeavesToApprove(params);
       setLeaves(data || []);
-      
+      setCurrentPage(1); // Reset page on refresh
+
       // Calculate Summary stats from list
       let pendCount = 0;
       let appCount = 0;
       let rejCount = 0;
       let todayCount = 0;
-      
+
       const todayStr = new Date().toISOString().split('T')[0];
 
-      data.forEach((item) => {
+      (data || []).forEach((item) => {
         if (item.status === 'PENDING') pendCount++;
         else if (item.status === 'APPROVED') appCount++;
         else if (item.status === 'REJECTED') rejCount++;
@@ -87,7 +99,7 @@ function LeaveApprovals() {
 
   useEffect(() => {
     loadLeaves();
-  }, []);
+  }, [selectedMonthYear]);
 
   const handleApprove = async (id) => {
     try {
@@ -139,37 +151,95 @@ function LeaveApprovals() {
     }
   };
 
-  // Local filter
-  const filteredLeaves = leaves.filter((item) => {
-    if (statusFilter !== 'ALL' && item.status !== statusFilter) {
-      return false;
+  // Local filter logic (Status, Search, and Month/Year)
+  const filteredLeaves = useMemo(() => {
+    return leaves.filter((item) => {
+      if (statusFilter !== 'ALL' && item.status !== statusFilter) {
+        return false;
+      }
+
+      // Month-Year matching fallback
+      if (selectedMonthYear) {
+        const startDate = item.startDate || item.createdDate || '';
+        if (startDate && !startDate.startsWith(selectedMonthYear)) {
+          return false;
+        }
+      }
+
+      if (searchQuery.trim()) {
+        const q = searchQuery.trim().toLowerCase();
+        return (
+          (item.contractorName && item.contractorName.toLowerCase().includes(q)) ||
+          (item.reason && item.reason.toLowerCase().includes(q)) ||
+          item.id.toLowerCase().includes(q)
+        );
+      }
+      return true;
+    });
+  }, [leaves, statusFilter, selectedMonthYear, searchQuery]);
+
+  // Pagination Logic
+  const totalItems = filteredLeaves.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+
+  const currentLeaves = useMemo(() => {
+    const startIdx = (currentPage - 1) * itemsPerPage;
+    return filteredLeaves.slice(startIdx, startIdx + itemsPerPage);
+  }, [filteredLeaves, currentPage, itemsPerPage]);
+
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
     }
-    if (searchQuery.trim()) {
-      const q = searchQuery.trim().toLowerCase();
-      return (
-        (item.contractorName && item.contractorName.toLowerCase().includes(q)) ||
-        (item.reason && item.reason.toLowerCase().includes(q)) ||
-        item.id.toLowerCase().includes(q)
-      );
-    }
-    return true;
-  });
+  };
 
   return (
     <div className="container-fluid">
       {/* Header */}
-      <div className="mb-4">
-        <h1 className="page-title mb-1">Leave Approvals</h1>
-        <p className="muted-text">Review leave requests, verify balance constraints, and sign off on contractor absences.</p>
+      <div className="mb-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <div>
+          <h1 className="page-title mb-1">Leave Approvals</h1>
+          <p className="muted-text mb-0">Review leave requests, verify balance constraints, and sign off on contractor absences.</p>
+        </div>
+
+        {/* Calendar Month & Year Picker */}
+        <div className="d-flex align-items-center gap-2">
+          <Form.Control
+            type="month"
+            value={selectedMonthYear}
+            onChange={(e) => {
+              setSelectedMonthYear(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="enterprise-form-control"
+            style={{ width: '180px' }}
+          />
+          {selectedMonthYear && (
+            <button
+              type="button"
+              className="btn btn-sm btn-outline-secondary"
+              title="Clear date filter"
+              onClick={() => {
+                setSelectedMonthYear('');
+                setCurrentPage(1);
+              }}
+            >
+              Clear
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Leave Summary Tab Bar */}
-      <div 
-        className="d-flex border-bottom mb-4" 
+      <div
+        className="d-flex border-bottom mb-4"
         style={{ borderColor: 'var(--gf-border)' }}
       >
         <button
-          onClick={() => setStatusFilter('ALL')}
+          onClick={() => {
+            setStatusFilter('ALL');
+            setCurrentPage(1);
+          }}
           className="pb-3 px-3 bg-transparent border-0 position-relative small"
           style={{
             fontWeight: statusFilter === 'ALL' ? '600' : '500',
@@ -181,7 +251,7 @@ function LeaveApprovals() {
         >
           All ({leaves.length})
           {statusFilter === 'ALL' && (
-            <div 
+            <div
               style={{
                 position: 'absolute',
                 bottom: '-1px',
@@ -195,7 +265,10 @@ function LeaveApprovals() {
         </button>
 
         <button
-          onClick={() => setStatusFilter('PENDING')}
+          onClick={() => {
+            setStatusFilter('PENDING');
+            setCurrentPage(1);
+          }}
           className="pb-3 px-3 bg-transparent border-0 position-relative small"
           style={{
             fontWeight: statusFilter === 'PENDING' ? '600' : '500',
@@ -207,7 +280,7 @@ function LeaveApprovals() {
         >
           Pending ({summary.pending})
           {statusFilter === 'PENDING' && (
-            <div 
+            <div
               style={{
                 position: 'absolute',
                 bottom: '-1px',
@@ -221,7 +294,10 @@ function LeaveApprovals() {
         </button>
 
         <button
-          onClick={() => setStatusFilter('APPROVED')}
+          onClick={() => {
+            setStatusFilter('APPROVED');
+            setCurrentPage(1);
+          }}
           className="pb-3 px-3 bg-transparent border-0 position-relative small"
           style={{
             fontWeight: statusFilter === 'APPROVED' ? '600' : '500',
@@ -233,7 +309,7 @@ function LeaveApprovals() {
         >
           Approved ({summary.approved})
           {statusFilter === 'APPROVED' && (
-            <div 
+            <div
               style={{
                 position: 'absolute',
                 bottom: '-1px',
@@ -247,7 +323,10 @@ function LeaveApprovals() {
         </button>
 
         <button
-          onClick={() => setStatusFilter('REJECTED')}
+          onClick={() => {
+            setStatusFilter('REJECTED');
+            setCurrentPage(1);
+          }}
           className="pb-3 px-3 bg-transparent border-0 position-relative small"
           style={{
             fontWeight: statusFilter === 'REJECTED' ? '600' : '500',
@@ -259,7 +338,7 @@ function LeaveApprovals() {
         >
           Rejected ({summary.rejected})
           {statusFilter === 'REJECTED' && (
-            <div 
+            <div
               style={{
                 position: 'absolute',
                 bottom: '-1px',
@@ -281,44 +360,99 @@ function LeaveApprovals() {
       ) : (
         <div>
           {filteredLeaves.length > 0 ? (
-            <Table headers={['Request ID', 'Contractor', 'Leave Type', 'From Date', 'To Date', 'Days', 'Status', 'Actions']}>
-              {filteredLeaves.map((item) => (
-                <tr key={item.id}>
-                  <td className="fw-bold">{item.id}</td>
-                  <td className="fw-semibold text-dark">{item.contractorName || 'Contractor'}</td>
-                  <td>
-                    <span className="fw-semibold">{item.absenceType}</span>
-                    <div className="text-muted small" style={{ fontSize: '11px' }}>{item.duration} Day</div>
-                  </td>
-                  <td>{item.startDate}</td>
-                  <td>{item.endDate}</td>
-                  <td className="fw-semibold">{calculateDays(item.startDate, item.endDate)}</td>
-                  <td>
-                    <span className={`status-pill ${item.status.toLowerCase() === 'approved' ? 'success' : item.status.toLowerCase() === 'pending' ? 'pending' : 'danger'}`}>
-                      {item.status}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="d-flex gap-2 justify-content-start">
-                      <button className="btn-enterprise-secondary py-1 px-3" onClick={() => openDetails(item)}>
-                        View
-                      </button>
-                      
-                      {item.status === 'PENDING' && (
-                        <>
-                          <button className="btn-enterprise-primary py-1 px-3" onClick={() => handleApprove(item.id)}>
-                            Approve
-                          </button>
-                          <button className="btn-enterprise-ghost text-danger py-1 px-3 border-0" onClick={() => openRejectModal(item)}>
-                            Reject
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </Table>
+            <>
+              <Table headers={['Request ID', 'Contractor', 'Leave Type', 'From Date', 'To Date', 'Days', 'Status', 'Actions']}>
+                {currentLeaves.map((item) => (
+                  <tr key={item.id}>
+                    <td className="fw-bold">{item.id}</td>
+                    <td className="fw-semibold text-dark">{item.contractorName || 'Contractor'}</td>
+                    <td>
+                      <span className="fw-semibold">{item.absenceType}</span>
+                      <div className="text-muted small" style={{ fontSize: '11px' }}>{item.duration} Day</div>
+                    </td>
+                    <td>{item.startDate}</td>
+                    <td>{item.endDate}</td>
+                    <td className="fw-semibold">{calculateDays(item.startDate, item.endDate)}</td>
+                    <td>
+                      <span className={`status-pill ${item.status.toLowerCase() === 'approved' ? 'success' : item.status.toLowerCase() === 'pending' ? 'pending' : 'danger'}`}>
+                        {item.status}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="d-flex gap-2 justify-content-start">
+                        <button className="btn-enterprise-secondary py-1 px-3" onClick={() => openDetails(item)}>
+                          View
+                        </button>
+
+                        {item.status === 'PENDING' && (
+                          <>
+                            <button className="btn-enterprise-primary py-1 px-3" onClick={() => handleApprove(item.id)}>
+                              Approve
+                            </button>
+                            <button className="btn-enterprise-ghost text-danger py-1 px-3 border-0" onClick={() => openRejectModal(item)}>
+                              Reject
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </Table>
+
+              {/* Pagination Controls */}
+              <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3 px-2">
+                <div className="d-flex align-items-center gap-2 text-muted small">
+                  <span>Rows per page:</span>
+                  <Form.Select
+                    size="sm"
+                    value={itemsPerPage}
+                    onChange={(e) => {
+                      setItemsPerPage(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    style={{ width: '70px' }}
+                    className="enterprise-form-select"
+                  >
+                    <option value={5}>5</option>
+                    <option value={10}>10</option>
+                    <option value={20}>20</option>
+                    <option value={50}>50</option>
+                  </Form.Select>
+                  <span>
+                    Showing {Math.min((currentPage - 1) * itemsPerPage + 1, totalItems)} - {Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems}
+                  </span>
+                </div>
+
+                <div className="d-flex align-items-center gap-1">
+                  <button
+                    className="btn btn-sm btn-outline-secondary"
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                  >
+                    Previous
+                  </button>
+
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <button
+                      key={page}
+                      className={`btn btn-sm ${page === currentPage ? 'btn-primary' : 'btn-outline-secondary'}`}
+                      onClick={() => handlePageChange(page)}
+                    >
+                      {page}
+                    </button>
+                  ))}
+
+                  <button
+                    className="btn btn-sm btn-outline-secondary"
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            </>
           ) : (
             <div className="enterprise-table-container p-5 text-center text-muted">
               <i className="bi bi-calendar-x fs-2"></i>
@@ -385,7 +519,7 @@ function LeaveApprovals() {
         <Modal.Body className="enterprise-modal-body">
           <Form.Group controlId="rejectReasonComments">
             <Form.Label className="enterprise-form-label">Rejection Reason (Mandatory) *</Form.Label>
-            <Form.Control 
+            <Form.Control
               as="textarea"
               rows={3}
               placeholder="e.g. Schedule conflicts on these dates. Please coordinate shift cover."
@@ -398,9 +532,9 @@ function LeaveApprovals() {
         </Modal.Body>
         <Modal.Footer className="enterprise-modal-footer">
           <button className="btn-enterprise-secondary" onClick={() => setShowRejectModal(false)}>Cancel</button>
-          <button 
-            className="btn-enterprise-primary bg-danger border-danger" 
-            onClick={handleRejectSubmit} 
+          <button
+            className="btn-enterprise-primary bg-danger border-danger"
+            onClick={handleRejectSubmit}
             disabled={submittingAction}
           >
             {submittingAction ? <Spinner animation="border" size="sm" /> : 'Confirm Rejection'}

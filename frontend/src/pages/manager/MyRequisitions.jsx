@@ -16,12 +16,12 @@ function MyRequisitions() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  
+
   // Requisitions Page data
   const [requisitions, setRequisitions] = useState([]);
-  const [pageMeta, setPageMeta] = useState({ pageNumber: 0, totalPages: 1 });
+  const [pageMeta, setPageMeta] = useState({ pageNumber: 0, totalPages: 1, totalElements: 0 });
   const [currentPage, setCurrentPage] = useState(0);
+  const [pageSize, setPageSize] = useState(10); // Default items per page
 
   // Filters
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -40,10 +40,10 @@ function MyRequisitions() {
     try {
       setLoading(true);
       setError('');
-      
+
       const params = {
         page: currentPage,
-        size: 10,
+        size: pageSize,
       };
 
       if (statusFilter !== 'ALL') {
@@ -57,8 +57,9 @@ function MyRequisitions() {
       const data = await getRequisitions(params);
       setRequisitions(data?.content || []);
       setPageMeta({
-        pageNumber: data?.pageable?.pageNumber || 0,
+        pageNumber: data?.pageable?.pageNumber || data?.number || 0,
         totalPages: data?.totalPages || 1,
+        totalElements: data?.totalElements || 0,
       });
 
     } catch (err) {
@@ -79,11 +80,23 @@ function MyRequisitions() {
 
   useEffect(() => {
     loadRequisitions();
-  }, [currentPage, statusFilter, searchQuery]);
+  }, [currentPage, pageSize, statusFilter, searchQuery]);
 
   useEffect(() => {
     loadSkills();
   }, []);
+
+  const handlePageChange = (newPage) => {
+    if (newPage >= 0 && newPage < pageMeta.totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
+
+  const handlePageSizeChange = (e) => {
+    const newSize = parseInt(e.target.value, 10);
+    setPageSize(newSize);
+    setCurrentPage(0); // Reset to first page whenever page size changes
+  };
 
   const handlePublish = async (id) => {
     try {
@@ -141,7 +154,7 @@ function MyRequisitions() {
     setEditForm(prev => ({
       ...prev,
       [name]: name === 'minExperienceYears' || name === 'quantity'
-        ? parseInt(value) || 0
+        ? parseInt(value, 10) || 0
         : name === 'maxHourlyRate'
         ? parseFloat(value) || 0.0
         : value
@@ -181,8 +194,8 @@ function MyRequisitions() {
           <p className="muted-text">Monitor job postings, publish drafts, and track hire demands.</p>
         </div>
         <div>
-          <Form.Select 
-            value={statusFilter} 
+          <Form.Select
+            value={statusFilter}
             onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(0); }}
             className="enterprise-form-select"
             style={{ width: '200px' }}
@@ -204,79 +217,122 @@ function MyRequisitions() {
       ) : (
         <div>
           {requisitions.length > 0 ? (
-            <Table headers={['Job ID', 'Title', 'Core Skill', 'Quantity', 'Rate Limit', 'Status', 'Actions']}>
-              {requisitions.map((req) => (
-                <tr key={req.id}>
-                  <td className="fw-bold">{req.id}</td>
-                  <td>
-                    <div className="fw-semibold text-dark">{req.title}</div>
-                    <div className="text-muted small" style={{ fontSize: '11px' }}>{req.experienceLevel} &bull; {req.engagementType}</div>
-                  </td>
-                  <td>
-                    <span className="status-pill info">{req.requiredSkillName || 'Skill'}</span>
-                  </td>
-                  <td className="fw-semibold">{req.quantity}</td>
-                  <td className="text-success fw-bold">₹{req.maxHourlyRate}/hr</td>
-                  <td>
-                    <span className={`status-pill ${getStatusClass(req.status)}`}>
-                      {req.status}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="d-flex gap-2 justify-content-start">
-                      <button className="btn-enterprise-secondary py-1 px-3" onClick={() => { setSelectedReq(req); setShowViewModal(true); }}>
-                        View
-                      </button>
-                      
-                      {req.status === 'DRAFT' && (
-                        <>
-                          <button className="btn-enterprise-secondary py-1 px-3" onClick={() => openEdit(req)}>
-                            Edit
-                          </button>
-                          <button className="btn-enterprise-primary py-1 px-3" onClick={() => handlePublish(req.id)}>
-                            Publish
-                          </button>
-                        </>
-                      )}
-
-                      {(req.status === 'DRAFT' || req.status === 'OPEN') && (
-                        <button className="btn-enterprise-ghost text-danger py-1 px-3 border-0" onClick={() => handleCancel(req.id)}>
-                          Cancel
+            <>
+              <Table headers={['Job ID', 'Title', 'Core Skill', 'Quantity', 'Rate Limit', 'Status', 'Actions']}>
+                {requisitions.map((req) => (
+                  <tr key={req.id}>
+                    <td className="fw-bold">{req.id}</td>
+                    <td>
+                      <div className="fw-semibold text-dark">{req.title}</div>
+                      <div className="text-muted small" style={{ fontSize: '11px' }}>{req.experienceLevel} &bull; {req.engagementType}</div>
+                    </td>
+                    <td>
+                      <span className="status-pill info">{req.requiredSkillName || 'Skill'}</span>
+                    </td>
+                    <td className="fw-semibold">{req.quantity}</td>
+                    <td className="text-success fw-bold">₹{req.maxHourlyRate}/hr</td>
+                    <td>
+                      <span className={`status-pill ${getStatusClass(req.status)}`}>
+                        {req.status}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="d-flex gap-2 justify-content-start">
+                        <button className="btn-enterprise-secondary py-1 px-3" onClick={() => { setSelectedReq(req); setShowViewModal(true); }}>
+                          View
                         </button>
-                      )}
 
-                      {req.status === 'OPEN' && (
-                        <button className="btn-enterprise-secondary py-1 px-3" onClick={() => handleClose(req.id)}>
-                          Close
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </Table>
+                        {req.status === 'DRAFT' && (
+                          <>
+                            <button className="btn-enterprise-secondary py-1 px-3" onClick={() => openEdit(req)}>
+                              Edit
+                            </button>
+                            <button className="btn-enterprise-primary py-1 px-3" onClick={() => handlePublish(req.id)}>
+                              Publish
+                            </button>
+                          </>
+                        )}
+
+                        {(req.status === 'DRAFT' || req.status === 'OPEN') && (
+                          <button className="btn-enterprise-ghost text-danger py-1 px-3 border-0" onClick={() => handleCancel(req.id)}>
+                            Cancel
+                          </button>
+                        )}
+
+                        {req.status === 'OPEN' && (
+                          <button className="btn-enterprise-secondary py-1 px-3" onClick={() => handleClose(req.id)}>
+                            Close
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </Table>
+
+              {/* Pagination & Page Size Control Bar */}
+              <div className="d-flex justify-content-between align-items-center mt-3 px-2 flex-wrap gap-3">
+
+                {/* Page Size Dropdown + Total Count */}
+                <div className="d-flex align-items-center gap-3">
+                  <div className="d-flex align-items-center gap-2">
+                    <span className="small text-muted">Rows per page:</span>
+                    <Form.Select
+                      size="sm"
+                      value={pageSize}
+                      onChange={handlePageSizeChange}
+                      className="enterprise-form-select"
+                      style={{ width: '70px', padding: '2px 8px' }}
+                    >
+                      <option value={5}>5</option>
+                      <option value={10}>10</option>
+                      <option value={20}>20</option>
+                      <option value={50}>50</option>
+                    </Form.Select>
+                  </div>
+                  <span className="small text-muted border-start ps-3">
+                    Showing Page <strong>{currentPage + 1}</strong> of <strong>{pageMeta.totalPages}</strong> ({pageMeta.totalElements} items total)
+                  </span>
+                </div>
+
+                {/* Pagination Controls */}
+                {pageMeta.totalPages > 1 && (
+                  <Pagination className="mb-0">
+                    <Pagination.First
+                      onClick={() => handlePageChange(0)}
+                      disabled={currentPage === 0}
+                    />
+                    <Pagination.Prev
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 0}
+                    />
+
+                    {[...Array(pageMeta.totalPages)].map((_, index) => (
+                      <Pagination.Item
+                        key={index}
+                        active={index === currentPage}
+                        onClick={() => handlePageChange(index)}
+                      >
+                        {index + 1}
+                      </Pagination.Item>
+                    ))}
+
+                    <Pagination.Next
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === pageMeta.totalPages - 1}
+                    />
+                    <Pagination.Last
+                      onClick={() => handlePageChange(pageMeta.totalPages - 1)}
+                      disabled={currentPage === pageMeta.totalPages - 1}
+                    />
+                  </Pagination>
+                )}
+              </div>
+            </>
           ) : (
             <div className="enterprise-table-container p-5 text-center text-muted">
               <i className="bi bi-journal-x fs-2"></i>
               <p className="small mt-2 mb-0">No job requisitions logged. Click New Requisition to add one.</p>
-            </div>
-          )}
-
-          {/* Pagination */}
-          {pageMeta.totalPages > 1 && (
-            <div className="enterprise-pagination">
-              <span className="small text-muted">Page {currentPage + 1} of {pageMeta.totalPages}</span>
-              <Pagination className="m-0">
-                <Pagination.First onClick={() => setCurrentPage(0)} disabled={currentPage === 0} />
-                <Pagination.Prev onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))} disabled={currentPage === 0} />
-                {[...Array(pageMeta.totalPages)].map((_, i) => (
-                  <Pagination.Item key={i} active={i === currentPage} onClick={() => setCurrentPage(i)}>
-                    {i + 1}
-                  </Pagination.Item>
-                ))}
-                <Pagination.Next onClick={() => setCurrentPage(prev => Math.min(pageMeta.totalPages - 1, prev + 1))} disabled={currentPage === pageMeta.totalPages - 1} />
-                <Pagination.Last onClick={() => setCurrentPage(pageMeta.totalPages - 1)} disabled={currentPage === pageMeta.totalPages - 1} />
-              </Pagination>
             </div>
           )}
         </div>

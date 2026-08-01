@@ -1,40 +1,47 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Form, Button, Card, Row, Col, Alert, Spinner } from 'react-bootstrap';
+import { Form, Button, Card, Row, Col, Spinner } from 'react-bootstrap';
 import { createRequisition, publishRequisition } from '../../services/requisitionService';
 import { getSkills } from '../../services/contractorService';
 import { getErrorMessage } from '../../services/errorUtils';
 
 function CreateRequisition() {
   const navigate = useNavigate();
-  
+
   const [skills, setSkills] = useState([]);
   const [loadingSkills, setLoadingSkills] = useState(true);
-  const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // Modern Toast State
-  const [toast, setToast] = useState({ show: false, message: '' });
+  // Enterprise Toast State: type can be 'success' | 'danger'
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
-  // Form State
+  // Form State - Defaulted numeric fields to empty strings ('')
   const [form, setForm] = useState({
     title: '',
     description: '',
     requiredSkillId: '',
-    minExperienceYears: 3,
-    maxHourlyRate: 50.00,
-    quantity: 1,
+    minExperienceYears: '',
+    maxHourlyRate: '',
+    quantity: '',
     engagementType: 'ONSITE',
     experienceLevel: 'MID',
     startDate: '',
     duration: '6 Months',
   });
 
+  // Helper to trigger floating right-to-left Toast
+  const showToast = (message, type = 'danger') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => {
+      setToast({ show: false, message: '', type: 'danger' });
+    }, 3500);
+  };
+
   useEffect(() => {
     const loadMetadata = async () => {
       try {
         setLoadingSkills(true);
-        
+
         const [skillsData] = await Promise.all([
           getSkills()
         ]);
@@ -45,10 +52,10 @@ function CreateRequisition() {
         if (skillsData && skillsData.length > 0) {
           initialForm.requiredSkillId = skillsData[0].id;
         }
-        
+
         setForm(prev => ({ ...prev, ...initialForm }));
       } catch (err) {
-        setError('Failed to load requisitions metadata catalog.');
+        showToast('Failed to load requisitions metadata catalog.', 'danger');
       } finally {
         setLoadingSkills(false);
       }
@@ -58,12 +65,19 @@ function CreateRequisition() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+
+    // Maintain empty state if user clears the input
+    if (value === '') {
+      setForm(prev => ({ ...prev, [name]: '' }));
+      return;
+    }
+
     setForm(prev => ({
       ...prev,
       [name]: name === 'minExperienceYears' || name === 'quantity'
-        ? parseInt(value) || 0
+        ? parseInt(value, 10)
         : name === 'maxHourlyRate'
-        ? parseFloat(value) || 0.0
+        ? parseFloat(value)
         : value
     }));
   };
@@ -72,45 +86,52 @@ function CreateRequisition() {
     if (!form.title.trim()) return 'Job Title is required.';
     if (form.title.trim().length < 3) return 'Job Title must be at least 3 characters.';
     if (!form.requiredSkillId) return 'Please select a required skill.';
+    if (form.minExperienceYears === '' || form.minExperienceYears === null) return 'Min Experience is required.';
     if (form.minExperienceYears < 0) return 'Experience cannot be negative.';
-    if (form.maxHourlyRate <= 0) return 'Budget rate must be greater than 0.';
-    if (form.quantity < 1) return 'Positions required must be at least 1.';
+    if (form.maxHourlyRate === '' || form.maxHourlyRate <= 0) return 'Budget rate must be greater than 0.';
+    if (form.quantity === '' || form.quantity < 1) return 'Positions required must be at least 1.';
     if (!form.startDate) return 'Start Date is required.';
 
-    // Task 6: Experience level / min experience cross-validation
-    const minYrs = parseInt(form.minExperienceYears, 10) || 0;
-    if (form.experienceLevel === 'JUNIOR' && minYrs > 3) {
-      return 'For Junior level, Minimum Experience must be 3 years or less.';
+    // Experience level / min experience cross-validation
+    const minYrs = parseInt(form.minExperienceYears, 10);
+
+    if (isNaN(minYrs) || minYrs < 0) {
+      return 'The experience years is not matching with the experience level what we have selected.';
     }
-    if (form.experienceLevel === 'MID' && (minYrs < 2 || minYrs > 6)) {
-      return 'For Mid-Level, Minimum Experience must be between 2 and 6 years.';
+
+    if (form.experienceLevel === 'JUNIOR' && (minYrs < 0 || minYrs > 2)) {
+      return 'The experience years is not matching with the experience level what we have selected.';
     }
-    if (form.experienceLevel === 'SENIOR' && minYrs < 5) {
-      return 'For Senior level, Minimum Experience must be at least 5 years.';
+
+    if (form.experienceLevel === 'MID' && (minYrs < 3 || minYrs > 5)) {
+      return 'The experience years is not matching with the experience level what we have selected.';
+    }
+
+    if (form.experienceLevel === 'SENIOR' && minYrs <= 5) {
+      return 'The experience years is not matching with the experience level what we have selected.';
     }
 
     return '';
   };
 
   const handleAction = async (publishImmediate) => {
-    setError('');
     const validationError = validateForm();
     if (validationError) {
-      setError(validationError);
+      showToast(validationError, 'danger');
       return;
     }
 
     try {
       setSubmitting(true);
-      
-      // Prepare payload - strip any extra fields
+
+      // Prepare payload
       const payload = {
         title: form.title,
         description: form.description,
         requiredSkillId: form.requiredSkillId,
-        minExperienceYears: form.minExperienceYears,
-        maxHourlyRate: form.maxHourlyRate,
-        quantity: form.quantity,
+        minExperienceYears: Number(form.minExperienceYears),
+        maxHourlyRate: Number(form.maxHourlyRate),
+        quantity: Number(form.quantity),
         engagementType: form.engagementType,
         experienceLevel: form.experienceLevel,
         startDate: form.startDate,
@@ -118,75 +139,86 @@ function CreateRequisition() {
       };
 
       const newReq = await createRequisition(payload);
-      
+
       if (publishImmediate) {
         await publishRequisition(newReq.id);
       }
 
-      // Trigger Toast Success Notification
-      setToast({ show: true, message: 'Job Requisition submitted successfully.' });
+      showToast('Job Requisition submitted successfully.', 'success');
 
-      // Dismiss toast & navigate after 3 seconds
+      // Navigate after toast finishes displaying
       setTimeout(() => {
-        setToast({ show: false, message: '' });
         navigate('/manager/requisitions');
-      }, 3000);
+      }, 3500);
 
     } catch (err) {
-      setError(getErrorMessage(err));
+      showToast(getErrorMessage(err), 'danger');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const formatDepartmentName = (dept) => {
-    if (!dept) return '';
-    return dept.charAt(0).toUpperCase() + dept.slice(1).toLowerCase();
-  };
-
   return (
     <div className="container-fluid position-relative">
+      {/* Styles for animation, spinner removal, and toast styles */}
       <style>{`
-        @keyframes slideIn {
+        @keyframes slideRightToLeft {
           from {
-            transform: translateY(-20px);
+            transform: translateX(100%);
             opacity: 0;
           }
           to {
-            transform: translateY(0);
+            transform: translateX(0);
             opacity: 1;
           }
         }
+
+        /* Hide number input spinners */
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+
+        input[type=number] {
+          -moz-appearance: textfield;
+        }
       `}</style>
 
-      {/* Modern Enterprise Success Toast */}
+      {/* Modern Enterprise Toast Notification (Right to Left Slide) */}
       {toast.show && (
-        <div 
+        <div
           style={{
             position: 'fixed',
             top: '24px',
             right: '24px',
             zIndex: 9999,
             minWidth: '340px',
-            backgroundColor: 'rgba(22, 163, 74, 0.06)',
-            border: '1px solid rgba(22, 163, 74, 0.16)',
+            maxWidth: '450px',
+            backgroundColor: toast.type === 'danger' ? '#fef2f2' : '#f0fdf4',
+            border: `1px solid ${toast.type === 'danger' ? '#fecaca' : '#bbf7d0'}`,
             borderRadius: '12px',
             padding: '16px 20px',
-            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.05)',
+            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.08)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             gap: '12px',
-            animation: 'slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+            animation: 'slideRightToLeft 0.35s cubic-bezier(0.16, 1, 0.3, 1)'
           }}
         >
           <div className="d-flex align-items-center gap-2">
-            <i className="bi bi-check-circle-fill text-success" style={{ fontSize: '1.25rem' }}></i>
-            <span className="text-dark small fw-semibold">{toast.message}</span>
+            <i
+              className={`bi ${toast.type === 'danger' ? 'bi-exclamation-triangle-fill text-danger' : 'bi-check-circle-fill text-success'}`}
+              style={{ fontSize: '1.25rem' }}
+            ></i>
+            <span className={`small fw-semibold ${toast.type === 'danger' ? 'text-danger' : 'text-dark'}`}>
+              {toast.message}
+            </span>
           </div>
-          <button 
-            onClick={() => setToast({ show: false, message: '' })}
-            className="btn-enterprise-ghost p-1 border-0 bg-transparent text-muted"
+          <button
+            onClick={() => setToast({ show: false, message: '', type: 'success' })}
+            className="btn p-0 border-0 bg-transparent text-muted"
             style={{ fontSize: '1.2rem', lineHeight: 1 }}
           >
             &times;
@@ -199,8 +231,6 @@ function CreateRequisition() {
         <h2 className="fw-black text-slate-800 mb-0">Create Job Requisition</h2>
         <p className="text-muted small mt-1 mb-0">Publish talent demands to vendor networks or save for internal planning.</p>
       </div>
-
-      {error && <Alert variant="danger" className="enterprise-alert enterprise-alert-danger mb-4">{error}</Alert>}
 
       <Card className="gf-card p-4 border-0">
         <Form onSubmit={(e) => e.preventDefault()}>
@@ -220,7 +250,6 @@ function CreateRequisition() {
                 />
               </Form.Group>
             </Col>
-
 
             {/* Required Skill */}
             <Col md={4}>
@@ -270,9 +299,9 @@ function CreateRequisition() {
                   onChange={handleChange}
                   disabled={submitting}
                 >
-                  <option value="JUNIOR">Junior (1-3 yrs)</option>
+                  <option value="JUNIOR">Junior (0-2 yrs)</option>
                   <option value="MID">Mid-Level (3-5 yrs)</option>
-                  <option value="SENIOR">Senior (5+ yrs)</option>
+                  <option value="SENIOR">Senior (6+ yrs)</option>
                 </Form.Select>
               </Form.Group>
             </Col>
@@ -286,6 +315,7 @@ function CreateRequisition() {
                   name="minExperienceYears"
                   value={form.minExperienceYears}
                   onChange={handleChange}
+                  placeholder="e.g. 3"
                   min={0}
                   disabled={submitting}
                   required
@@ -302,6 +332,7 @@ function CreateRequisition() {
                   name="quantity"
                   value={form.quantity}
                   onChange={handleChange}
+                  placeholder="e.g. 1"
                   min={1}
                   disabled={submitting}
                   required
@@ -319,6 +350,7 @@ function CreateRequisition() {
                   name="maxHourlyRate"
                   value={form.maxHourlyRate}
                   onChange={handleChange}
+                  placeholder="e.g. 50.00"
                   min={0.01}
                   disabled={submitting}
                   required

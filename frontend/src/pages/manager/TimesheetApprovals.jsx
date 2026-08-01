@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Form, Modal, Alert, Spinner, Col } from 'react-bootstrap';
 import { getTimesheetsToApprove, getTimesheetDetails, approveTimesheet, rejectTimesheet } from '../../services/approvalService';
@@ -18,14 +18,19 @@ function TimesheetApprovals() {
   // Timesheets lists
   const [timesheets, setTimesheets] = useState([]);
 
-  // Filter
+  // Filter States
   const [statusFilter, setStatusFilter] = useState('SUBMITTED'); // Default show submitted first
+  const [selectedMonthYear, setSelectedMonthYear] = useState(''); // Stores string formatted as 'YYYY-MM'
+
+  // Pagination States
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Modals
   const [selectedTs, setSelectedTs] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showActionModal, setShowActionModal] = useState(false);
-  
+
   const [actionType, setActionType] = useState('APPROVE'); // APPROVE or REJECT
   const [remarksText, setRemarksText] = useState('');
   const [submittingAction, setSubmittingAction] = useState(false);
@@ -37,14 +42,21 @@ function TimesheetApprovals() {
     try {
       setLoading(true);
       setError('');
-      
+
       const params = {};
       if (statusFilter !== 'ALL') {
         params.status = statusFilter;
       }
-      
+
+      if (selectedMonthYear) {
+        const [year, month] = selectedMonthYear.split('-');
+        params.year = year;
+        params.month = month;
+      }
+
       const data = await getTimesheetsToApprove(params);
       setTimesheets(data || []);
+      setCurrentPage(1); // Reset page on refresh
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -54,7 +66,7 @@ function TimesheetApprovals() {
 
   useEffect(() => {
     loadTimesheets();
-  }, [statusFilter]);
+  }, [statusFilter, selectedMonthYear]);
 
   const viewDetails = async (ts) => {
     try {
@@ -106,7 +118,7 @@ function TimesheetApprovals() {
     }
   };
 
-  // Helper to parse day of week from date (User Request 3 & 6)
+  // Helper to parse day of week from date
   const getDayOfWeek = (dateStr) => {
     if (!dateStr) return '';
     try {
@@ -117,31 +129,93 @@ function TimesheetApprovals() {
     }
   };
 
-  // Local filter
-  const filteredTimesheets = timesheets.filter((item) => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.trim().toLowerCase();
-    return (
-      (item.contractorName && item.contractorName.toLowerCase().includes(q)) ||
-      (item.assignmentId && item.assignmentId.toLowerCase().includes(q)) ||
-      item.id.toLowerCase().includes(q)
-    );
-  });
+  // Local client filter (search + client-side month/year fallback)
+  const filteredTimesheets = useMemo(() => {
+    return timesheets.filter((item) => {
+      // Search matching
+      const q = searchQuery.trim().toLowerCase();
+      const matchesSearch = !q || (
+        (item.contractorName && item.contractorName.toLowerCase().includes(q)) ||
+        (item.assignmentId && item.assignmentId.toLowerCase().includes(q)) ||
+        item.id.toLowerCase().includes(q)
+      );
+
+      // Month-Year matching fallback
+      let matchesMonthYear = true;
+      if (selectedMonthYear) {
+        const startDate = item.weekStartDate || item.startDate || '';
+        if (startDate) {
+          // Compare YYYY-MM prefix from start date
+          matchesMonthYear = startDate.startsWith(selectedMonthYear);
+        }
+      }
+
+      return matchesSearch && matchesMonthYear;
+    });
+  }, [timesheets, searchQuery, selectedMonthYear]);
+
+  // Pagination Logic
+  const totalItems = filteredTimesheets.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+
+  const currentTimesheets = useMemo(() => {
+    const startIdx = (currentPage - 1) * itemsPerPage;
+    return filteredTimesheets.slice(startIdx, startIdx + itemsPerPage);
+  }, [filteredTimesheets, currentPage, itemsPerPage]);
+
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
 
   return (
     <div className="container-fluid">
       {/* Header */}
-      <div className="mb-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div className="mb-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
         <div>
           <h1 className="page-title mb-1">Timesheet Approvals</h1>
-          <p className="muted-text">Sign off on contractor weekly log sheets or return them for edits.</p>
+          <p className="muted-text mb-0">Sign off on contractor weekly log sheets or return them for edits.</p>
         </div>
-        <div>
-          <Form.Select 
-            value={statusFilter} 
-            onChange={(e) => setStatusFilter(e.target.value)}
+
+        {/* Filter Controls Bar */}
+        <div className="d-flex align-items-center gap-2 flex-wrap">
+          {/* Calendar Month & Year Picker */}
+          <div className="d-flex align-items-center gap-1">
+            <Form.Control
+              type="month"
+              value={selectedMonthYear}
+              onChange={(e) => {
+                setSelectedMonthYear(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="enterprise-form-control"
+              style={{ width: '180px' }}
+            />
+            {selectedMonthYear && (
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-secondary"
+                title="Clear date filter"
+                onClick={() => {
+                  setSelectedMonthYear('');
+                  setCurrentPage(1);
+                }}
+              >
+                Clear
+              </button>
+            )}
+          </div>
+
+          {/* Status Filter */}
+          <Form.Select
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setCurrentPage(1);
+            }}
             className="enterprise-form-select"
-            style={{ width: '200px' }}
+            style={{ width: '170px' }}
           >
             <option value="ALL">All Statuses</option>
             <option value="SUBMITTED">Pending Approval</option>
@@ -158,54 +232,109 @@ function TimesheetApprovals() {
       ) : (
         <div>
           {filteredTimesheets.length > 0 ? (
-            <Table headers={['Timesheet ID', 'Contractor', 'Week Period', 'Regular Hours', 'Overtime', 'Billable Cost', 'Status', 'Actions']}>
-              {filteredTimesheets.map((ts) => {
-                const start = ts.weekStartDate || ts.startDate || '';
-                const end = ts.weekEndDate || ts.endDate || '';
-                const regularHours = ts.hoursLogged ?? ts.totalHoursLogged ?? '0.00';
-                const overtimeHours = ts.overtimeLogged ?? ts.totalOvertimeHoursLogged ?? '0.00';
+            <>
+              <Table headers={['Timesheet ID', 'Contractor', 'Week Period', 'Regular Hours', 'Overtime', 'Billable Cost', 'Status', 'Actions']}>
+                {currentTimesheets.map((ts) => {
+                  const start = ts.weekStartDate || ts.startDate || '';
+                  const end = ts.weekEndDate || ts.endDate || '';
+                  const regularHours = ts.hoursLogged ?? ts.totalHoursLogged ?? '0.00';
+                  const overtimeHours = ts.overtimeLogged ?? ts.totalOvertimeHoursLogged ?? '0.00';
 
-                return (
-                  <tr key={ts.id}>
-                    <td className="fw-bold">{ts.id}</td>
-                    <td className="fw-semibold text-dark">{ts.contractorName || 'Contractor'}</td>
-                    <td className="small">
-                      <span className="fw-medium">{start}</span> to <span className="fw-medium">{end}</span>
-                    </td>
-                    <td className="fw-semibold">{regularHours} hrs</td>
-                    <td>{overtimeHours} hrs</td>
-                    <td className="text-success fw-bold">₹{parseFloat(ts.billableAmount || '0').toLocaleString('en-IN')}</td>
-                    <td>
-                      <span className={`status-pill ${ts.status.toLowerCase() === 'approved' ? 'success' : ts.status.toLowerCase() === 'submitted' ? 'pending' : 'rejected'}`}>
-                        {ts.status}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="d-flex gap-2 justify-content-start">
-                        <button type="button" className="btn-enterprise-secondary py-1 px-3" onClick={() => viewDetails(ts)}>
-                          View Logs
-                        </button>
-                        
-                        {ts.status === 'SUBMITTED' && (
-                          <>
-                            <button type="button" className="btn-enterprise-primary py-1 px-3" onClick={() => openActionModal(ts, 'APPROVE')}>
-                              Approve
-                            </button>
-                            <button type="button" className="btn-enterprise-ghost text-danger py-1 px-3 border-0" onClick={() => openActionModal(ts, 'REJECT')}>
-                              Reject
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </Table>
+                  return (
+                    <tr key={ts.id}>
+                      <td className="fw-bold">{ts.id}</td>
+                      <td className="fw-semibold text-dark">{ts.contractorName || 'Contractor'}</td>
+                      <td className="small">
+                        <span className="fw-medium">{start}</span> to <span className="fw-medium">{end}</span>
+                      </td>
+                      <td className="fw-semibold">{regularHours} hrs</td>
+                      <td>{overtimeHours} hrs</td>
+                      <td className="text-success fw-bold">₹{parseFloat(ts.billableAmount || '0').toLocaleString('en-IN')}</td>
+                      <td>
+                        <span className={`status-pill ${ts.status.toLowerCase() === 'approved' ? 'success' : ts.status.toLowerCase() === 'submitted' ? 'pending' : 'rejected'}`}>
+                          {ts.status}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="d-flex gap-2 justify-content-start">
+                          <button type="button" className="btn-enterprise-secondary py-1 px-3" onClick={() => viewDetails(ts)}>
+                            View Logs
+                          </button>
+
+                          {ts.status === 'SUBMITTED' && (
+                            <>
+                              <button type="button" className="btn-enterprise-primary py-1 px-3" onClick={() => openActionModal(ts, 'APPROVE')}>
+                                Approve
+                              </button>
+                              <button type="button" className="btn-enterprise-ghost text-danger py-1 px-3 border-0" onClick={() => openActionModal(ts, 'REJECT')}>
+                                Reject
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </Table>
+
+              {/* Pagination Controls */}
+              <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3 px-2">
+                <div className="d-flex align-items-center gap-2 text-muted small">
+                  <span>Rows per page:</span>
+                  <Form.Select
+                    size="sm"
+                    value={itemsPerPage}
+                    onChange={(e) => {
+                      setItemsPerPage(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    style={{ width: '70px' }}
+                    className="enterprise-form-select"
+                  >
+                    <option value={5}>5</option>
+                    <option value={10}>10</option>
+                    <option value={20}>20</option>
+                    <option value={50}>50</option>
+                  </Form.Select>
+                  <span>
+                    Showing {Math.min((currentPage - 1) * itemsPerPage + 1, totalItems)} - {Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems}
+                  </span>
+                </div>
+
+                <div className="d-flex align-items-center gap-1">
+                  <button
+                    className="btn btn-sm btn-outline-secondary"
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                  >
+                    Previous
+                  </button>
+
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <button
+                      key={page}
+                      className={`btn btn-sm ${page === currentPage ? 'btn-primary' : 'btn-outline-secondary'}`}
+                      onClick={() => handlePageChange(page)}
+                    >
+                      {page}
+                    </button>
+                  ))}
+
+                  <button
+                    className="btn btn-sm btn-outline-secondary"
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            </>
           ) : (
             <div className="enterprise-table-container p-5 text-center text-muted">
               <i className="bi bi-clock fs-2"></i>
-              <p className="small mt-2 mb-0">No timesheets found in this status filter.</p>
+              <p className="small mt-2 mb-0">No timesheets found matching the selected filters.</p>
             </div>
           )}
         </div>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Table, Button, Form, Modal, Row, Col, Alert, Spinner, Pagination, Offcanvas, Tabs, Tab } from 'react-bootstrap';
 import { searchSubmissions, shortlistSubmission, transitionSubmissionToScheduled, selectSubmission, rejectSubmission } from '../../services/vendorSubmissionService';
@@ -16,8 +16,16 @@ function VendorSubmissions() {
 
   // Submissions data
   const [submissions, setSubmissions] = useState([]);
-  const [pageMeta, setPageMeta] = useState({ pageNumber: 0, totalPages: 1 });
+
+  // Enhanced Pagination State
+  const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(0);
+  const [pageMeta, setPageMeta] = useState({
+    pageNumber: 0,
+    totalPages: 1,
+    totalElements: 0,
+    pageSize: 10,
+  });
 
   // Filter
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -40,18 +48,83 @@ function VendorSubmissions() {
   // Schedule Interview form
   const [scheduleForm, setScheduleForm] = useState({
     date: '',
-    time: '10:00 AM',
-    interviewer: 'Hiring Manager',
+    time: '',
+    interviewer: '',
   });
+
+  // Today's date formatted as YYYY-MM-DD
+  const todayStr = useMemo(() => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }, []);
+
+  // Time slots configuration
+  const timeSlots = useMemo(() => [
+    { label: '09:00 AM', value: '09:00 AM', hour: 9, minute: 0 },
+    { label: '10:00 AM', value: '10:00 AM', hour: 10, minute: 0 },
+    { label: '11:30 AM', value: '11:30 AM', hour: 11, minute: 30 },
+    { label: '02:00 PM', value: '02:00 PM', hour: 14, minute: 0 },
+    { label: '03:30 PM', value: '03:30 PM', hour: 15, minute: 30 },
+    { label: '05:00 PM', value: '05:00 PM', hour: 17, minute: 0 },
+  ], []);
+
+  // Dynamically filter time slots for today
+  const availableTimeSlots = useMemo(() => {
+    if (!scheduleForm.date) return timeSlots;
+
+    if (scheduleForm.date !== todayStr) {
+      return timeSlots;
+    }
+
+    const now = new Date();
+    now.setMinutes(now.getMinutes() + 5); // 5 minute grace period
+
+    return timeSlots.filter((slot) => {
+      const slotTime = new Date();
+      slotTime.setHours(slot.hour, slot.minute, 0, 0);
+      return slotTime > now;
+    });
+  }, [scheduleForm.date, todayStr, timeSlots]);
+
+  // Combine YYYY-MM-DD and time string into a full JS Date object
+  const parseDateTime = (dateStr, timeStr) => {
+    if (!dateStr || !timeStr) return null;
+
+    const parts = dateStr.split('-').map(Number);
+    if (parts.length !== 3 || parts.some(isNaN)) return null;
+
+    const [year, month, day] = parts;
+
+    const slot = timeSlots.find(s => s.value === timeStr);
+    let hours = slot ? slot.hour : 0;
+    let minutes = slot ? slot.minute : 0;
+
+    if (!slot) {
+      const timeParts = timeStr.split(' ');
+      if (timeParts.length === 2) {
+        const [h, m] = timeParts[0].split(':').map(Number);
+        const modifier = timeParts[1];
+        hours = h;
+        minutes = m;
+        if (modifier === 'PM' && hours < 12) hours += 12;
+        if (modifier === 'AM' && hours === 12) hours = 0;
+      }
+    }
+
+    return new Date(year, month - 1, day, hours, minutes, 0, 0);
+  };
 
   const loadSubmissions = async () => {
     try {
       setLoading(true);
       setError('');
-      
+
       const params = {
         page: currentPage,
-        size: 10,
+        size: pageSize,
       };
 
       if (statusFilter !== 'ALL') {
@@ -59,14 +132,16 @@ function VendorSubmissions() {
       }
 
       if (searchQuery.trim()) {
-        params.requisitionId = searchQuery.trim(); // search by job or requisition
+        params.requisitionId = searchQuery.trim();
       }
 
       const data = await searchSubmissions(params);
       setSubmissions(data?.content || []);
       setPageMeta({
-        pageNumber: data?.pageable?.pageNumber || 0,
+        pageNumber: data?.pageable?.pageNumber ?? currentPage,
         totalPages: data?.totalPages || 1,
+        totalElements: data?.totalElements || 0,
+        pageSize: data?.pageable?.pageSize || pageSize,
       });
 
     } catch (err) {
@@ -78,7 +153,7 @@ function VendorSubmissions() {
 
   useEffect(() => {
     loadSubmissions();
-  }, [currentPage, statusFilter, searchQuery]);
+  }, [currentPage, pageSize, statusFilter, searchQuery]);
 
   const loadCandidateDrawer = async (sub) => {
     try {
@@ -123,9 +198,10 @@ function VendorSubmissions() {
     setSelectedSub(sub);
     setScheduleForm({
       date: '',
-      time: '10:00 AM',
-      interviewer: 'Hiring Manager',
+      time: '',
+      interviewer: '',
     });
+    setError('');
     setShowScheduleModal(true);
   };
 
@@ -134,15 +210,50 @@ function VendorSubmissions() {
       setError('Date is required for interview scheduling.');
       return;
     }
+
+    if (!scheduleForm.time) {
+      setError('Please select a valid time slot.');
+      return;
+    }
+
+    if (!scheduleForm.interviewer.trim()) {
+      setError('Interviewer name is required.');
+      return;
+    }
+
+    const selectedDateTime = parseDateTime(
+      scheduleForm.date,
+      scheduleForm.time
+    );
+
+    const now = new Date();
+
+    if (!selectedDateTime || isNaN(selectedDateTime.getTime())) {
+      setError('Invalid date or time format.');
+      return;
+    }
+
+    if (selectedDateTime <= now) {
+      setError('Cannot schedule an interview for a past date or time slot.');
+      return;
+    }
+
+    const validSlot = availableTimeSlots.some(
+      (slot) => slot.value === scheduleForm.time
+    );
+
+    if (!validSlot) {
+      setError('Selected time slot is no longer available.');
+      return;
+    }
+
     try {
       setSubmittingAction(true);
       setError('');
       setSuccess('');
 
-      // 1. Backend status update
       await transitionSubmissionToScheduled(selectedSub.id);
 
-      // 2. Simulated scheduler log
       await scheduleInterview({
         candidateName: selectedSub.contractorName || 'Candidate',
         submissionId: selectedSub.id,
@@ -191,6 +302,55 @@ function VendorSubmissions() {
     }
   };
 
+  // Helper function to render smart page numbers
+  const renderPaginationItems = () => {
+    const items = [];
+    const total = pageMeta.totalPages;
+    const current = currentPage;
+
+    let startPage = Math.max(0, current - 2);
+    let endPage = Math.min(total - 1, current + 2);
+
+    if (startPage > 0) {
+      items.push(
+        <Pagination.Item key={0} onClick={() => setCurrentPage(0)}>
+          1
+        </Pagination.Item>
+      );
+      if (startPage > 1) {
+        items.push(<Pagination.Ellipsis key="ellipsis-start" disabled />);
+      }
+    }
+
+    for (let page = startPage; page <= endPage; page++) {
+      items.push(
+        <Pagination.Item
+          key={page}
+          active={page === current}
+          onClick={() => setCurrentPage(page)}
+        >
+          {page + 1}
+        </Pagination.Item>
+      );
+    }
+
+    if (endPage < total - 1) {
+      if (endPage < total - 2) {
+        items.push(<Pagination.Ellipsis key="ellipsis-end" disabled />);
+      }
+      items.push(
+        <Pagination.Item key={total - 1} onClick={() => setCurrentPage(total - 1)}>
+          {total}
+        </Pagination.Item>
+      );
+    }
+
+    return items;
+  };
+
+  const firstRecordIndex = pageMeta.totalElements === 0 ? 0 : currentPage * pageSize + 1;
+  const lastRecordIndex = Math.min((currentPage + 1) * pageSize, pageMeta.totalElements);
+
   return (
     <div className="container-fluid">
       {/* Header */}
@@ -200,8 +360,8 @@ function VendorSubmissions() {
           <p className="text-muted small mt-1 mb-0">Review vendor-proposed talent, manage shortlists, and launch interview loops.</p>
         </div>
         <div>
-          <Form.Select 
-            value={statusFilter} 
+          <Form.Select
+            value={statusFilter}
             onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(0); }}
             style={{ width: '200px' }}
           >
@@ -310,22 +470,53 @@ function VendorSubmissions() {
             </Table>
           </div>
 
-          {/* Pagination */}
-          {pageMeta.totalPages > 1 && (
-            <div className="d-flex justify-content-center p-3">
-              <Pagination>
-                <Pagination.First onClick={() => setCurrentPage(0)} disabled={currentPage === 0} />
-                <Pagination.Prev onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))} disabled={currentPage === 0} />
-                {[...Array(pageMeta.totalPages)].map((_, i) => (
-                  <Pagination.Item key={i} active={i === currentPage} onClick={() => setCurrentPage(i)}>
-                    {i + 1}
-                  </Pagination.Item>
-                ))}
-                <Pagination.Next onClick={() => setCurrentPage(prev => Math.min(pageMeta.totalPages - 1, prev + 1))} disabled={currentPage === pageMeta.totalPages - 1} />
-                <Pagination.Last onClick={() => setCurrentPage(pageMeta.totalPages - 1)} disabled={currentPage === pageMeta.totalPages - 1} />
-              </Pagination>
+          {/* Pagination Footer */}
+          <div className="d-flex justify-content-between align-items-center p-3 border-top flex-wrap gap-2">
+            <div className="d-flex align-items-center gap-2">
+              <span className="text-muted small">Items per page:</span>
+              <Form.Select
+                size="sm"
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setCurrentPage(0);
+                }}
+                style={{ width: '80px' }}
+              >
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+              </Form.Select>
+              <span className="text-muted small ms-2">
+                Showing {firstRecordIndex} - {lastRecordIndex} of {pageMeta.totalElements} entries
+              </span>
             </div>
-          )}
+
+            {pageMeta.totalPages > 1 && (
+              <Pagination className="mb-0">
+                <Pagination.First
+                  onClick={() => setCurrentPage(0)}
+                  disabled={currentPage === 0}
+                />
+                <Pagination.Prev
+                  onClick={() => setCurrentPage((prev) => Math.max(0, prev - 1))}
+                  disabled={currentPage === 0}
+                />
+
+                {renderPaginationItems()}
+
+                <Pagination.Next
+                  onClick={() => setCurrentPage((prev) => Math.min(pageMeta.totalPages - 1, prev + 1))}
+                  disabled={currentPage === pageMeta.totalPages - 1}
+                />
+                <Pagination.Last
+                  onClick={() => setCurrentPage(pageMeta.totalPages - 1)}
+                  disabled={currentPage === pageMeta.totalPages - 1}
+                />
+              </Pagination>
+            )}
+          </div>
         </div>
       )}
 
@@ -342,7 +533,6 @@ function VendorSubmissions() {
             </div>
           ) : candidateProfile ? (
             <div>
-              {/* Profile Card Summary */}
               <div className="text-center py-3 bg-light rounded mb-4">
                 <div className="user-avatar mx-auto mb-2" style={{ width: '64px', height: '64px', fontSize: '1.5rem' }}>
                   {candidateProfile.displayName?.substring(0,2).toUpperCase() || 'C'}
@@ -427,10 +617,18 @@ function VendorSubmissions() {
               <Col md={12}>
                 <Form.Group controlId="intDate">
                   <Form.Label className="uppercase-label">Interview Date</Form.Label>
-                  <Form.Control 
-                    type="date" 
+                  <Form.Control
+                    type="date"
+                    min={todayStr}
                     value={scheduleForm.date}
-                    onChange={(e) => setScheduleForm(prev => ({ ...prev, date: e.target.value }))}
+                    onChange={(e) => {
+                      const newDate = e.target.value;
+                      setScheduleForm(prev => ({
+                        ...prev,
+                        date: newDate,
+                        time: '',
+                      }));
+                    }}
                     required
                   />
                 </Form.Group>
@@ -438,24 +636,31 @@ function VendorSubmissions() {
               <Col md={12}>
                 <Form.Group controlId="intTime">
                   <Form.Label className="uppercase-label">Interview Time</Form.Label>
-                  <Form.Select 
+                  <Form.Select
                     value={scheduleForm.time}
                     onChange={(e) => setScheduleForm(prev => ({ ...prev, time: e.target.value }))}
                   >
-                    <option value="09:00 AM">09:00 AM</option>
-                    <option value="10:00 AM">10:00 AM</option>
-                    <option value="11:30 AM">11:30 AM</option>
-                    <option value="02:00 PM">02:00 PM</option>
-                    <option value="03:30 PM">03:30 PM</option>
-                    <option value="05:00 PM">05:00 PM</option>
+                    <option value="">Select Time Slot</option>
+                    {availableTimeSlots.length > 0 ? (
+                      availableTimeSlots.map((slot) => (
+                        <option key={slot.value} value={slot.value}>
+                          {slot.label}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="" disabled>
+                        No available slots remaining for today
+                      </option>
+                    )}
                   </Form.Select>
                 </Form.Group>
               </Col>
               <Col md={12}>
                 <Form.Group controlId="intInterviewer">
                   <Form.Label className="uppercase-label">Lead Interviewer</Form.Label>
-                  <Form.Control 
-                    type="text" 
+                  <Form.Control
+                    type="text"
+                    placeholder="Enter interviewer name..."
                     value={scheduleForm.interviewer}
                     onChange={(e) => setScheduleForm(prev => ({ ...prev, interviewer: e.target.value }))}
                   />
@@ -466,7 +671,11 @@ function VendorSubmissions() {
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowScheduleModal(false)}>Cancel</Button>
-          <Button className="btn-gf-primary" onClick={handleScheduleSubmit} disabled={submittingAction}>
+          <Button
+            className="btn-gf-primary"
+            onClick={handleScheduleSubmit}
+            disabled={submittingAction || !scheduleForm.date || !scheduleForm.time || !scheduleForm.interviewer.trim() || availableTimeSlots.length === 0}
+          >
             {submittingAction ? <Spinner animation="border" size="sm" /> : 'Confirm Interview'}
           </Button>
         </Modal.Footer>
@@ -482,9 +691,9 @@ function VendorSubmissions() {
         <Modal.Body>
           <Form.Group controlId="actionRemarks">
             <Form.Label className="uppercase-label">Provide Review Remarks / Feedback</Form.Label>
-            <Form.Control 
-              as="textarea" 
-              rows={3} 
+            <Form.Control
+              as="textarea"
+              rows={3}
               placeholder="Provide comments for this hiring decision..."
               value={remarksText}
               onChange={(e) => setRemarksText(e.target.value)}
@@ -493,9 +702,9 @@ function VendorSubmissions() {
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowRemarksModal(false)}>Cancel</Button>
-          <Button 
-            variant={remarksType === 'REJECT' ? 'danger' : 'success'} 
-            onClick={handleRemarksSubmit} 
+          <Button
+            variant={remarksType === 'REJECT' ? 'danger' : 'success'}
+            onClick={handleRemarksSubmit}
             disabled={submittingAction}
           >
             {submittingAction ? <Spinner animation="border" size="sm" /> : remarksType === 'REJECT' ? 'Reject Candidate' : 'Select Candidate'}
