@@ -2,6 +2,8 @@ package com.gigforce.invoice.controller;
 
 import com.gigforce.invoice.dto.ContractorInvoiceRequestDTO;
 import com.gigforce.invoice.dto.ContractorInvoiceResponseDTO;
+import com.gigforce.invoice.dto.BatchInvoiceRequestDTO;
+import com.gigforce.invoice.dto.BatchInvoiceResponseDTO;
 import com.gigforce.invoice.service.InvoiceService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -106,6 +108,25 @@ public class InvoiceController {
     @Operation(summary = "Reject a Contractor Invoice")
     public ResponseEntity<ContractorInvoiceResponseDTO> rejectInvoice(@PathVariable String id) {
         ContractorInvoiceResponseDTO response = invoiceService.rejectInvoice(id);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/generate-monthly/preview")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER')")
+    @Operation(summary = "Preview count and total billing amount for monthly approved unbilled timesheets")
+    public ResponseEntity<BatchInvoiceResponseDTO> previewMonthlyInvoices(
+            @RequestParam Integer year,
+            @RequestParam Integer month) {
+        BatchInvoiceResponseDTO response = invoiceService.previewMonthlyInvoices(year, month);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/generate-monthly")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER')")
+    @Operation(summary = "Batch generate monthly invoices for all approved, uninvoiced timesheets of the selected month")
+    public ResponseEntity<BatchInvoiceResponseDTO> generateMonthlyInvoices(
+            @Valid @RequestBody BatchInvoiceRequestDTO request) {
+        BatchInvoiceResponseDTO response = invoiceService.generateMonthlyInvoices(request);
         return ResponseEntity.ok(response);
     }
 }

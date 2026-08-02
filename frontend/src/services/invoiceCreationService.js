@@ -19,3 +19,11 @@ export function getApprovedTimesheetsForAssignment(assignmentId) {
   // Retrieve approved timesheets for a given assignment that have NOT been billed yet (optional filter)
   return apiClient.get('/timesheets', { params: { assignmentId, status: 'APPROVED' } }).then((res) => res.data);
 }
+
+export function previewMonthlyInvoices(year, month) {
+  return apiClient.get('/invoices/generate-monthly/preview', { params: { year, month } }).then((res) => res.data);
+}
+
+export function generateMonthlyInvoices(year, month) {
+  return apiClient.post('/invoices/generate-monthly', { year, month }).then((res) => res.data);
+}

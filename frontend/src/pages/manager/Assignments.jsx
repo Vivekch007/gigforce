@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Form, Modal, Row, Col, Alert, Spinner, Pagination, Offcanvas, Card, ProgressBar } from 'react-bootstrap';
-import { getAssignments, getAssignmentDetails, completeAssignment, requestAmendment } from '../../services/managerAssignmentService';
+import { Form, Modal, Row, Col, Alert, Spinner, Pagination, Offcanvas, Card, ProgressBar, Table as BootstrapTable } from 'react-bootstrap';
+import { getAssignments, getAssignmentDetails, completeAssignment, requestAmendment, getAssignmentAmendments } from '../../services/managerAssignmentService';
 import { getErrorMessage } from '../../services/errorUtils';
 import { useConfirmation } from '../../context/ConfirmationContext';
 import Table from '../../components/Table';
@@ -33,12 +33,18 @@ function Assignments() {
   // Amendment History Modal
   const [showHistoryModal, setShowHistoryModal] = useState(false);
 
-  const [showExtendModal, setShowExtendModal] = useState(false);
-  const [extendForm, setExtendForm] = useState({
+  const [showAmendModal, setShowAmendModal] = useState(false);
+  const [amendForm, setAmendForm] = useState({
+    amendmentType: 'EXTENSION',
     effectiveDate: '',
-    newValue: '', // new end date
+    newValue: '',
+    reason: 'Project Extension',
     remarks: '',
   });
+  const [amendmentsHistory, setAmendmentsHistory] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [showViewDetailModal, setShowViewDetailModal] = useState(false);
+  const [selectedAmendment, setSelectedAmendment] = useState(null);
   const [submittingAction, setSubmittingAction] = useState(false);
 
   const loadAssignments = async () => {
@@ -96,41 +102,108 @@ function Assignments() {
     }
   };
 
-  const openExtendModal = (asn) => {
-    setSelectedAsn(asn);
-    setExtendForm({
-      effectiveDate: new Date().toISOString().split('T')[0],
-      newValue: '',
-      remarks: '',
-    });
-    setShowExtendModal(true);
+  const fetchAmendmentsHistory = async (assignmentId) => {
+    try {
+      setLoadingHistory(true);
+      const data = await getAssignmentAmendments(assignmentId);
+      setAmendmentsHistory(data || []);
+    } catch (err) {
+      console.error('Failed to load amendment history', err);
+    } finally {
+      setLoadingHistory(false);
+    }
   };
 
-  const handleExtendSubmit = async () => {
-    if (!extendForm.newValue || !extendForm.effectiveDate) {
-      setError('Effective Date and New End Date are required.');
+  const handleAmendmentTypeChange = (type) => {
+    let defaultReason = '';
+    if (type === 'EXTENSION') {
+      defaultReason = 'Project Extension';
+    } else if (type === 'RATE_REVISION') {
+      defaultReason = 'Annual Rate Revision';
+    } else if (type === 'EARLY_TERMINATION') {
+      defaultReason = 'Project Completed';
+    }
+    setAmendForm(prev => ({
+      ...prev,
+      amendmentType: type,
+      newValue: '',
+      reason: defaultReason
+    }));
+  };
+
+  const openAmendModal = (asn) => {
+    setSelectedAsn(asn);
+    setAmendForm({
+      amendmentType: 'EXTENSION',
+      effectiveDate: new Date().toISOString().split('T')[0],
+      newValue: '',
+      reason: 'Project Extension',
+      remarks: '',
+    });
+    setAmendmentsHistory([]);
+    fetchAmendmentsHistory(asn.id);
+    setShowAmendModal(true);
+  };
+
+  const handleAmendSubmit = async () => {
+    if (!amendForm.effectiveDate) {
+      setError('Effective Date is required.');
       return;
     }
+    if (amendForm.amendmentType === 'EXTENSION' && !amendForm.newValue) {
+      setError('New End Date is required.');
+      return;
+    }
+    if (amendForm.amendmentType === 'RATE_REVISION' && !amendForm.newValue) {
+      setError('New Agreed Rate is required.');
+      return;
+    }
+    if (!amendForm.reason) {
+      setError('Reason is required.');
+      return;
+    }
+
     try {
       setSubmittingAction(true);
       setError('');
       setSuccess('');
 
-      await requestAmendment(selectedAsn.id, {
-        amendmentType: 'EXTENSION',
-        effectiveDate: extendForm.effectiveDate,
-        newValue: extendForm.newValue,
-        remarks: extendForm.remarks,
-      });
+      const payload = {
+        amendmentType: amendForm.amendmentType,
+        effectiveDate: amendForm.effectiveDate,
+        newValue: amendForm.amendmentType === 'EARLY_TERMINATION' ? amendForm.effectiveDate : amendForm.newValue.toString(),
+        reason: amendForm.reason,
+        remarks: amendForm.remarks,
+      };
 
-      setSuccess(`Extension request submitted for assignment ${selectedAsn.id}.`);
-      setShowExtendModal(false);
+      await requestAmendment(selectedAsn.id, payload);
+
+      setSuccess('Assignment amendment submitted successfully.');
+      setShowAmendModal(false);
       setShowDrawer(false);
       loadAssignments();
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
       setSubmittingAction(false);
+    }
+  };
+
+  const getPreviousValueLabel = (am) => {
+    if (!am) return '';
+    if (am.amendmentType === 'RATE_REVISION') {
+      return `₹${Number(selectedAsn?.agreedRatePerDay || 0).toLocaleString('en-IN')}/day`;
+    } else {
+      return selectedAsn?.endDate || '';
+    }
+  };
+
+  const getNewValueLabel = (am) => {
+    if (!am) return '';
+    if (am.amendmentType === 'RATE_REVISION') {
+      return `₹${Number(am.newValue || 0).toLocaleString('en-IN')}/day`;
+    } else {
+      return am.newValue || '';
     }
   };
 
@@ -235,50 +308,7 @@ function Assignments() {
         </div>
       </div>
 
-      {/* Metric Cards Banner */}
-      <Row className="g-3 mb-4">
-        <Col md={3}>
-          <Card
-            className={`border-0 shadow-sm cursor-pointer ${statusFilter === 'ALL' ? 'border-start border-4 border-primary' : ''}`}
-            onClick={() => { setStatusFilter('ALL'); setCurrentPage(0); }}
-          >
-            <Card.Body className="py-3">
-              <div className="text-muted small text-uppercase fw-bold">Total Placements</div>
-              <div className="h4 fw-bold text-dark mb-0">{metrics.total}</div>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={3}>
-          <Card
-            className={`border-0 shadow-sm cursor-pointer ${statusFilter === 'ACTIVE' ? 'border-start border-4 border-success' : ''}`}
-            onClick={() => { setStatusFilter('ACTIVE'); setCurrentPage(0); }}
-          >
-            <Card.Body className="py-3">
-              <div className="text-muted small text-uppercase fw-bold">Active Engagements</div>
-              <div className="h4 fw-bold text-success mb-0">{metrics.active}</div>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={3}>
-          <Card
-            className={`border-0 shadow-sm cursor-pointer ${statusFilter === 'EXTENDED' ? 'border-start border-4 border-info' : ''}`}
-            onClick={() => { setStatusFilter('EXTENDED'); setCurrentPage(0); }}
-          >
-            <Card.Body className="py-3">
-              <div className="text-muted small text-uppercase fw-bold">Extended</div>
-              <div className="h4 fw-bold text-info mb-0">{metrics.extended}</div>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={3}>
-          <Card className="border-0 shadow-sm bg-light">
-            <Card.Body className="py-3">
-              <div className="text-muted small text-uppercase fw-bold">Est. Monthly Run-Rate</div>
-              <div className="h4 fw-bold text-slate-800 mb-0">₹{metrics.monthlySpend.toLocaleString('en-IN')}</div>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+
 
       {error && <Alert variant="danger" className="enterprise-alert enterprise-alert-danger mb-4">{error}</Alert>}
       {success && <Alert variant="success" className="enterprise-alert enterprise-alert-success mb-4" onClose={() => setSuccess('')} dismissible>{success}</Alert>}
@@ -327,7 +357,7 @@ function Assignments() {
 
                       {(asn.status === 'ACTIVE' || asn.status === 'EXTENDED') && (
                         <>
-                          <button className="btn-enterprise-primary py-1 px-3" onClick={() => openExtendModal(asn)}>
+                          <button className="btn-enterprise-primary py-1 px-3" onClick={() => openAmendModal(asn)}>
                             Extend
                           </button>
                           <button className="btn-enterprise-ghost text-danger py-1 px-3 border-0" onClick={() => handleCloseAssignment(asn.id)}>
@@ -458,8 +488,8 @@ function Assignments() {
               {/* Drawer Action Bar */}
               {(selectedAsn.status === 'ACTIVE' || selectedAsn.status === 'EXTENDED') && (
                 <div className="border-top pt-3 mt-2 d-flex gap-2">
-                  <button className="btn-enterprise-primary flex-fill" onClick={() => openExtendModal(selectedAsn)}>
-                    Extend Engagement
+                  <button className="btn-enterprise-primary flex-fill" onClick={() => openAmendModal(selectedAsn)}>
+                    Amend Assignment
                   </button>
                   <button className="btn-enterprise-secondary text-danger border-danger" onClick={() => handleCloseAssignment(selectedAsn.id)}>
                     Close Assignment
@@ -473,59 +503,331 @@ function Assignments() {
         </Offcanvas.Body>
       </Offcanvas>
 
-      {/* Extend Contract Modal */}
-      <Modal show={showExtendModal} onHide={() => setShowExtendModal(false)} centered className="enterprise-modal-content">
+      {/* Amend Assignment Modal */}
+      <Modal show={showAmendModal} onHide={() => setShowAmendModal(false)} centered className="enterprise-modal-content">
         <Modal.Header closeButton className="enterprise-modal-header">
-          <Modal.Title className="fw-bold text-dark">Extend Assignment</Modal.Title>
+          <Modal.Title className="fw-bold text-dark">Amend Assignment</Modal.Title>
         </Modal.Header>
         <Modal.Body className="enterprise-modal-body">
+          {error && <Alert variant="danger" className="mb-3">{error}</Alert>}
           <Form onSubmit={(e) => e.preventDefault()}>
-            <Row className="g-3">
-              <Col md={12}>
-                <Form.Group controlId="extEffDate">
-                  <Form.Label className="enterprise-form-label">Effective Date <span className="text-danger">*</span></Form.Label>
-                  <Form.Control
-                    type="date"
-                    value={extendForm.effectiveDate}
-                    onChange={(e) => setExtendForm(prev => ({ ...prev, effectiveDate: e.target.value }))}
-                    className="enterprise-form-control"
-                    required
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={12}>
-                <Form.Group controlId="extNewEnd">
-                  <Form.Label className="enterprise-form-label">New End Date <span className="text-danger">*</span></Form.Label>
-                  <Form.Control
-                    type="date"
-                    value={extendForm.newValue}
-                    onChange={(e) => setExtendForm(prev => ({ ...prev, newValue: e.target.value }))}
-                    className="enterprise-form-control"
-                    required
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={12}>
-                <Form.Group controlId="extRemarks">
-                  <Form.Label className="enterprise-form-label">Extension Justification / Remarks</Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    rows={3}
-                    placeholder="Provide justification notes for extension..."
-                    value={extendForm.remarks}
-                    onChange={(e) => setExtendForm(prev => ({ ...prev, remarks: e.target.value }))}
-                    className="enterprise-form-control"
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
+            {/* Current Assignment Details Read-Only Header */}
+            <div className="bg-light p-3 rounded mb-3 border">
+              <Row className="g-2 small">
+                <Col xs={6}>
+                  <span className="text-muted d-block text-uppercase" style={{ fontSize: '10px', fontWeight: 'bold' }}>Contractor</span>
+                  <span className="fw-semibold text-dark">{selectedAsn?.contractorName}</span>
+                </Col>
+                <Col xs={6}>
+                  <span className="text-muted d-block text-uppercase" style={{ fontSize: '10px', fontWeight: 'bold' }}>Job Title</span>
+                  <span className="fw-semibold text-dark">{selectedAsn?.requisitionTitle}</span>
+                </Col>
+                <Col xs={6} className="mt-2">
+                  <span className="text-muted d-block text-uppercase" style={{ fontSize: '10px', fontWeight: 'bold' }}>Current End Date</span>
+                  <span className="fw-semibold text-dark">{selectedAsn?.endDate}</span>
+                </Col>
+                <Col xs={6} className="mt-2">
+                  <span className="text-muted d-block text-uppercase" style={{ fontSize: '10px', fontWeight: 'bold' }}>Current Agreed Rate</span>
+                  <span className="fw-semibold text-success font-bold">₹{Number(selectedAsn?.agreedRatePerDay || 0).toLocaleString('en-IN')}/day</span>
+                </Col>
+              </Row>
+            </div>
+
+            {/* Amendment Type Dropdown */}
+            <Form.Group className="mb-3" controlId="amendmentTypeSelect">
+              <Form.Label className="enterprise-form-label">Amendment Type <span className="text-danger">*</span></Form.Label>
+              <Form.Select
+                value={amendForm.amendmentType}
+                onChange={(e) => handleAmendmentTypeChange(e.target.value)}
+                className="enterprise-form-select"
+                required
+              >
+                <option value="EXTENSION">Extension</option>
+                <option value="RATE_REVISION">Rate Revision</option>
+                <option value="EARLY_TERMINATION">Early Termination</option>
+              </Form.Select>
+            </Form.Group>
+
+            {/* Dynamic Fields */}
+            {amendForm.amendmentType === 'EXTENSION' && (
+              <Row className="g-3 mb-3">
+                <Col md={12}>
+                  <Form.Group controlId="extEffDate">
+                    <Form.Label className="enterprise-form-label">Effective Date <span className="text-danger">*</span></Form.Label>
+                    <Form.Control
+                      type="date"
+                      value={amendForm.effectiveDate}
+                      onChange={(e) => setAmendForm(prev => ({ ...prev, effectiveDate: e.target.value }))}
+                      className="enterprise-form-control"
+                      required
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={12}>
+                  <Form.Group controlId="extNewEnd">
+                    <Form.Label className="enterprise-form-label">New End Date <span className="text-danger">*</span></Form.Label>
+                    <Form.Control
+                      type="date"
+                      value={amendForm.newValue}
+                      onChange={(e) => setAmendForm(prev => ({ ...prev, newValue: e.target.value }))}
+                      className="enterprise-form-control"
+                      required
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={12}>
+                  <Form.Group controlId="extReason">
+                    <Form.Label className="enterprise-form-label">Reason <span className="text-danger">*</span></Form.Label>
+                    <Form.Select
+                      value={amendForm.reason}
+                      onChange={(e) => setAmendForm(prev => ({ ...prev, reason: e.target.value }))}
+                      className="enterprise-form-select"
+                      required
+                    >
+                      <option value="Project Extension">Project Extension</option>
+                      <option value="Client Request">Client Request</option>
+                      <option value="Business Requirement">Business Requirement</option>
+                      <option value="Performance Retention">Performance Retention</option>
+                      <option value="Other">Other</option>
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+              </Row>
+            )}
+
+            {amendForm.amendmentType === 'RATE_REVISION' && (
+              <Row className="g-3 mb-3">
+                <Col md={12}>
+                  <Form.Group controlId="revEffDate">
+                    <Form.Label className="enterprise-form-label">Effective Date <span className="text-danger">*</span></Form.Label>
+                    <Form.Control
+                      type="date"
+                      value={amendForm.effectiveDate}
+                      onChange={(e) => setAmendForm(prev => ({ ...prev, effectiveDate: e.target.value }))}
+                      className="enterprise-form-control"
+                      required
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={12}>
+                  <Form.Group controlId="revCurrRate">
+                    <Form.Label className="enterprise-form-label">Current Agreed Rate (Read Only)</Form.Label>
+                    <Form.Control
+                      type="text"
+                      value={`₹${Number(selectedAsn?.agreedRatePerDay || 0).toLocaleString('en-IN')}/day`}
+                      className="enterprise-form-control bg-light"
+                      readOnly
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={12}>
+                  <Form.Group controlId="revNewRate">
+                    <Form.Label className="enterprise-form-label">New Agreed Rate <span className="text-danger">*</span></Form.Label>
+                    <Form.Control
+                      type="number"
+                      placeholder="Enter new daily rate"
+                      value={amendForm.newValue}
+                      onChange={(e) => setAmendForm(prev => ({ ...prev, newValue: e.target.value }))}
+                      className="enterprise-form-control"
+                      required
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={12}>
+                  <Form.Group controlId="revReason">
+                    <Form.Label className="enterprise-form-label">Reason <span className="text-danger">*</span></Form.Label>
+                    <Form.Select
+                      value={amendForm.reason}
+                      onChange={(e) => setAmendForm(prev => ({ ...prev, reason: e.target.value }))}
+                      className="enterprise-form-select"
+                      required
+                    >
+                      <option value="Annual Rate Revision">Annual Rate Revision</option>
+                      <option value="Budget Approval">Budget Approval</option>
+                      <option value="Performance Increment">Performance Increment</option>
+                      <option value="Client Negotiation">Client Negotiation</option>
+                      <option value="Other">Other</option>
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+              </Row>
+            )}
+
+            {amendForm.amendmentType === 'EARLY_TERMINATION' && (
+              <Row className="g-3 mb-3">
+                <Col md={12}>
+                  <Form.Group controlId="termEffDate">
+                    <Form.Label className="enterprise-form-label">Effective Date <span className="text-danger">*</span></Form.Label>
+                    <Form.Control
+                      type="date"
+                      value={amendForm.effectiveDate}
+                      onChange={(e) => setAmendForm(prev => ({ ...prev, effectiveDate: e.target.value }))}
+                      className="enterprise-form-control"
+                      required
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={12}>
+                  <Form.Group controlId="termReason">
+                    <Form.Label className="enterprise-form-label">Reason <span className="text-danger">*</span></Form.Label>
+                    <Form.Select
+                      value={amendForm.reason}
+                      onChange={(e) => setAmendForm(prev => ({ ...prev, reason: e.target.value }))}
+                      className="enterprise-form-select"
+                      required
+                    >
+                      <option value="Project Completed">Project Completed</option>
+                      <option value="Budget Constraints">Budget Constraints</option>
+                      <option value="Contractor Resigned">Contractor Resigned</option>
+                      <option value="Performance Issues">Performance Issues</option>
+                      <option value="Client Cancellation">Client Cancellation</option>
+                      <option value="Mutual Agreement">Mutual Agreement</option>
+                      <option value="Other">Other</option>
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+              </Row>
+            )}
+
+            <Form.Group className="mb-3" controlId="amendRemarks">
+              <Form.Label className="enterprise-form-label">Remarks (Optional)</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={2}
+                placeholder="Provide justification notes or details..."
+                value={amendForm.remarks}
+                onChange={(e) => setAmendForm(prev => ({ ...prev, remarks: e.target.value }))}
+                className="enterprise-form-control"
+              />
+            </Form.Group>
           </Form>
+
+          {/* Amendment History Section */}
+          <hr />
+          <h6 className="fw-bold mb-3 text-slate-800">Previous Amendments ({amendmentsHistory.length})</h6>
+          {loadingHistory ? (
+            <div className="text-center py-3">
+              <Spinner animation="border" size="sm" variant="primary" />
+              <p className="text-muted small mt-1">Loading past amendments...</p>
+            </div>
+          ) : amendmentsHistory.length > 0 ? (
+            <div className="table-responsive">
+              <BootstrapTable className="table table-sm align-middle small mb-0">
+                <thead className="table-light">
+                  <tr>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {amendmentsHistory.map((am) => (
+                    <tr key={am.id}>
+                      <td>{am.effectiveDate}</td>
+                      <td>{am.amendmentType}</td>
+                      <td>
+                        <span className={`status-pill ${am.status === 'APPROVED' ? 'success' : am.status === 'PENDING' ? 'pending' : 'danger'}`}>
+                          {am.status}
+                        </span>
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-link p-0 text-decoration-none"
+                          onClick={() => {
+                            setSelectedAmendment(am);
+                            setShowViewDetailModal(true);
+                          }}
+                        >
+                          View
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </BootstrapTable>
+            </div>
+          ) : (
+            <p className="text-muted small text-center py-2 mb-0">No past amendments recorded.</p>
+          )}
         </Modal.Body>
         <Modal.Footer className="enterprise-modal-footer">
-          <button className="btn-enterprise-secondary" onClick={() => setShowExtendModal(false)}>Cancel</button>
-          <button className="btn-enterprise-primary" onClick={handleExtendSubmit} disabled={submittingAction}>
-            {submittingAction ? <Spinner animation="border" size="sm" /> : 'Request Extension'}
+          <button className="btn-enterprise-secondary" onClick={() => setShowAmendModal(false)}>Cancel</button>
+          <button className="btn-enterprise-primary" onClick={handleAmendSubmit} disabled={submittingAction}>
+            {submittingAction ? <Spinner animation="border" size="sm" /> : 'Submit'}
           </button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Amendment View Detail Modal */}
+      <Modal show={showViewDetailModal} onHide={() => setShowViewDetailModal(false)} centered className="enterprise-modal-content" style={{ zIndex: 1060 }}>
+        <Modal.Header closeButton className="enterprise-modal-header">
+          <Modal.Title className="fw-bold text-dark">Amendment Details</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="enterprise-modal-body bg-light">
+          {selectedAmendment && (
+            <div className="d-flex flex-column gap-3">
+              <Row className="g-2 text-dark">
+                <Col xs={6}>
+                  <strong>Amendment Type:</strong>
+                  <div>{selectedAmendment.amendmentType}</div>
+                </Col>
+                <Col xs={6}>
+                  <strong>Status:</strong>
+                  <div>
+                    <span className={`status-pill ${selectedAmendment.status === 'APPROVED' ? 'success' : selectedAmendment.status === 'PENDING' ? 'pending' : 'danger'}`}>
+                      {selectedAmendment.status}
+                    </span>
+                  </div>
+                </Col>
+                <Col xs={6} className="mt-2">
+                  <strong>Effective Date:</strong>
+                  <div>{selectedAmendment.effectiveDate}</div>
+                </Col>
+                <Col xs={6} className="mt-2">
+                  <strong>Reason:</strong>
+                  <div>{selectedAmendment.reason || 'N/A'}</div>
+                </Col>
+
+                {selectedAmendment.amendmentType === 'RATE_REVISION' ? (
+                  <>
+                    <Col xs={6} className="mt-2">
+                      <strong>Previous Agreed Rate:</strong>
+                      <div>{getPreviousValueLabel(selectedAmendment)}</div>
+                    </Col>
+                    <Col xs={6} className="mt-2">
+                      <strong>New Agreed Rate:</strong>
+                      <div>{getNewValueLabel(selectedAmendment)}</div>
+                    </Col>
+                  </>
+                ) : (
+                  <>
+                    <Col xs={6} className="mt-2">
+                      <strong>Previous End Date:</strong>
+                      <div>{getPreviousValueLabel(selectedAmendment)}</div>
+                    </Col>
+                    <Col xs={6} className="mt-2">
+                      <strong>New End Date:</strong>
+                      <div>{getNewValueLabel(selectedAmendment)}</div>
+                    </Col>
+                  </>
+                )}
+
+                <Col xs={12} className="mt-2">
+                  <strong>Approved By:</strong>
+                  <div>{selectedAmendment.approvedByName || 'N/A'}</div>
+                </Col>
+                <Col xs={12} className="mt-2">
+                  <strong>Remarks:</strong>
+                  <div className="text-muted bg-white p-2 border rounded small">{selectedAmendment.remarks || 'No remarks provided.'}</div>
+                </Col>
+              </Row>
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer className="enterprise-modal-footer">
+          <button className="btn-enterprise-secondary" onClick={() => setShowViewDetailModal(false)}>Close</button>
         </Modal.Footer>
       </Modal>
 

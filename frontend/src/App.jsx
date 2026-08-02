@@ -43,6 +43,7 @@ import CandidateDatabase from './pages/vendor/CandidateDatabase';
 import MySubmissions from './pages/vendor/MySubmissions';
 import VendorInterviews from './pages/vendor/Interviews';
 import VendorAssignments from './pages/vendor/Assignments';
+import VendorAmendments from './pages/vendor/Amendments';
 import VendorTimesheets from './pages/vendor/Timesheets';
 import PurchaseOrders from './pages/vendor/PurchaseOrders';
 import VendorReports from './pages/vendor/Reports';
@@ -127,6 +128,7 @@ function App() {
               <Route path="/vendor/submissions" element={<MySubmissions />} />
               <Route path="/vendor/interviews" element={<VendorInterviews />} />
               <Route path="/vendor/assignments" element={<VendorAssignments />} />
+              <Route path="/vendor/amendments" element={<VendorAmendments />} />
               <Route path="/vendor/timesheets" element={<VendorTimesheets />} />
               <Route path="/vendor/purchase-orders" element={<PurchaseOrders />} />
               <Route path="/vendor/reports" element={<VendorReports />} />

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Modal, Form, Button } from 'react-bootstrap';
 
 function PaymentDialog({ show, onHide, onSubmit, invoice }) {
-  const [paymentMode, setPaymentMode] = useState('ACH');
+  const [paymentMode, setPaymentMode] = useState('BANK_TRANSFER');
   const [bankReference, setBankReference] = useState('');
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
   const [remarks, setRemarks] = useState('');
@@ -32,7 +32,7 @@ function PaymentDialog({ show, onHide, onSubmit, invoice }) {
             <div className="mb-3 p-3 bg-light rounded">
               <div className="d-flex justify-content-between align-items-center">
                 <span className="small text-muted font-bold text-uppercase">Total Amount Due</span>
-                <span className="fw-black text-green-600 fs-5">${parseFloat(invoice.invoiceAmount).toLocaleString()}</span>
+                <span className="fw-black text-green-600 fs-5">₹{parseFloat(invoice.invoiceAmount).toLocaleString()}</span>
               </div>
               <span className="text-muted text-xs d-block mt-1">Invoice: {invoice.invoiceNumber} &bull; Vendor: {invoice.vendorName}</span>
             </div>
@@ -40,10 +40,8 @@ function PaymentDialog({ show, onHide, onSubmit, invoice }) {
             <Form.Group className="mb-3" controlId="paymentMode">
               <Form.Label className="uppercase-label">Payment Method</Form.Label>
               <Form.Select value={paymentMode} onChange={(e) => setPaymentMode(e.target.value)}>
-                <option value="ACH">ACH Transfer</option>
-                <option value="WIRE">Wire Transfer</option>
-                <option value="CARD">Corporate Credit Card</option>
-                <option value="CHECK">Check Disbursement</option>
+                <option value="BANK_TRANSFER">Bank Transfer (ACH/Wire)</option>
+                <option value="CHEQUE">Cheque Disbursement</option>
               </Form.Select>
             </Form.Group>
 

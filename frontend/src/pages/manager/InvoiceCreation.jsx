@@ -1,55 +1,37 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Button, Form, Card, Row, Col, Alert, Spinner, Modal, InputGroup } from 'react-bootstrap';
-import { getInvoices, createInvoice, submitInvoice } from '../../services/invoiceCreationService';
-import { getTimesheetsToApprove, getTimesheetDetails } from '../../services/approvalService';
-import { getAssignmentDetails } from '../../services/managerAssignmentService';
+import { Form, Row, Col, Alert, Spinner } from 'react-bootstrap';
+import { getInvoices, previewMonthlyInvoices, generateMonthlyInvoices } from '../../services/invoiceCreationService';
 import { getErrorMessage } from '../../services/errorUtils';
+import { useToast } from '../../context/ToastContext';
+import Table from '../../components/Table';
+import Loader from '../../components/Loader';
 
 function InvoiceCreation() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const { showToast } = useToast();
 
-  // Data states
-  const [unbilledTimesheets, setUnbilledTimesheets] = useState([]);
+  const [selectedMonthYear, setSelectedMonthYear] = useState('2026-08');
+  const [previewStats, setPreviewStats] = useState({ totalTimesheetsProcessed: 0, totalAmountBilled: 0 });
   const [generatedInvoices, setGeneratedInvoices] = useState([]);
-  const [stagedTimesheets, setStagedTimesheets] = useState([]);
-
-  // Filtering states
-  const [filterMonth, setFilterMonth] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterContractor, setFilterContractor] = useState('');
-  const [filterDept, setFilterDept] = useState('');
-
-  // Context state for grouped invoice
-  const [assignment, setAssignment] = useState(null);
-  const [loadingDetails, setLoadingDetails] = useState(false);
-  const [remarks, setRemarks] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [showPreviewModal, setShowPreviewModal] = useState(false);
 
-  const loadInitialData = async () => {
+  const loadData = async () => {
     try {
       setLoading(true);
       setError('');
+      
+      const [yearStr, monthStr] = selectedMonthYear.split('-');
+      const year = parseInt(yearStr, 10);
+      const month = parseInt(monthStr, 10);
 
-      const [tsData, invoicesData] = await Promise.all([
-        getTimesheetsToApprove({ status: 'APPROVED' }).catch(() => []),
+      const [stats, invoicesData] = await Promise.all([
+        previewMonthlyInvoices(year, month).catch(() => ({ totalTimesheetsProcessed: 0, totalAmountBilled: 0 })),
         getInvoices().catch(() => []),
       ]);
 
-      const billedIds = new Set();
-      invoicesData.forEach(inv => {
-        if (inv.timesheetIds) {
-          inv.timesheetIds.forEach(id => billedIds.add(id));
-        }
-      });
-
-      const unbilled = tsData.filter(t => !billedIds.has(t.id));
-      setUnbilledTimesheets(unbilled);
+      setPreviewStats(stats);
       setGeneratedInvoices(invoicesData);
-      setStagedTimesheets([]);
-      setAssignment(null);
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -58,83 +40,31 @@ function InvoiceCreation() {
   };
 
   useEffect(() => {
-    loadInitialData();
-  }, []);
+    loadData();
+  }, [selectedMonthYear]);
 
-  const handleInclude = async (ts) => {
-    // Restrict assignment
-    if (stagedTimesheets.length > 0 && ts.assignmentId !== stagedTimesheets[0].assignmentId) {
-      setError('You can only stage timesheets for the same assignment/contractor. Please remove existing staged timesheets or select a matching one.');
-      return;
-    }
-
-    setError('');
-    // Move from unbilled to staged
-    setUnbilledTimesheets(prev => prev.filter(item => item.id !== ts.id));
-    setStagedTimesheets(prev => [...prev, ts]);
-
-    // Load assignment details if this is the first item
-    if (stagedTimesheets.length === 0) {
-      try {
-        setLoadingDetails(true);
-        const asnDetails = await getAssignmentDetails(ts.assignmentId);
-        setAssignment(asnDetails);
-      } catch (err) {
-        console.error('Failed to load assignment details', err);
-      } finally {
-        setLoadingDetails(false);
-      }
-    }
-  };
-
-  const handleRemove = (ts) => {
-    setStagedTimesheets(prev => prev.filter(item => item.id !== ts.id));
-    setUnbilledTimesheets(prev => [...prev, ts]);
-    if (stagedTimesheets.length === 1) { // Will become 0
-      setAssignment(null);
-    }
-  };
-
-  const calculateTotalAmount = () => {
-    return stagedTimesheets.reduce((sum, ts) => sum + parseFloat(ts.billableAmount || 0), 0);
-  };
-
-  const calculateTotalHours = () => {
-    return stagedTimesheets.reduce((sum, ts) => sum + parseFloat(ts.totalHoursLogged || 0), 0);
-  };
-
-  const handleAction = async (submitImmediate) => {
-    if (stagedTimesheets.length === 0 || !assignment) return;
+  const handleGenerateInvoice = async () => {
     try {
       setSubmitting(true);
       setError('');
-      setSuccess('');
 
-      const minDate = new Date(Math.min(...stagedTimesheets.map(t => new Date(t.startDate))));
-      const maxDate = new Date(Math.max(...stagedTimesheets.map(t => new Date(t.endDate))));
+      const [yearStr, monthStr] = selectedMonthYear.split('-');
+      const year = parseInt(yearStr, 10);
+      const month = parseInt(monthStr, 10);
 
-      const payload = {
-        assignmentId: assignment.id,
-        invoicePeriod: minDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
-        timesheetIds: stagedTimesheets.map(t => t.id),
-        billingStartDate: minDate.toISOString().split('T')[0],
-        billingEndDate: maxDate.toISOString().split('T')[0],
-        remarks: remarks,
-      };
-
-      const newInvoice = await createInvoice(payload);
-
-      if (submitImmediate) {
-        await submitInvoice(newInvoice.id);
-        setSuccess(`Invoice ${newInvoice.id} generated and submitted to Finance for review!`);
-      } else {
-        setSuccess(`Invoice ${newInvoice.id} generated successfully as Draft.`);
-      }
-
-      setRemarks('');
-      loadInitialData();
+      const result = await generateMonthlyInvoices(year, month);
+      showToast(`Monthly invoice generated successfully! ${result.invoicesGeneratedCount} invoice(s) generated.`, 'success');
+      
+      // Reload stats and invoice list
+      const [stats, invoicesData] = await Promise.all([
+        previewMonthlyInvoices(year, month).catch(() => ({ totalTimesheetsProcessed: 0, totalAmountBilled: 0 })),
+        getInvoices().catch(() => []),
+      ]);
+      setPreviewStats(stats);
+      setGeneratedInvoices(invoicesData);
     } catch (err) {
       setError(getErrorMessage(err));
+      showToast(getErrorMessage(err), 'error');
     } finally {
       setSubmitting(false);
     }
@@ -142,244 +72,144 @@ function InvoiceCreation() {
 
   const formatInvoiceStatus = (status) => {
     switch (status?.toUpperCase()) {
-      case 'DRAFT': return 'pending';
-      case 'SUBMITTED': return 'info';
-      case 'FINANCE_REVIEW': return 'info';
-      case 'APPROVED': return 'approved';
-      case 'PAID': return 'approved';
-      default: return 'rejected';
+      case 'DRAFT': return 'warning';
+      case 'SUBMITTED':
+      case 'FINANCE_REVIEW': return 'pending';
+      case 'APPROVED':
+      case 'PAID': return 'success';
+      default: return 'secondary';
     }
   };
 
-  // Filtering unbilled timesheets dynamically
-  const filteredUnbilled = unbilledTimesheets.filter(ts => {
-    if (filterMonth && !ts.startDate.startsWith(filterMonth)) return false;
-    if (searchQuery && !ts.id.toLowerCase().includes(searchQuery.toLowerCase())) return false;
-    if (filterContractor && !ts.contractorName.toLowerCase().includes(filterContractor.toLowerCase())) return false;
-    return true;
-  });
+  const formatRupees = (amount) => {
+    const num = parseFloat(amount || 0);
+    const formatted = num.toLocaleString('en-IN', {
+      maximumFractionDigits: 0,
+      minimumFractionDigits: 0
+    });
+    return `₹ ${formatted}`;
+  };
 
   return (
     <div className="container-fluid">
+      {/* Header */}
       <div className="mb-4">
-        <h2 className="fw-black text-slate-800 mb-0">Safeguard Invoices</h2>
-        <p className="text-muted small mt-1 mb-0">Generate and consolidate billing invoices from approved contractor log sheets.</p>
+        <h1 className="page-title mb-1">Invoice Generate</h1>
+        <p className="muted-text">Generate monthly billing invoices for approved contractor timesheets.</p>
       </div>
 
-      {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
-      {success && <Alert variant="success" className="mb-4" onClose={() => setSuccess('')} dismissible>{success}</Alert>}
+      {error && <Alert variant="danger" className="enterprise-alert enterprise-alert-danger mb-4">{error}</Alert>}
 
       {loading ? (
-        <div className="text-center py-5">
-          <Spinner animation="border" variant="primary" />
-          <p className="text-muted small mt-2">Loading billing modules...</p>
-        </div>
+        <Loader message="Loading billing modules..." />
       ) : (
         <>
-          <div className="row g-4 mb-4">
-            {/* Left Column - Unbilled Timesheets */}
-            <div className="col-lg-7">
-              <Card className="gf-card p-4 border-0 h-100">
-                <h5 className="fw-bold mb-3 text-slate-800"><i className="bi bi-clipboard me-2"></i>Approved Unbilled Timesheets</h5>
+          {/* Monthly Invoice Generation Control Card */}
+          <div className="row g-4 mb-4 justify-content-center">
+            <div className="col-lg-6">
+              <div className="enterprise-table-container p-5 bg-white text-center" style={{ borderRadius: 'var(--gf-radius)', boxShadow: 'var(--gf-shadow)' }}>
+                <h4 className="fw-bold mb-4 text-dark"><i className="bi bi-calendar-check me-2 text-primary"></i>Monthly Invoice Generate</h4>
                 
-                {/* Dynamic Filters */}
-                <Row className="g-2 mb-3">
-                  <Col md={4}>
-                    <Form.Control type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)} size="sm" className="enterprise-form-control" />
-                  </Col>
-                  <Col md={4}>
-                    <Form.Control type="text" placeholder="Search ID..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} size="sm" className="enterprise-form-control" />
-                  </Col>
-                  <Col md={4}>
-                    <Form.Control type="text" placeholder="Search Contractor..." value={filterContractor} onChange={e => setFilterContractor(e.target.value)} size="sm" className="enterprise-form-control" />
-                  </Col>
-                </Row>
-
-                {/* Fixed Height Container with Max 5 items roughly (350px) */}
-                <div className="table-responsive" style={{ maxHeight: '350px', overflowY: 'auto' }}>
-                  <Table className="table table-hover align-middle mb-0">
-                    <thead className="table-light sticky-top">
-                      <tr>
-                        <th>Contractor</th>
-                        <th>Week Period</th>
-                        <th>Hours</th>
-                        <th>Amount</th>
-                        <th className="text-end">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredUnbilled.length > 0 ? (
-                        filteredUnbilled.map(ts => (
-                          <tr key={ts.id}>
-                            <td className="fw-semibold text-slate-800">{ts.contractorName}</td>
-                            <td className="small">{ts.startDate} to {ts.endDate}</td>
-                            <td>{ts.totalHoursLogged} hrs</td>
-                            <td className="text-green-600 fw-semibold">${parseFloat(ts.billableAmount || '0').toLocaleString()}</td>
-                            <td className="text-end">
-                              <Button size="sm" className="btn-gf-primary py-1" onClick={() => handleInclude(ts)}>
-                                Include
-                              </Button>
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan={5} className="text-center py-4 text-muted small">
-                            No matching approved timesheets waiting for billing.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </Table>
+                <div className="mb-4 text-start mx-auto" style={{ maxWidth: '320px' }}>
+                  <Form.Group controlId="billingMonth">
+                    <Form.Label className="fw-bold text-muted small text-uppercase">Billing Month</Form.Label>
+                    <Form.Select 
+                      value={selectedMonthYear} 
+                      onChange={e => setSelectedMonthYear(e.target.value)}
+                      className="enterprise-form-control py-2"
+                      style={{ fontSize: '1rem' }}
+                    >
+                      <option value="2026-08">August 2026</option>
+                      <option value="2026-07">July 2026</option>
+                      <option value="2026-06">June 2026</option>
+                      <option value="2026-05">May 2026</option>
+                    </Form.Select>
+                  </Form.Group>
                 </div>
-              </Card>
-            </div>
 
-            {/* Right Column - To Be Billed / Consolidation */}
-            <div className="col-lg-5">
-              <Card className="gf-card p-4 border-0 h-100">
-                <h5 className="fw-bold mb-4 text-slate-800"><i className="bi bi-cash-stack me-2"></i>To Be Billed (Staged)</h5>
-                
-                {loadingDetails ? (
-                  <div className="text-center py-5"><Spinner animation="border" size="sm" /></div>
-                ) : stagedTimesheets.length > 0 && assignment ? (
-                  <div className="d-flex flex-column h-100">
-                    {/* Staged List */}
-                    <div className="table-responsive mb-3" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                      <Table size="sm" className="table align-middle mb-0">
-                        <thead className="table-light sticky-top">
-                          <tr>
-                            <th>Period</th>
-                            <th>Amt</th>
-                            <th className="text-end">Action</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {stagedTimesheets.map(ts => (
-                            <tr key={ts.id}>
-                              <td className="small">{ts.startDate}</td>
-                              <td className="text-green-600 fw-bold">${parseFloat(ts.billableAmount || 0).toLocaleString()}</td>
-                              <td className="text-end">
-                                <Button size="sm" variant="outline-danger" className="py-0 px-2" onClick={() => handleRemove(ts)}>&times;</Button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </Table>
-                    </div>
+                <hr className="my-4" />
 
-                    <div className="mt-auto border-top pt-3">
-                      <Row className="g-2 mb-3">
-                        <Col xs={6}>
-                          <span className="small text-muted text-uppercase font-bold">Contractor</span>
-                          <div className="fw-bold text-slate-800">{stagedTimesheets[0].contractorName}</div>
-                        </Col>
-                        <Col xs={6}>
-                          <span className="small text-muted text-uppercase font-bold text-green-600">Consolidated Amount</span>
-                          <div className="fw-black text-green-600 fs-5">${calculateTotalAmount().toLocaleString()}</div>
-                        </Col>
-                        <Col xs={12}>
-                          <Form.Group controlId="remarks">
-                            <Form.Control 
-                              as="textarea"
-                              rows={2}
-                              size="sm"
-                              placeholder="Optional billing notes..."
-                              value={remarks}
-                              onChange={(e) => setRemarks(e.target.value)}
-                            />
-                          </Form.Group>
-                        </Col>
-                      </Row>
-                      
-                      <div className="d-flex gap-2">
-                        <Button variant="outline-secondary" className="w-50 py-2" onClick={() => handleAction(false)} disabled={submitting}>
-                          Save Draft
-                        </Button>
-                        <Button className="btn-gf-primary w-50 py-2" onClick={() => handleAction(true)} disabled={submitting}>
-                          Generate Invoice
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-5 text-muted small my-auto">
-                    Click "Include" on a timesheet to queue it for billing. You can consolidate multiple timesheets for the same assignment.
-                  </div>
-                )}
-              </Card>
+                <div className="d-flex justify-content-between align-items-center mb-3 mx-auto" style={{ maxWidth: '320px' }}>
+                  <span className="text-muted fw-semibold">Approved Timesheets</span>
+                  <span className="fw-bold text-dark fs-5">{previewStats.totalTimesheetsProcessed || 0}</span>
+                </div>
+
+                <div className="d-flex justify-content-between align-items-center mb-4 mx-auto" style={{ maxWidth: '320px' }}>
+                  <span className="text-muted fw-semibold">Estimated Amount</span>
+                  <span className="fw-black text-success fs-4">{formatRupees(previewStats.totalAmountBilled || 0)}</span>
+                </div>
+
+                <hr className="my-4" />
+
+                <div className="mx-auto" style={{ maxWidth: '320px' }}>
+                  <button 
+                    className="btn-enterprise-primary w-100 py-3 fw-bold fs-6" 
+                    onClick={handleGenerateInvoice}
+                    disabled={submitting || (previewStats.totalTimesheetsProcessed || 0) === 0}
+                  >
+                    {submitting ? (
+                      <>
+                        <Spinner animation="border" size="sm" className="me-2" />
+                        Generating...
+                      </>
+                    ) : (
+                      'Generate Invoice'
+                    )}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
           {/* Bottom Row - Generated Invoices */}
           <div className="row">
             <div className="col-12">
-              <Card className="gf-card p-4 border-0">
-                <h5 className="fw-bold mb-3 text-slate-800"><i className="bi bi-file-earmark-text me-2"></i>Generated Invoices</h5>
-                <div className="table-responsive">
-                  <Table className="table table-hover align-middle mb-0">
-                    <thead className="table-light">
-                      <tr>
-                        <th>Invoice Details</th>
-                        <th>Billing Period</th>
-                        <th>Parties (Contractor / Vendor)</th>
-                        <th>Amount (₹)</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {generatedInvoices.length > 0 ? (
-                        generatedInvoices.map(inv => {
-                          const issued = inv.invoiceDate || 'Pending';
-                          let due = 'Pending';
-                          if (inv.paymentDate) {
-                            due = inv.paymentDate;
-                          } else if (inv.invoiceDate) {
-                            const d = new Date(inv.invoiceDate);
-                            d.setDate(d.getDate() + 30);
-                            due = d.toISOString().split('T')[0];
-                          }
-                          return (
-                          <tr key={inv.id}>
-                            <td>
-                              <div className="fw-bold text-slate-800">{inv.invoiceNumber || inv.id}</div>
-                              <div className="small text-muted mt-1">Issue: {issued}</div>
-                              <div className="small text-muted">Due: {due}</div>
-                            </td>
-                            <td className="small">{inv.billingStartDate} to {inv.billingEndDate}</td>
-                            <td>
-                              <div className="fw-semibold text-slate-800">{inv.contractorName || 'Contractor'}</div>
-                              <div className="small text-muted">{inv.vendorName || 'Direct Hire'}</div>
-                            </td>
-                            <td className="text-green-600 fw-bold">₹{parseFloat(inv.totalAmount || inv.invoiceAmount || '0').toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                            <td>
-                              <span className={`gf-badge badge-${formatInvoiceStatus(inv.status)}`}>
-                                {inv.status}
-                              </span>
-                            </td>
-                          </tr>
-                        )})
-                      ) : (
-                        <tr>
-                          <td colSpan={5}>
-                            <div className="text-center py-5 text-muted">
-                              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mb-3 text-slate-300">
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                <polyline points="14 2 14 8 20 8"></polyline>
-                                <line x1="16" y1="13" x2="8" y2="13"></line>
-                                <line x1="16" y1="17" x2="8" y2="17"></line>
-                                <polyline points="10 9 9 9 8 9"></polyline>
-                              </svg>
-                              <p className="mb-0 fw-medium">No generated invoices found.</p>
-                              <p className="small">Consolidate and submit timesheets above to create invoices.</p>
-                            </div>
+              <div className="enterprise-table-container p-4 bg-white" style={{ borderRadius: 'var(--gf-radius)', boxShadow: 'var(--gf-shadow)' }}>
+                <h5 className="fw-bold mb-3 text-dark"><i className="bi bi-file-earmark-text me-2"></i>Generated Invoices</h5>
+                <Table headers={['Invoice Details', 'Billing Period', 'Contractor', 'Amount (₹)', 'Status']}>
+                  {generatedInvoices.length > 0 ? (
+                    generatedInvoices.map(inv => {
+                      const issued = inv.invoiceDate || 'Pending';
+                      let due = 'Pending';
+                      if (inv.paymentDate) {
+                        due = inv.paymentDate;
+                      } else if (inv.invoiceDate) {
+                        const d = new Date(inv.invoiceDate);
+                        d.setDate(d.getDate() + 30);
+                        due = d.toISOString().split('T')[0];
+                      }
+                      return (
+                        <tr key={inv.id}>
+                          <td>
+                            <div className="fw-bold text-dark">{inv.invoiceNumber || inv.id}</div>
+                            <div className="small text-muted mt-1">Issue: {issued} &bull; Due: {due}</div>
+                          </td>
+                          <td className="small">{inv.billingStartDate} to {inv.billingEndDate}</td>
+                          <td>
+                            <div className="fw-semibold text-dark">{inv.contractorName || 'Contractor'}</div>
+                          </td>
+                          <td className="text-success fw-bold">{formatRupees(inv.totalAmount || inv.invoiceAmount || 0)}</td>
+                          <td>
+                            <span className={`status-pill ${formatInvoiceStatus(inv.status)}`}>
+                              {inv.status}
+                            </span>
                           </td>
                         </tr>
-                      )}
-                    </tbody>
-                  </Table>
-                </div>
-              </Card>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan={5}>
+                        <div className="text-center py-5 text-muted">
+                          <i className="bi bi-file-earmark fs-1 text-muted"></i>
+                          <p className="mb-0 fw-medium mt-2">No generated invoices found.</p>
+                          <p className="small text-muted">Generate invoices above to view list here.</p>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Table>
+              </div>
             </div>
           </div>
         </>

@@ -33,4 +33,6 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, String>, J
             String assignmentId, String contractorId, TimesheetStatus status);
 
     List<Timesheet> findByInvoiceId(String invoiceId);
+
+    List<Timesheet> findByStatusAndInvoiceIsNull(TimesheetStatus status);
 }

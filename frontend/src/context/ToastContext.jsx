@@ -33,5 +33,8 @@ export function ToastProvider({ children }) {
 
 export function useToast() {
   const context = useContext(ToastContext);
-  return context || { showToast: (msg, type) => window.showToast?.(msg, type), addToast: (msg, type) => window.showToast?.(msg, type) };
+  return context || { 
+    showToast: (msg, type) => window.showToast?.(msg, type),
+    addToast: (msg, type) => window.showToast?.(msg, type)
+  };
 }

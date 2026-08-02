@@ -88,6 +88,9 @@ public class Timesheet extends BaseEntity {
     @Column(name = "payroll_processed_date")
     private LocalDateTime payrollProcessedDate;
 
+    @Column(name = "agreed_rate_per_day", precision = 10, scale = 2)
+    private BigDecimal agreedRatePerDay;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "invoice_id")
     private com.gigforce.invoice.entity.ContractorInvoice invoice;

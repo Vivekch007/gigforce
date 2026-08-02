@@ -26,7 +26,7 @@ public class AssignmentAmendmentController {
 
     @PostMapping("/assignments/{assignId}/amendments")
     @PreAuthorize("hasAnyRole('ADMIN', 'VENDOR_MANAGER', 'VENDOR')")
-    @Operation(summary = "Submit a contract amendment request (assigned vendor or admin)")
+    @Operation(summary = "Submit a contract amendment request (assigned vendor, hiring manager, or admin)")
     public ResponseEntity<AmendmentResponseDTO> createAmendment(
             @PathVariable String assignId,
             @Valid @RequestBody AmendmentRequestDTO request) {
@@ -51,6 +51,14 @@ public class AssignmentAmendmentController {
             @PathVariable String id,
             @RequestParam(required = false) String remarks) {
         AmendmentResponseDTO response = amendmentService.rejectAmendment(id, remarks);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/amendments/pending")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER', 'VENDOR_MANAGER', 'VENDOR')")
+    @Operation(summary = "Get all pending assignment amendments for the user context")
+    public ResponseEntity<List<AmendmentResponseDTO>> getPendingAmendments() {
+        List<AmendmentResponseDTO> response = amendmentService.getPendingAmendments();
         return ResponseEntity.ok(response);
     }
 

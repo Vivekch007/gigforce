@@ -23,6 +23,7 @@ public class AmendmentResponseDTO {
     private String approvedByName;
     private AmendmentStatus status;
     private String remarks;
+    private String reason;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

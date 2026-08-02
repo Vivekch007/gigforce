@@ -116,6 +116,12 @@ public class TimesheetServiceImpl implements TimesheetService {
                             + assignment.getStatus());
         }
 
+        if (request.getWeekStartDate().isAfter(assignment.getEndDate())) {
+            throw new BusinessValidationException(
+                    "Cannot create timesheet for week starting " + request.getWeekStartDate()
+                            + " because it is after the assignment end/termination date (" + assignment.getEndDate() + ").");
+        }
+
         // Week runs Monday -> Sunday; start must be a Monday
         if (request.getWeekStartDate().getDayOfWeek() != DayOfWeek.MONDAY) {
             throw new BusinessValidationException("Timesheet week start date must be a MONDAY.");
@@ -143,6 +149,7 @@ public class TimesheetServiceImpl implements TimesheetService {
                 .status(TimesheetStatus.DRAFT)
                 .payrollStatus(PayrollStatus.NOT_PROCESSED)
                 .orgUnitId(assignment.getOrgUnitId())
+                .agreedRatePerDay(assignment.getAgreedRatePerDay())
                 .build();
 
         Timesheet saved = timesheetRepository.save(timesheet);
@@ -239,6 +246,12 @@ public class TimesheetServiceImpl implements TimesheetService {
 
             if (workDate.isAfter(LocalDate.now())) {
                 throw new BusinessValidationException("Work date " + workDate + " cannot be in the future.");
+            }
+
+            if (workDate.isAfter(timesheet.getAssignment().getEndDate())) {
+                throw new BusinessValidationException(
+                        "Cannot log hours for date " + workDate + " because it is after the assignment end/termination date ("
+                                + timesheet.getAssignment().getEndDate() + ").");
             }
 
             // Locate or dynamically create weekend line if needed
@@ -716,7 +729,10 @@ public class TimesheetServiceImpl implements TimesheetService {
                     "Total weekly logged hours (regular + overtime) cannot exceed " + maxTotalHours + " hours.");
         }
 
-        BigDecimal agreedRate = timesheet.getAssignment().getAgreedRatePerDay();
+        if (timesheet.getAgreedRatePerDay() == null || timesheet.getStatus() == TimesheetStatus.DRAFT || timesheet.getStatus() == TimesheetStatus.REJECTED || timesheet.getStatus() == TimesheetStatus.REVISED) {
+            timesheet.setAgreedRatePerDay(timesheet.getAssignment().getAgreedRatePerDay());
+        }
+        BigDecimal agreedRate = timesheet.getAgreedRatePerDay() != null ? timesheet.getAgreedRatePerDay() : timesheet.getAssignment().getAgreedRatePerDay();
         BigDecimal billableAmount = BigDecimal.ZERO;
         for (TimesheetLine line : lines) {
             BigDecimal dailyWeight = line.getHoursWorked()
@@ -772,6 +788,7 @@ public class TimesheetServiceImpl implements TimesheetService {
                 .approvedDate(timesheet.getApprovedDate())
                 .payrollProcessedDate(timesheet.getPayrollProcessedDate())
                 .lines(lineDtos)
+                .agreedRatePerDay(timesheet.getAgreedRatePerDay())
                 .build();
     }
 }

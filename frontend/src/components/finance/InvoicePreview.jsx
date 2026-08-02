@@ -48,8 +48,8 @@ function InvoicePreview({ invoice }) {
             <td>{invoice.billingStartDate} to {invoice.billingEndDate}</td>
             <td>{invoice.totalRegularHours || 40} hrs</td>
             <td>{invoice.totalOvertimeHours || 0} hrs</td>
-            <td>${invoice.taxAmount || 0}</td>
-            <td className="text-green-600 fw-bold">${parseFloat(invoice.invoiceAmount || 0).toLocaleString()}</td>
+            <td>₹{invoice.taxAmount || 0}</td>
+            <td className="text-green-600 fw-bold">₹{parseFloat(invoice.invoiceAmount || 0).toLocaleString()}</td>
           </tr>
         </tbody>
       </Table>
@@ -57,7 +57,7 @@ function InvoicePreview({ invoice }) {
       <div className="d-flex justify-content-end mb-2">
         <div className="text-end">
           <span className="text-muted font-bold small text-uppercase">Total Due:</span>
-          <h4 className="fw-black text-green-600 mt-1 mb-0">${parseFloat(invoice.invoiceAmount || 0).toLocaleString()}</h4>
+          <h4 className="fw-black text-green-600 mt-1 mb-0">₹{parseFloat(invoice.invoiceAmount || 0).toLocaleString()}</h4>
         </div>
       </div>
     </div>

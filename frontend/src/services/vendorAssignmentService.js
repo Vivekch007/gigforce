@@ -17,3 +17,11 @@ export function requestAssignmentExtension(assignmentId, payload) {
     ...payload
   }).then((res) => res.data);
 }
+
+export function requestAmendment(assignmentId, payload) {
+  return apiClient.post(`/assignments/${assignmentId}/amendments`, payload).then((res) => res.data);
+}
+
+export function getAssignmentAmendments(assignmentId) {
+  return apiClient.get(`/assignments/${assignmentId}/amendments`).then((res) => res.data);
+}

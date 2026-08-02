@@ -324,6 +324,11 @@ function Absences() {
                       <span className={`gf-badge badge-${ab.status.toLowerCase()}`}>
                         {ab.status}
                       </span>
+                      {ab.status === 'REJECTED' && ab.rejectionRemarks && (
+                        <div className="text-danger small mt-1" style={{ fontSize: '11px', fontWeight: '500' }}>
+                          Remarks: {ab.rejectionRemarks}
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}

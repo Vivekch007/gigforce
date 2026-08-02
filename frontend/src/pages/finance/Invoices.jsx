@@ -176,7 +176,7 @@ function Invoices() {
                     <td>{inv.purchaseOrderId || 'PO-2026-081'}</td>
                     <td>{inv.contractorName || 'Contractor'}</td>
                     <td>{inv.billingEndDate || 'End Target'}</td>
-                    <td className="text-green-600 fw-bold">${parseFloat(inv.invoiceAmount || 0).toLocaleString()}</td>
+                    <td className="text-green-600 fw-bold">₹{parseFloat(inv.invoiceAmount || 0).toLocaleString()}</td>
                     <td>
                       <span className={`gf-badge badge-${getStatusBadge(inv.status)}`}>
                         {inv.status}

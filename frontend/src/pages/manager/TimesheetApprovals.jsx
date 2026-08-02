@@ -1,30 +1,43 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Form, Modal, Alert, Spinner, Col } from 'react-bootstrap';
-import { getTimesheetsToApprove, getTimesheetDetails, approveTimesheet, rejectTimesheet } from '../../services/approvalService';
+import { getTimesheetDetails, approveTimesheet, rejectTimesheet } from '../../services/approvalService';
+import { getAssignments } from '../../services/managerAssignmentService';
+import { createTimesheet, getTimesheets } from '../../services/timesheetService';
 import { getErrorMessage } from '../../services/errorUtils';
 import { useToast } from '../../context/ToastContext';
+import { useAuth } from '../../hooks/useAuth';
 import Table from '../../components/Table';
 import Loader from '../../components/Loader';
 
 function TimesheetApprovals() {
+  const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const searchQuery = searchParams.get('search') || '';
 
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
   const { showToast } = useToast();
 
-  // Timesheets lists
+  // Week selection state (Monday start)
+  const getMondayDateStr = (dateInput) => {
+    const date = new Date(dateInput);
+    const day = date.getDay();
+    const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
+    const monday = new Date(date.setDate(diff));
+    
+    const yyyy = monday.getFullYear();
+    const mm = String(monday.getMonth() + 1).padStart(2, '0');
+    const dd = String(monday.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const [selectedWeekStart, setSelectedWeekStart] = useState(() => getMondayDateStr(new Date()));
+
+  // Active assignments and timesheets for current week
+  const [assignments, setAssignments] = useState([]);
   const [timesheets, setTimesheets] = useState([]);
-
-  // Filter States
-  const [statusFilter, setStatusFilter] = useState('SUBMITTED'); // Default show submitted first
-  const [selectedMonthYear, setSelectedMonthYear] = useState(''); // Stores string formatted as 'YYYY-MM'
-
-  // Pagination States
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Modals
   const [selectedTs, setSelectedTs] = useState(null);
@@ -38,25 +51,41 @@ function TimesheetApprovals() {
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [detailsError, setDetailsError] = useState('');
 
-  const loadTimesheets = async () => {
+  // Date range utility
+  const formatWeekRange = (mondayStr) => {
+    if (!mondayStr) return '';
+    const [y, m, d] = mondayStr.split('-').map(Number);
+    const start = new Date(Date.UTC(y, m - 1, d));
+    const end = new Date(start);
+    end.setUTCDate(start.getUTCDate() + 6);
+    
+    const startMonth = start.toLocaleDateString('en-US', { month: 'short' });
+    const startDay = start.toLocaleDateString('en-US', { day: 'numeric' });
+    const endMonth = end.toLocaleDateString('en-US', { month: 'short' });
+    const endDay = end.toLocaleDateString('en-US', { day: 'numeric' });
+    
+    if (startMonth === endMonth) {
+      return `${startMonth} ${startDay} – ${endDay}`;
+    }
+    return `${startMonth} ${startDay} – ${endMonth} ${endDay}`;
+  };
+
+  const loadDashboardData = async () => {
     try {
       setLoading(true);
       setError('');
 
-      const params = {};
-      if (statusFilter !== 'ALL') {
-        params.status = statusFilter;
-      }
+      // 1. Fetch active assignments
+      const assignmentsData = await getAssignments({ status: 'ACTIVE', size: 100 });
+      const activeAsns = (assignmentsData?.content || []).filter(
+        (asn) => asn.hiringManagerEmail === user?.email
+      );
+      setAssignments(activeAsns);
 
-      if (selectedMonthYear) {
-        const [year, month] = selectedMonthYear.split('-');
-        params.year = year;
-        params.month = month;
-      }
+      // 2. Fetch all timesheets for selected week
+      const timesheetsData = await getTimesheets({ weekStartDate: selectedWeekStart });
+      setTimesheets(timesheetsData || []);
 
-      const data = await getTimesheetsToApprove(params);
-      setTimesheets(data || []);
-      setCurrentPage(1); // Reset page on refresh
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -65,17 +94,84 @@ function TimesheetApprovals() {
   };
 
   useEffect(() => {
-    loadTimesheets();
-  }, [statusFilter, selectedMonthYear]);
+    loadDashboardData();
+  }, [selectedWeekStart]);
 
-  const viewDetails = async (ts) => {
+  // Map assignments to their timesheets
+  const mappedRows = useMemo(() => {
+    return assignments.map((asn) => {
+      const existingTs = timesheets.find((ts) => ts.assignmentId === asn.id);
+      return {
+        id: asn.id,
+        contractorName: asn.contractorName,
+        assignmentTitle: asn.requisitionTitle || 'Specialist',
+        status: existingTs ? existingTs.status : 'NOT_CREATED',
+        timesheetId: existingTs ? existingTs.id : null,
+        existingTs: existingTs,
+      };
+    });
+  }, [assignments, timesheets]);
+
+  // Local Search filtering
+  const filteredRows = useMemo(() => {
+    return mappedRows.filter((row) => {
+      const q = searchQuery.trim().toLowerCase();
+      return (
+        !q ||
+        row.contractorName.toLowerCase().includes(q) ||
+        row.assignmentTitle.toLowerCase().includes(q) ||
+        (row.timesheetId && row.timesheetId.toLowerCase().includes(q))
+      );
+    });
+  }, [mappedRows, searchQuery]);
+
+  // Simplified statistics
+  const stats = useMemo(() => {
+    const generated = timesheets.length;
+    const submitted = timesheets.filter((ts) => ts.status === 'SUBMITTED').length;
+    const approved = timesheets.filter((ts) => ts.status === 'APPROVED').length;
+    return { generated, submitted, approved };
+  }, [timesheets]);
+
+  // Batch Generation Logic
+  const handleGenerateTimesheets = async () => {
+    const pendingGeneration = mappedRows.filter((r) => r.status === 'NOT_CREATED');
+
+    if (pendingGeneration.length === 0) {
+      showToast('All active assignments already have timesheets generated for this week.', 'info');
+      return;
+    }
+
     try {
-      setSelectedTs(ts);
+      setGenerating(true);
+      setError('');
+
+      const promises = pendingGeneration.map((row) =>
+        createTimesheet({ assignmentId: row.id, weekStartDate: selectedWeekStart })
+      );
+
+      await Promise.all(promises);
+
+      showToast(
+        `${pendingGeneration.length} timesheets generated successfully for ${formatWeekRange(selectedWeekStart)}.`,
+        'success'
+      );
+      loadDashboardData();
+    } catch (err) {
+      setError(getErrorMessage(err));
+      showToast(getErrorMessage(err), 'error');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const viewDetails = async (tsId) => {
+    try {
       setDetailsError('');
       setLoadingDetails(true);
       setShowViewModal(true);
 
-      const details = await getTimesheetDetails(ts.id);
+      const details = await getTimesheetDetails(tsId);
       setSelectedTs(details);
     } catch (err) {
       setDetailsError(getErrorMessage(err));
@@ -91,8 +187,9 @@ function TimesheetApprovals() {
     setShowActionModal(true);
   };
 
-  const handleActionSubmit = async () => {
-    if (actionType === 'REJECT' && !remarksText.trim()) {
+  const handleActionSubmit = async (typeParam) => {
+    const finalType = typeParam || actionType;
+    if (finalType === 'REJECT' && !remarksText.trim()) {
       showToast('A rejection reason/comment is mandatory.', 'error');
       return;
     }
@@ -100,17 +197,16 @@ function TimesheetApprovals() {
       setSubmittingAction(true);
       setError('');
 
-      if (actionType === 'APPROVE') {
+      if (finalType === 'APPROVE') {
         await approveTimesheet(selectedTs.id, remarksText);
         showToast(`Timesheet approved successfully.`, 'success');
-        setTimesheets(prev => prev.map(t => t.id === selectedTs.id ? { ...t, status: 'APPROVED' } : t));
       } else {
         await rejectTimesheet(selectedTs.id, remarksText);
         showToast(`Timesheet rejected and returned to contractor.`, 'success');
-        setTimesheets(prev => prev.map(t => t.id === selectedTs.id ? { ...t, status: 'REJECTED' } : t));
       }
 
       setShowActionModal(false);
+      loadDashboardData();
     } catch (err) {
       showToast(getErrorMessage(err), 'error');
     } finally {
@@ -118,7 +214,6 @@ function TimesheetApprovals() {
     }
   };
 
-  // Helper to parse day of week from date
   const getDayOfWeek = (dateStr) => {
     if (!dateStr) return '';
     try {
@@ -129,212 +224,118 @@ function TimesheetApprovals() {
     }
   };
 
-  // Local client filter (search + client-side month/year fallback)
-  const filteredTimesheets = useMemo(() => {
-    return timesheets.filter((item) => {
-      // Search matching
-      const q = searchQuery.trim().toLowerCase();
-      const matchesSearch = !q || (
-        (item.contractorName && item.contractorName.toLowerCase().includes(q)) ||
-        (item.assignmentId && item.assignmentId.toLowerCase().includes(q)) ||
-        item.id.toLowerCase().includes(q)
-      );
-
-      // Month-Year matching fallback
-      let matchesMonthYear = true;
-      if (selectedMonthYear) {
-        const startDate = item.weekStartDate || item.startDate || '';
-        if (startDate) {
-          // Compare YYYY-MM prefix from start date
-          matchesMonthYear = startDate.startsWith(selectedMonthYear);
-        }
-      }
-
-      return matchesSearch && matchesMonthYear;
-    });
-  }, [timesheets, searchQuery, selectedMonthYear]);
-
-  // Pagination Logic
-  const totalItems = filteredTimesheets.length;
-  const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
-
-  const currentTimesheets = useMemo(() => {
-    const startIdx = (currentPage - 1) * itemsPerPage;
-    return filteredTimesheets.slice(startIdx, startIdx + itemsPerPage);
-  }, [filteredTimesheets, currentPage, itemsPerPage]);
-
-  const handlePageChange = (newPage) => {
-    if (newPage >= 1 && newPage <= totalPages) {
-      setCurrentPage(newPage);
-    }
-  };
-
   return (
     <div className="container-fluid">
       {/* Header */}
       <div className="mb-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
         <div>
-          <h1 className="page-title mb-1">Timesheet Approvals</h1>
-          <p className="muted-text mb-0">Sign off on contractor weekly log sheets or return them for edits.</p>
+          <h1 className="page-title mb-1">Weekly Timesheets</h1>
+          <p className="muted-text mb-0">Generate weekly drafts for active assignments and sign off on contractor logs.</p>
         </div>
 
-        {/* Filter Controls Bar */}
-        <div className="d-flex align-items-center gap-2 flex-wrap">
-          {/* Calendar Month & Year Picker */}
-          <div className="d-flex align-items-center gap-1">
-            <Form.Control
-              type="month"
-              value={selectedMonthYear}
-              onChange={(e) => {
-                setSelectedMonthYear(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="enterprise-form-control"
-              style={{ width: '180px' }}
-            />
-            {selectedMonthYear && (
-              <button
-                type="button"
-                className="btn btn-sm btn-outline-secondary"
-                title="Clear date filter"
-                onClick={() => {
-                  setSelectedMonthYear('');
-                  setCurrentPage(1);
-                }}
-              >
-                Clear
-              </button>
-            )}
-          </div>
+        {/* Date Selector & Action Trigger */}
+        <div className="d-flex align-items-center gap-3 flex-wrap">
+          <Form.Control
+            type="date"
+            value={selectedWeekStart}
+            onChange={(e) => setSelectedWeekStart(getMondayDateStr(e.target.value))}
+            className="enterprise-form-control"
+            style={{ width: '220px' }}
+          />
 
-          {/* Status Filter */}
-          <Form.Select
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="enterprise-form-select"
-            style={{ width: '170px' }}
+          <button
+            type="button"
+            className="btn-enterprise-primary px-4"
+            onClick={handleGenerateTimesheets}
+            disabled={generating || loading}
           >
-            <option value="ALL">All Statuses</option>
-            <option value="SUBMITTED">Pending Approval</option>
-            <option value="APPROVED">Approved</option>
-            <option value="REJECTED">Rejected</option>
-          </Form.Select>
+            {generating ? (
+              <>
+                <Spinner animation="border" size="sm" className="me-2" />
+                Generating...
+              </>
+            ) : (
+              'Generate This Week\'s Timesheets'
+            )}
+          </button>
         </div>
       </div>
 
       {error && <Alert variant="danger" className="enterprise-alert enterprise-alert-danger mb-4">{error}</Alert>}
 
+      {/* Simplified Statistics Banner */}
+      <div className="row g-3 mb-4">
+        <div className="col-md-4">
+          <div className="gf-card p-3 mb-0 text-center" style={{ borderRadius: 'var(--gf-radius)', boxShadow: 'var(--gf-shadow)' }}>
+            <span className="text-uppercase text-muted font-bold small" style={{ fontSize: '0.7rem' }}>Week Period</span>
+            <h5 className="fw-black text-slate-800 mt-2 mb-0">{formatWeekRange(selectedWeekStart)}</h5>
+          </div>
+        </div>
+        <div className="col-md-4 col-sm-6">
+          <div className="gf-card p-3 mb-0 text-center" style={{ borderRadius: 'var(--gf-radius)', boxShadow: 'var(--gf-shadow)' }}>
+            <span className="text-uppercase text-muted font-bold small" style={{ fontSize: '0.7rem' }}>Generated</span>
+            <h4 className="fw-black text-slate-800 mt-1 mb-0">{stats.generated}</h4>
+          </div>
+        </div>
+        <div className="col-md-4 col-sm-6">
+          <div className="gf-card p-3 mb-0 text-center" style={{ borderRadius: 'var(--gf-radius)', boxShadow: 'var(--gf-shadow)' }}>
+            <span className="text-uppercase text-muted font-bold small" style={{ fontSize: '0.7rem' }}>Submitted / Approved</span>
+            <h4 className="fw-black text-slate-800 mt-1 mb-0">
+              <span className="text-primary">{stats.submitted}</span> <span className="text-muted">/</span> <span className="text-success">{stats.approved}</span>
+            </h4>
+          </div>
+        </div>
+      </div>
+
       {loading ? (
-        <Loader message="Loading submitted logs..." />
+        <Loader message="Loading weekly logs..." />
       ) : (
         <div>
-          {filteredTimesheets.length > 0 ? (
-            <>
-              <Table headers={['Timesheet ID', 'Contractor', 'Week Period', 'Regular Hours', 'Overtime', 'Billable Cost', 'Status', 'Actions']}>
-                {currentTimesheets.map((ts) => {
-                  const start = ts.weekStartDate || ts.startDate || '';
-                  const end = ts.weekEndDate || ts.endDate || '';
-                  const regularHours = ts.hoursLogged ?? ts.totalHoursLogged ?? '0.00';
-                  const overtimeHours = ts.overtimeLogged ?? ts.totalOvertimeHoursLogged ?? '0.00';
-
-                  return (
-                    <tr key={ts.id}>
-                      <td className="fw-bold">{ts.id}</td>
-                      <td className="fw-semibold text-dark">{ts.contractorName || 'Contractor'}</td>
-                      <td className="small">
-                        <span className="fw-medium">{start}</span> to <span className="fw-medium">{end}</span>
-                      </td>
-                      <td className="fw-semibold">{regularHours} hrs</td>
-                      <td>{overtimeHours} hrs</td>
-                      <td className="text-success fw-bold">₹{parseFloat(ts.billableAmount || '0').toLocaleString('en-IN')}</td>
-                      <td>
-                        <span className={`status-pill ${ts.status.toLowerCase() === 'approved' ? 'success' : ts.status.toLowerCase() === 'submitted' ? 'pending' : 'rejected'}`}>
-                          {ts.status}
-                        </span>
-                      </td>
-                      <td>
-                        <div className="d-flex gap-2 justify-content-start">
-                          <button type="button" className="btn-enterprise-secondary py-1 px-3" onClick={() => viewDetails(ts)}>
-                            View Logs
-                          </button>
-
-                          {ts.status === 'SUBMITTED' && (
-                            <>
-                              <button type="button" className="btn-enterprise-primary py-1 px-3" onClick={() => openActionModal(ts, 'APPROVE')}>
-                                Approve
-                              </button>
-                              <button type="button" className="btn-enterprise-ghost text-danger py-1 px-3 border-0" onClick={() => openActionModal(ts, 'REJECT')}>
-                                Reject
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </Table>
-
-              {/* Pagination Controls */}
-              <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3 px-2">
-                <div className="d-flex align-items-center gap-2 text-muted small">
-                  <span>Rows per page:</span>
-                  <Form.Select
-                    size="sm"
-                    value={itemsPerPage}
-                    onChange={(e) => {
-                      setItemsPerPage(Number(e.target.value));
-                      setCurrentPage(1);
-                    }}
-                    style={{ width: '70px' }}
-                    className="enterprise-form-select"
-                  >
-                    <option value={5}>5</option>
-                    <option value={10}>10</option>
-                    <option value={20}>20</option>
-                    <option value={50}>50</option>
-                  </Form.Select>
-                  <span>
-                    Showing {Math.min((currentPage - 1) * itemsPerPage + 1, totalItems)} - {Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems}
-                  </span>
-                </div>
-
-                <div className="d-flex align-items-center gap-1">
-                  <button
-                    className="btn btn-sm btn-outline-secondary"
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage === 1}
-                  >
-                    Previous
-                  </button>
-
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                    <button
-                      key={page}
-                      className={`btn btn-sm ${page === currentPage ? 'btn-primary' : 'btn-outline-secondary'}`}
-                      onClick={() => handlePageChange(page)}
-                    >
-                      {page}
-                    </button>
-                  ))}
-
-                  <button
-                    className="btn btn-sm btn-outline-secondary"
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            </>
+          {filteredRows.length > 0 ? (
+            <Table headers={['Contractor', 'Assignment', 'Week', 'Status', 'Action']}>
+              {filteredRows.map((row) => (
+                <tr key={row.id}>
+                  <td className="fw-semibold text-dark">{row.contractorName}</td>
+                  <td>{row.assignmentTitle}</td>
+                  <td className="small">{formatWeekRange(selectedWeekStart)}</td>
+                  <td>
+                    <span className={`status-pill ${
+                      row.status.toLowerCase() === 'approved' ? 'success' :
+                      row.status.toLowerCase() === 'submitted' ? 'pending' :
+                      row.status.toLowerCase() === 'rejected' ? 'danger' :
+                      row.status.toLowerCase() === 'draft' ? 'warning' : 'secondary'
+                    }`}>
+                      {row.status.replace('_', ' ')}
+                    </span>
+                  </td>
+                  <td>
+                    {row.status === 'NOT_CREATED' ? (
+                      <span className="text-muted">—</span>
+                    ) : row.status === 'SUBMITTED' ? (
+                      <button
+                        type="button"
+                        className="btn-enterprise-primary py-1 px-3"
+                        onClick={() => openActionModal(row.existingTs, 'APPROVE')}
+                      >
+                        Review
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn-enterprise-secondary py-1 px-3"
+                        onClick={() => viewDetails(row.timesheetId)}
+                      >
+                        View
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </Table>
           ) : (
-            <div className="enterprise-table-container p-5 text-center text-muted">
+            <div className="enterprise-table-container p-5 text-center text-muted" style={{ borderRadius: 'var(--gf-radius)', boxShadow: 'var(--gf-shadow)' }}>
               <i className="bi bi-clock fs-2"></i>
-              <p className="small mt-2 mb-0">No timesheets found matching the selected filters.</p>
+              <p className="small mt-2 mb-0">No contractors or assignments found for this week.</p>
             </div>
           )}
         </div>
@@ -362,8 +363,8 @@ function TimesheetApprovals() {
                     <div className="fw-bold text-dark">{selectedTs.contractorName}</div>
                   </Col>
                   <Col sm={6}>
-                    <div className="small text-muted text-uppercase font-bold" style={{ fontSize: '10px' }}>Assignment Reference</div>
-                    <div className="fw-semibold text-dark">{selectedTs.assignmentId}</div>
+                    <div className="small text-muted text-uppercase font-bold" style={{ fontSize: '10px' }}>Week Period</div>
+                    <div className="fw-semibold text-dark">{formatWeekRange(selectedTs.weekStartDate)}</div>
                   </Col>
                 </div>
               </div>
@@ -410,7 +411,7 @@ function TimesheetApprovals() {
                           <span className="fw-bold text-dark">{comment.authorName} ({comment.authorRole})</span>
                           <span className="text-muted text-xs">{new Date(comment.createdAt).toLocaleDateString()}</span>
                         </div>
-                        <p className="mb-0 text-muted mt-1">{comment.remarks}</p>
+                         <p className="mb-0 text-muted mt-1">{comment.remarks}</p>
                       </div>
                     ))}
                   </div>
@@ -430,35 +431,51 @@ function TimesheetApprovals() {
       <Modal show={showActionModal} onHide={() => setShowActionModal(false)} centered className="enterprise-modal-content">
         <Modal.Header closeButton className="enterprise-modal-header">
           <Modal.Title className="fw-bold text-dark">
-            {actionType === 'APPROVE' ? 'Approve Timesheet' : 'Reject Timesheet'}
+            Review Timesheet Logs
           </Modal.Title>
         </Modal.Header>
         <Modal.Body className="enterprise-modal-body">
+          {selectedTs && (
+            <div className="mb-3 bg-light p-3 rounded">
+              <div className="small text-muted mb-1">Contractor: <strong className="text-dark">{selectedTs.contractorName}</strong></div>
+              <div className="small text-muted">Hours Logged: <strong className="text-dark">{selectedTs.hoursLogged ?? selectedTs.totalHoursLogged ?? '0.00'} hrs</strong></div>
+            </div>
+          )}
           <Form.Group controlId="approvalComments">
             <Form.Label className="enterprise-form-label">
-              {actionType === 'APPROVE' ? 'Remarks (Optional)' : 'Rejection Reason (Mandatory) *'}
+              Workflow Feedback Comments
             </Form.Label>
             <Form.Control
               as="textarea"
               rows={3}
-              placeholder={actionType === 'APPROVE' ? 'Add signing remarks...' : 'Provide details on what needs correction...'}
+              placeholder="Add feedback or remarks (mandatory for rejections)..."
               value={remarksText}
               onChange={(e) => setRemarksText(e.target.value)}
               className="enterprise-form-control"
-              required={actionType === 'REJECT'}
             />
           </Form.Group>
         </Modal.Body>
         <Modal.Footer className="enterprise-modal-footer">
           <button type="button" className="btn-enterprise-secondary" onClick={() => setShowActionModal(false)}>Cancel</button>
-          <button
-            type="button"
-            className={actionType === 'APPROVE' ? 'btn-enterprise-primary' : 'btn-enterprise-primary bg-danger border-danger'}
-            onClick={handleActionSubmit}
-            disabled={submittingAction}
-          >
-            {submittingAction ? <Spinner animation="border" size="sm" /> : actionType === 'APPROVE' ? 'Approve Logs' : 'Reject Logs'}
-          </button>
+          <div className="d-flex gap-2">
+            <button
+              type="button"
+              className="btn btn-danger py-2 px-4"
+              onClick={() => handleActionSubmit('REJECT')}
+              disabled={submittingAction}
+              style={{ borderRadius: 'var(--gf-radius)' }}
+            >
+              Reject Logs
+            </button>
+            <button
+              type="button"
+              className="btn-enterprise-primary py-2 px-4"
+              onClick={() => handleActionSubmit('APPROVE')}
+              disabled={submittingAction}
+            >
+              Approve Logs
+            </button>
+          </div>
         </Modal.Footer>
       </Modal>
     </div>

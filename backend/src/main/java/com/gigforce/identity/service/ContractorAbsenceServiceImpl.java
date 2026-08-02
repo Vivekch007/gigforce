@@ -28,6 +28,8 @@ import com.gigforce.exception.BusinessValidationException;
 import org.springframework.data.jpa.domain.Specification;
 import jakarta.persistence.criteria.*;
 
+import com.gigforce.notification.publisher.NotificationPublisher;
+
 @Service
 @Transactional(readOnly = true)
 public class ContractorAbsenceServiceImpl implements ContractorAbsenceService {
@@ -37,19 +39,22 @@ public class ContractorAbsenceServiceImpl implements ContractorAbsenceService {
     private final UserRepository userRepository;
     private final AuditService auditService;
     private final TimesheetService timesheetService;
+    private final NotificationPublisher notificationPublisher;
 
     public ContractorAbsenceServiceImpl(
             ContractorAbsenceRepository absenceRepository,
             AssignmentRepository assignmentRepository,
             UserRepository userRepository,
             AuditService auditService,
-            TimesheetService timesheetService
+            TimesheetService timesheetService,
+            NotificationPublisher notificationPublisher
     ) {
         this.absenceRepository = absenceRepository;
         this.assignmentRepository = assignmentRepository;
         this.userRepository = userRepository;
         this.auditService = auditService;
         this.timesheetService = timesheetService;
+        this.notificationPublisher = notificationPublisher;
     }
 
     @Override
@@ -112,6 +117,8 @@ public class ContractorAbsenceServiceImpl implements ContractorAbsenceService {
                 String.format("Leave requested by contractor %s from %s to %s", profile.getUser().getEmail(), saved.getStartDate(), saved.getEndDate())
         );
 
+        notificationPublisher.publishAbsenceCreation(saved);
+
         return toDto(saved);
     }
 
@@ -165,6 +172,8 @@ public class ContractorAbsenceServiceImpl implements ContractorAbsenceService {
                 String.format("Leave request updated to APPROVED by %s", currentUser.getEmail())
         );
 
+        notificationPublisher.publishAbsenceApproval(saved, currentUser);
+
         return toDto(saved);
     }
 
@@ -213,6 +222,8 @@ public class ContractorAbsenceServiceImpl implements ContractorAbsenceService {
                 saved.getId(),
                 String.format("Leave request updated to REJECTED by %s", currentUser.getEmail())
         );
+
+        notificationPublisher.publishAbsenceRejection(saved, currentUser);
 
         return toDto(saved);
     }

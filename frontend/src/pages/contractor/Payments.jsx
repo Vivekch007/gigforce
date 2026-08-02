@@ -24,11 +24,15 @@ function Payments() {
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Unified session-synchronized visibility state
-  const [showEarnings, setShowEarnings] = useState(() => sessionStorage.getItem('gf_payments_earnings_visible') === 'true');
+  const [showEarnings, setShowEarnings] = useState(() => {
+    const stored = sessionStorage.getItem('gf_earnings_visible');
+    return stored === null ? true : stored === 'true'; // Default to visible
+  });
   const [isAnimating, setIsAnimating] = useState(false);
-  const [displayEarnings, setDisplayEarnings] = useState(() => sessionStorage.getItem('gf_payments_earnings_visible') === 'true');
+  const [displayEarnings, setDisplayEarnings] = useState(showEarnings);
 
   useEffect(() => {
+    sessionStorage.setItem('gf_earnings_visible', String(showEarnings));
     setIsAnimating(true);
     const timer = setTimeout(() => {
       setDisplayEarnings(showEarnings);
@@ -104,11 +108,7 @@ function Payments() {
   }, []);
 
   const toggleEarnings = () => {
-    setShowEarnings(prev => {
-      const next = !prev;
-      sessionStorage.setItem('gf_payments_earnings_visible', next ? 'true' : 'false');
-      return next;
-    });
+    setShowEarnings(prev => !prev);
   };
 
   const formatRupees = (amount) => {

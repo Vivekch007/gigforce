@@ -1,6 +1,7 @@
 package com.gigforce.notification.publisher;
 
 import com.gigforce.identity.entity.User;
+import com.gigforce.identity.entity.ContractorAbsence;
 import com.gigforce.identity.entity.ContractorProfile;
 import com.gigforce.identity.entity.Skill;
 import com.gigforce.identity.repository.UserRepository;
@@ -481,5 +482,107 @@ public class NotificationPublisher {
                 .referenceEntityType("User")
                 .orgUnitId(user.getOrgUnitId())
                 .build());
+    }
+
+    public void publishAbsenceCreation(ContractorAbsence absence) {
+        if (absence.getAssignment() != null && absence.getAssignment().getHiringManager() != null) {
+            notificationService.createNotification(NotificationRequestDTO.builder()
+                    .userId(absence.getAssignment().getHiringManager().getId())
+                    .title("Leave Request Submitted")
+                    .message(String.format("Contractor %s has requested leave from %s to %s. Awaiting review.", 
+                            absence.getContractorProfile().getUser().getName(), absence.getStartDate(), absence.getEndDate()))
+                    .category("GENERAL")
+                    .priority("MEDIUM")
+                    .notificationType("ABSENCE_CREATED")
+                    .referenceEntityId(absence.getId())
+                    .referenceEntityType("ContractorAbsence")
+                    .orgUnitId(absence.getOrgUnitId())
+                    .build());
+        }
+    }
+
+    public void publishAbsenceApproval(ContractorAbsence absence, User approver) {
+        if (absence.getContractorProfile() != null && absence.getContractorProfile().getUser() != null) {
+            notificationService.createNotification(NotificationRequestDTO.builder()
+                    .userId(absence.getContractorProfile().getUser().getId())
+                    .title("Leave Request Approved")
+                    .message(String.format("Your leave request from %s to %s has been approved by %s.", 
+                            absence.getStartDate(), absence.getEndDate(), approver.getName()))
+                    .category("GENERAL")
+                    .priority("MEDIUM")
+                    .notificationType("ABSENCE_APPROVED")
+                    .referenceEntityId(absence.getId())
+                    .referenceEntityType("ContractorAbsence")
+                    .orgUnitId(absence.getOrgUnitId())
+                    .build());
+        }
+    }
+
+    public void publishAbsenceRejection(ContractorAbsence absence, User approver) {
+        if (absence.getContractorProfile() != null && absence.getContractorProfile().getUser() != null) {
+            notificationService.createNotification(NotificationRequestDTO.builder()
+                    .userId(absence.getContractorProfile().getUser().getId())
+                    .title("Leave Request Rejected")
+                    .message(String.format("Your leave request from %s to %s has been rejected by %s. Remarks: %s", 
+                            absence.getStartDate(), absence.getEndDate(), approver.getName(), absence.getRejectionRemarks()))
+                    .category("GENERAL")
+                    .priority("HIGH")
+                    .notificationType("ABSENCE_REJECTED")
+                    .referenceEntityId(absence.getId())
+                    .referenceEntityType("ContractorAbsence")
+                    .orgUnitId(absence.getOrgUnitId())
+                    .build());
+        }
+    }
+
+    public void publishAmendmentSubmission(com.gigforce.assignment.entity.AssignmentAmendment amendment) {
+        Assignment assignment = amendment.getAssignment();
+        if (assignment.getHiringManager() != null) {
+            notificationService.createNotification(NotificationRequestDTO.builder()
+                    .userId(assignment.getHiringManager().getId())
+                    .title("Assignment Amendment Requested")
+                    .message("Vendor has requested an assignment amendment.")
+                    .category("ASSIGNMENT")
+                    .priority("MEDIUM")
+                    .notificationType("AMENDMENT_SUBMITTED")
+                    .referenceEntityId(amendment.getId())
+                    .referenceEntityType("AssignmentAmendment")
+                    .orgUnitId(assignment.getOrgUnitId())
+                    .build());
+        }
+    }
+
+    public void publishAmendmentApproval(com.gigforce.assignment.entity.AssignmentAmendment amendment, User approver) {
+        Assignment assignment = amendment.getAssignment();
+        if (assignment.getVendor() != null) {
+            notificationService.createNotification(NotificationRequestDTO.builder()
+                    .userId(assignment.getVendor().getId())
+                    .title("Assignment Amendment Approved")
+                    .message("Your assignment amendment request has been approved.")
+                    .category("ASSIGNMENT")
+                    .priority("HIGH")
+                    .notificationType("AMENDMENT_APPROVED")
+                    .referenceEntityId(amendment.getId())
+                    .referenceEntityType("AssignmentAmendment")
+                    .orgUnitId(assignment.getOrgUnitId())
+                    .build());
+        }
+    }
+
+    public void publishAmendmentRejection(com.gigforce.assignment.entity.AssignmentAmendment amendment, User rejecter) {
+        Assignment assignment = amendment.getAssignment();
+        if (assignment.getVendor() != null) {
+            notificationService.createNotification(NotificationRequestDTO.builder()
+                    .userId(assignment.getVendor().getId())
+                    .title("Assignment Amendment Rejected")
+                    .message("Your assignment amendment request has been rejected.")
+                    .category("ASSIGNMENT")
+                    .priority("HIGH")
+                    .notificationType("AMENDMENT_REJECTED")
+                    .referenceEntityId(amendment.getId())
+                    .referenceEntityType("AssignmentAmendment")
+                    .orgUnitId(assignment.getOrgUnitId())
+                    .build());
+        }
     }
 }

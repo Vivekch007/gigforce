@@ -3,9 +3,16 @@ package com.gigforce.invoice.service;
 import com.gigforce.invoice.dto.ContractorInvoiceRequestDTO;
 import com.gigforce.invoice.dto.ContractorInvoiceResponseDTO;
 
+import com.gigforce.invoice.dto.BatchInvoiceRequestDTO;
+import com.gigforce.invoice.dto.BatchInvoiceResponseDTO;
+
 import java.util.List;
 
 public interface InvoiceService {
+
+    BatchInvoiceResponseDTO previewMonthlyInvoices(Integer year, Integer month);
+
+    BatchInvoiceResponseDTO generateMonthlyInvoices(BatchInvoiceRequestDTO request);
 
     ContractorInvoiceResponseDTO createInvoice(ContractorInvoiceRequestDTO request);
 

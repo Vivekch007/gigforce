@@ -178,7 +178,7 @@ function Payments() {
                       filteredPayments.map(p => (
                         <tr key={p.id}>
                           <td className="fw-bold">{p.id}</td>
-                          <td className="text-green-600 fw-bold">${parseFloat(p.paidAmount || 0).toLocaleString()}</td>
+                          <td className="text-green-600 fw-bold">₹{parseFloat(p.paidAmount || 0).toLocaleString()}</td>
                           <td>{p.paymentMode}</td>
                           <td>{p.paymentDate}</td>
                           <td>
@@ -226,7 +226,7 @@ function Payments() {
                       readyInvoices.map(inv => (
                         <tr key={inv.id}>
                           <td className="fw-bold">{inv.invoiceNumber}</td>
-                          <td className="text-green-600 fw-bold">${parseFloat(inv.invoiceAmount).toLocaleString()}</td>
+                          <td className="text-green-600 fw-bold">₹{parseFloat(inv.invoiceAmount).toLocaleString()}</td>
                           <td>
                             <Button size="sm" className="btn-gf-primary py-0 px-2" style={{ fontSize: '0.75rem' }} onClick={() => openProcessPaymentModal(inv)}>
                               Pay Now

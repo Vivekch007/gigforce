@@ -24,11 +24,15 @@ function Dashboard() {
   const [recentTimesheets, setRecentTimesheets] = useState([]);
 
   // Session-synchronized visibility state
-  const [showTotalEarnings, setShowTotalEarnings] = useState(() => sessionStorage.getItem('gf_dashboard_earnings_visible') === 'false');
+  const [showTotalEarnings, setShowTotalEarnings] = useState(() => {
+    const stored = sessionStorage.getItem('gf_earnings_visible');
+    return stored === null ? true : stored === 'true'; // Default to visible
+  });
   const [isAnimating, setIsAnimating] = useState(false);
-  const [displayEarnings, setDisplayEarnings] = useState(() => sessionStorage.getItem('gf_dashboard_earnings_visible') === 'false');
+  const [displayEarnings, setDisplayEarnings] = useState(showTotalEarnings);
 
   useEffect(() => {
+    sessionStorage.setItem('gf_earnings_visible', String(showTotalEarnings));
     setIsAnimating(true);
     const timer = setTimeout(() => {
       setDisplayEarnings(showTotalEarnings);

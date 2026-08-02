@@ -15,7 +15,15 @@ const TOKEN_STORAGE_KEY = 'gigforce_token';
 const USER_STORAGE_KEY = 'gigforce_user';
 
 function isPublicPath(url = '') {
-  return PUBLIC_PATHS.some((path) => url.startsWith(path));
+  if (!url) return false;
+  // Clean url of protocol, host, port, and /api/v1 prefix
+  let path = url;
+  if (url.includes('/api/v1')) {
+    path = url.split('/api/v1')[1] || '';
+  } else if (url.includes('/api')) {
+    path = url.split('/api')[1] || '';
+  }
+  return PUBLIC_PATHS.some((p) => path.startsWith(p));
 }
 
 const apiClient = axios.create({

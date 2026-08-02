@@ -22,9 +22,9 @@ const SIDEBAR_LINKS = [
   { to: '/manager/vendor-submissions', label: 'Vendor Submissions', icon: 'bi bi-file-earmark-person' },
   { to: '/manager/interviews', label: 'Interviews Queue', icon: 'bi bi-calendar3' },
   { to: '/manager/assignments', label: 'Assignments', icon: 'bi bi-briefcase' },
-  { to: '/manager/timesheet-approvals', label: 'Timesheet Queue', icon: 'bi bi-check2-square' },
+  { to: '/manager/timesheet-approvals', label: 'Weekly Timesheets', icon: 'bi bi-check2-square' },
   { to: '/manager/leave-approvals', label: 'Leave Registry', icon: 'bi bi-calendar-check' },
-  { to: '/manager/invoice-creation', label: 'Safeguard Invoicing', icon: 'bi bi-shield-check' },
+  { to: '/manager/invoice-creation', label: 'Invoice Generate', icon: 'bi bi-shield-check' },
   { to: '/manager/reports', label: 'Analytics Reports', icon: 'bi bi-bar-chart-line' },
 ];
 

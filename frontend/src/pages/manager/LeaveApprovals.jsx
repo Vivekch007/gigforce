@@ -20,7 +20,27 @@ function LeaveApprovals() {
 
   // Filter States
   const [statusFilter, setStatusFilter] = useState('PENDING'); // default filter
-  const [selectedMonthYear, setSelectedMonthYear] = useState(''); // Format: 'YYYY-MM'
+  const [filterType, setFilterType] = useState('all'); // all | monthly
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+
+  const selectedMonthYear = React.useMemo(() => {
+    if (filterType !== 'monthly') return '';
+    const monthStr = String(Number(selectedMonth) + 1).padStart(2, '0');
+    return `${selectedYear}-${monthStr}`;
+  }, [filterType, selectedMonth, selectedYear]);
+
+  // Generate dynamic list of available years from existing records
+  const availableYears = React.useMemo(() => {
+    const years = new Set(
+      leaves
+        .map((item) => item.startDate || item.createdDate)
+        .filter(Boolean)
+        .map((dateStr) => new Date(dateStr).getFullYear())
+    );
+    years.add(new Date().getFullYear()); // Always include current year
+    return Array.from(years).sort((a, b) => b - a);
+  }, [leaves]);
 
   // Pagination States
   const [currentPage, setCurrentPage] = useState(1);
@@ -202,30 +222,53 @@ function LeaveApprovals() {
           <p className="muted-text mb-0">Review leave requests, verify balance constraints, and sign off on contractor absences.</p>
         </div>
 
-        {/* Calendar Month & Year Picker */}
-        <div className="d-flex align-items-center gap-2">
-          <Form.Control
-            type="month"
-            value={selectedMonthYear}
-            onChange={(e) => {
-              setSelectedMonthYear(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="enterprise-form-control"
-            style={{ width: '180px' }}
-          />
-          {selectedMonthYear && (
-            <button
-              type="button"
-              className="btn btn-sm btn-outline-secondary"
-              title="Clear date filter"
-              onClick={() => {
-                setSelectedMonthYear('');
-                setCurrentPage(1);
-              }}
+        {/* Date / Calendar Scope Filters */}
+        <div className="d-flex align-items-center gap-2 flex-wrap">
+          <div className="input-group input-group-sm" style={{ width: 'auto' }}>
+            <span className="input-group-text bg-white text-muted border-end-0">
+              <i className="bi bi-calendar3"></i>
+            </span>
+            <Form.Select
+              size="sm"
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              className="border-start-0 shadow-none fw-semibold enterprise-form-select"
+              style={{ minWidth: '110px' }}
             >
-              Clear
-            </button>
+              <option value="all">All Time</option>
+              <option value="monthly">Monthly</option>
+            </Form.Select>
+          </div>
+
+          {filterType === 'monthly' && (
+            <Form.Select
+              size="sm"
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(Number(e.target.value))}
+              className="shadow-none fw-semibold enterprise-form-select"
+              style={{ width: '120px' }}
+            >
+              {[
+                'January', 'February', 'March', 'April', 'May', 'June',
+                'July', 'August', 'September', 'October', 'November', 'December'
+              ].map((name, idx) => (
+                <option key={name} value={idx}>{name}</option>
+              ))}
+            </Form.Select>
+          )}
+
+          {filterType === 'monthly' && (
+            <Form.Select
+              size="sm"
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(Number(e.target.value))}
+              className="shadow-none fw-semibold enterprise-form-select"
+              style={{ width: '90px' }}
+            >
+              {availableYears.map((yr) => (
+                <option key={yr} value={yr}>{yr}</option>
+              ))}
+            </Form.Select>
           )}
         </div>
       </div>
@@ -495,10 +538,10 @@ function LeaveApprovals() {
                 <div className="small text-muted font-bold text-uppercase mb-2" style={{ fontSize: '10px' }}>Absence Reason</div>
                 <p className="bg-light p-3 rounded text-dark small">{selectedLeave.reason || 'No description provided.'}</p>
               </Col>
-              {selectedLeave.remarks && (
+              {selectedLeave.rejectionRemarks && (
                 <Col sm={12}>
                   <div className="small text-muted font-bold text-uppercase mb-2" style={{ fontSize: '10px' }}>Manager Review Remarks</div>
-                  <p className="bg-light p-3 rounded text-danger small fw-semibold">{selectedLeave.remarks}</p>
+                  <p className="bg-light p-3 rounded text-danger small fw-semibold">{selectedLeave.rejectionRemarks}</p>
                 </Col>
               )}
             </Row>

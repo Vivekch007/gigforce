@@ -56,6 +56,8 @@ export function AuthProvider({ children }) {
     authService.logout().catch(() => {});
     setToken(null);
     setUser(null);
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
+    localStorage.removeItem(USER_STORAGE_KEY);
   }, []);
 
   const value = useMemo(

@@ -29,7 +29,7 @@ function PurchaseOrders() {
   const [selectedAsn, setSelectedAsn] = useState(null);
 
   // Form inputs
-  const [currency, setCurrency] = useState('USD');
+  const [currency, setCurrency] = useState('INR');
   const [submitting, setSubmitting] = useState(false);
 
   // Preview Modal
@@ -178,8 +178,8 @@ function PurchaseOrders() {
                         <tr key={po.id}>
                           <td className="fw-bold">{po.id || 'PO-2026-092'}</td>
                           <td>{po.contractorName || 'Staff Member'}</td>
-                          <td className="text-green-600 fw-bold">${parseFloat(po.poAmount || po.amount || 0).toLocaleString()}</td>
-                          <td>{po.currency || 'USD'}</td>
+                          <td className="text-green-600 fw-bold">₹{parseFloat(po.poAmount || po.amount || 0).toLocaleString()}</td>
+                          <td>{po.currency || 'INR'}</td>
                           <td>
                             <span className={`gf-badge badge-${getStatusBadge(po.status)}`}>
                               {po.status}

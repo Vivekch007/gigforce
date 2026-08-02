@@ -315,37 +315,45 @@ function Timesheets() {
         </div>
       </div>
 
-      {/* Week Selector Dropdown Card */}
-      <div className="gf-card mb-4">
-        <Form.Group controlId="weekSelectDropdown">
-          <Form.Label className="uppercase-label">Select Timesheet Week</Form.Label>
-          <Select
-            options={dropdownOptions}
-            value={selectedOption}
-            onChange={(selected) => setSelectedId(selected ? selected.value : '')}
-            isDisabled={timesheetList.length === 0}
-            placeholder="Search or select a timesheet week..."
-            maxMenuHeight={220} // Caps menu height at 220px and forces a scrollbar
-            isSearchable
-            styles={{
-              control: (base) => ({
-                ...base,
-                borderColor: '#cbd5e1',
-                borderRadius: '0.375rem',
-                boxShadow: 'none',
-                '&:hover': { borderColor: '#94a3b8' }
-              }),
-              menuList: (base) => ({
-                ...base,
-                maxHeight: '220px', // Ensures scrollability for long lists
-              })
-            }}
-          />
-        </Form.Group>
-      </div>
+      {timesheetList.length === 0 ? (
+        <div className="text-center py-5 gf-card bg-white border-0" style={{ borderRadius: 'var(--gf-radius)', boxShadow: 'var(--gf-shadow)' }}>
+          <i className="bi bi-calendar-x fs-1 text-muted"></i>
+          <h5 className="fw-semibold mt-3 text-dark">No timesheets have been issued for you this week</h5>
+          <p className="text-muted small mb-0">Please contact your Hiring Manager to generate your weekly log sheet.</p>
+        </div>
+      ) : (
+        <>
+          {/* Week Selector Dropdown Card */}
+          <div className="gf-card mb-4">
+            <Form.Group controlId="weekSelectDropdown">
+              <Form.Label className="uppercase-label">Select Timesheet Week</Form.Label>
+              <Select
+                options={dropdownOptions}
+                value={selectedOption}
+                onChange={(selected) => setSelectedId(selected ? selected.value : '')}
+                isDisabled={timesheetList.length === 0}
+                placeholder="Search or select a timesheet week..."
+                maxMenuHeight={220} // Caps menu height at 220px and forces a scrollbar
+                isSearchable
+                styles={{
+                  control: (base) => ({
+                    ...base,
+                    borderColor: '#cbd5e1',
+                    borderRadius: '0.375rem',
+                    boxShadow: 'none',
+                    '&:hover': { borderColor: '#94a3b8' }
+                  }),
+                  menuList: (base) => ({
+                    ...base,
+                    maxHeight: '220px', // Ensures scrollability for long lists
+                  })
+                }}
+              />
+            </Form.Group>
+          </div>
 
-      {timesheet && (
-        <div>
+          {timesheet && (
+            <div>
           {/* Daily Logs Grid Sheet */}
           <div className="gf-card p-0 overflow-hidden mb-4">
             <Table responsive className="align-middle mb-0">
@@ -491,7 +499,9 @@ function Timesheets() {
           )}
         </div>
       )}
-    </div>
+    </>
+  )}
+</div>
   );
 }
 

@@ -33,6 +33,7 @@ public class TimesheetResponseDTO {
     private LocalDateTime approvedDate;
     private LocalDateTime payrollProcessedDate;
     private List<TimesheetLineResponseDTO> lines;
+    private BigDecimal agreedRatePerDay;
 
     // -----------------------------------------------------------------------
     // Alias getters for frontend compatibility

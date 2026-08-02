@@ -13,4 +13,6 @@ public interface AssignmentAmendmentService {
     AmendmentResponseDTO rejectAmendment(String id, String remarks);
 
     List<AmendmentResponseDTO> getAmendmentsByAssignmentId(String assignmentId);
+
+    List<AmendmentResponseDTO> getPendingAmendments();
 }

@@ -33,6 +33,7 @@ import java.util.stream.Collectors;
 
 import com.gigforce.notification.service.NotificationService;
 import com.gigforce.notification.dto.NotificationRequestDTO;
+import com.gigforce.notification.publisher.NotificationPublisher;
 
 @Service
 @Transactional(readOnly = true)
@@ -45,6 +46,7 @@ public class AssignmentAmendmentServiceImpl implements AssignmentAmendmentServic
     private final UserRepository userRepository;
     private final AuditService auditService;
     private final NotificationService notificationService;
+    private final NotificationPublisher notificationPublisher;
 
     public AssignmentAmendmentServiceImpl(
             AssignmentAmendmentRepository amendmentRepository,
@@ -53,7 +55,8 @@ public class AssignmentAmendmentServiceImpl implements AssignmentAmendmentServic
             EngagementHistoryRepository engagementHistoryRepository,
             UserRepository userRepository,
             AuditService auditService,
-            NotificationService notificationService) {
+            NotificationService notificationService,
+            NotificationPublisher notificationPublisher) {
         this.amendmentRepository = amendmentRepository;
         this.assignmentRepository = assignmentRepository;
         this.contractorProfileRepository = contractorProfileRepository;
@@ -61,6 +64,7 @@ public class AssignmentAmendmentServiceImpl implements AssignmentAmendmentServic
         this.userRepository = userRepository;
         this.auditService = auditService;
         this.notificationService = notificationService;
+        this.notificationPublisher = notificationPublisher;
     }
 
     @Override
@@ -123,8 +127,7 @@ public class AssignmentAmendmentServiceImpl implements AssignmentAmendmentServic
         User currentUser = userRepository.findByEmail(currentUsername)
                 .orElseThrow(() -> new UserNotFoundException("User not found with email: " + currentUsername));
 
-        // Amendments are raised by the vendor assigned to this assignment (or an admin).
-        // Hiring managers approve amendments; they do not raise them.
+        // Amendments are raised by the vendor assigned to this assignment, or an admin.
         String role = currentUser.getRole().name();
         boolean isAdmin = role.equals("ADMIN");
         boolean isAssignmentVendor = (role.equals("VENDOR") || role.equals("VENDOR_MANAGER"))
@@ -132,7 +135,7 @@ public class AssignmentAmendmentServiceImpl implements AssignmentAmendmentServic
                 && assignment.getVendor().getId().equals(currentUser.getId());
         if (!isAdmin && !isAssignmentVendor) {
             throw new AccessDeniedException(
-                    "Access Denied: Only the assigned vendor (or an admin) can request amendments for this assignment.");
+                    "Access Denied: Only the assigned vendor or an admin can request amendments for this assignment.");
         }
 
         AssignmentAmendment amendment = AssignmentAmendment.builder()
@@ -142,9 +145,16 @@ public class AssignmentAmendmentServiceImpl implements AssignmentAmendmentServic
                 .newValue(request.getNewValue().trim())
                 .status(AmendmentStatus.PENDING)
                 .remarks(request.getRemarks() != null ? request.getRemarks().trim() : null)
+                .reason(request.getReason() != null ? request.getReason().trim() : null)
                 .build();
 
         AssignmentAmendment saved = amendmentRepository.save(amendment);
+
+        try {
+            notificationPublisher.publishAmendmentSubmission(saved);
+        } catch (Exception e) {
+            // Ignore notification failure to prevent transaction rollback
+        }
 
         auditService.logAction(
                 currentUser.getId(),
@@ -248,6 +258,12 @@ public class AssignmentAmendmentServiceImpl implements AssignmentAmendmentServic
             amendment.setRemarks(remarks.trim());
         }
         AssignmentAmendment saved = amendmentRepository.save(amendment);
+
+        try {
+            notificationPublisher.publishAmendmentApproval(saved, currentUser);
+        } catch (Exception e) {
+            // Ignore notification failure to prevent transaction rollback
+        }
 
         auditService.logAction(
                 currentUser.getId(),
@@ -358,6 +374,12 @@ public class AssignmentAmendmentServiceImpl implements AssignmentAmendmentServic
         }
         AssignmentAmendment saved = amendmentRepository.save(amendment);
 
+        try {
+            notificationPublisher.publishAmendmentRejection(saved, currentUser);
+        } catch (Exception e) {
+            // Ignore notification failure to prevent transaction rollback
+        }
+
         auditService.logAction(
                 currentUser.getId(),
                 "ASSIGNMENT_AMENDMENT_REJECTED",
@@ -397,6 +419,37 @@ public class AssignmentAmendmentServiceImpl implements AssignmentAmendmentServic
                 .collect(Collectors.toList());
     }
 
+    @Override
+    public List<AmendmentResponseDTO> getPendingAmendments() {
+        String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+        User currentUser = userRepository.findByEmail(currentUsername)
+                .orElseThrow(() -> new UserNotFoundException("User not found with email: " + currentUsername));
+        String role = currentUser.getRole().name();
+        String currentOrgUnitId = currentUser.getOrgUnitId();
+
+        List<AssignmentAmendment> allPending = amendmentRepository.findAll().stream()
+                .filter(a -> a.getStatus() == AmendmentStatus.PENDING)
+                .collect(Collectors.toList());
+
+        if (role.equals("ADMIN")) {
+            return allPending.stream().map(this::toDto).collect(Collectors.toList());
+        } else if (role.equals("HIRING_MANAGER")) {
+            return allPending.stream()
+                    .filter(a -> a.getAssignment().getOrgUnitId() != null 
+                            && a.getAssignment().getOrgUnitId().equals(currentOrgUnitId))
+                    .map(this::toDto)
+                    .collect(Collectors.toList());
+        } else if (role.equals("VENDOR") || role.equals("VENDOR_MANAGER")) {
+            return allPending.stream()
+                    .filter(a -> a.getAssignment().getVendor() != null 
+                            && a.getAssignment().getVendor().getOrgUnitId() != null 
+                            && a.getAssignment().getVendor().getOrgUnitId().equals(currentOrgUnitId))
+                    .map(this::toDto)
+                    .collect(Collectors.toList());
+        }
+        return List.of();
+    }
+
     private AmendmentResponseDTO toDto(AssignmentAmendment amendment) {
         return AmendmentResponseDTO.builder()
                 .id(amendment.getId())
@@ -408,6 +461,7 @@ public class AssignmentAmendmentServiceImpl implements AssignmentAmendmentServic
                 .approvedByName(amendment.getApprovedBy() != null ? amendment.getApprovedBy().getName() : null)
                 .status(amendment.getStatus())
                 .remarks(amendment.getRemarks())
+                .reason(amendment.getReason())
                 .createdAt(amendment.getCreatedAt())
                 .updatedAt(amendment.getUpdatedAt())
                 .build();

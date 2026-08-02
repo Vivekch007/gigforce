@@ -50,5 +50,6 @@ public class AssignmentAmendment extends BaseEntity {
     @Column(length = 255)
     private String remarks;
 
-    
+    @Column(name = "reason", length = 100)
+    private String reason;
 }

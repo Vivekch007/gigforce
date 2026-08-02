@@ -27,4 +27,8 @@ public class AmendmentRequestDTO {
 
     @Size(max = 255, message = "Remarks must not exceed 255 characters")
     private String remarks;
+
+    @NotBlank(message = "Reason is required")
+    @Size(max = 100, message = "Reason must not exceed 100 characters")
+    private String reason;
 }

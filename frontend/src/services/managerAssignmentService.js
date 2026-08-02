@@ -25,3 +25,15 @@ export function requestAmendment(assignmentId, payload) {
 export function getAssignmentAmendments(assignmentId) {
   return apiClient.get(`/assignments/${assignmentId}/amendments`).then((res) => res.data);
 }
+
+export function getPendingAmendments() {
+  return apiClient.get('/amendments/pending').then((res) => res.data);
+}
+
+export function approveAmendment(id, remarks) {
+  return apiClient.put(`/amendments/${id}/approve`, null, { params: { remarks } }).then((res) => res.data);
+}
+
+export function rejectAmendment(id, remarks) {
+  return apiClient.put(`/amendments/${id}/reject`, null, { params: { remarks } }).then((res) => res.data);
+}

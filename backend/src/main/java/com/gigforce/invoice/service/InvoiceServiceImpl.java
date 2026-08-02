@@ -11,6 +11,8 @@ import com.gigforce.identity.repository.ContractorProfileRepository;
 import com.gigforce.identity.repository.UserRepository;
 import com.gigforce.invoice.dto.ContractorInvoiceRequestDTO;
 import com.gigforce.invoice.dto.ContractorInvoiceResponseDTO;
+import com.gigforce.invoice.dto.BatchInvoiceRequestDTO;
+import com.gigforce.invoice.dto.BatchInvoiceResponseDTO;
 import com.gigforce.invoice.entity.ContractorInvoice;
 import com.gigforce.invoice.entity.PurchaseOrder;
 import com.gigforce.invoice.enums.InvoiceStatus;
@@ -141,6 +143,10 @@ public class InvoiceServiceImpl implements InvoiceService {
             }
         }
 
+        timesheets = timesheets.stream()
+                .filter(ts -> !ts.getWeekStartDate().isAfter(assignment.getEndDate()))
+                .collect(Collectors.toList());
+
         if (timesheets.isEmpty()) {
             throw new IllegalArgumentException("No approved, uninvoiced timesheets found for this assignment.");
         }
@@ -156,8 +162,8 @@ public class InvoiceServiceImpl implements InvoiceService {
 
         // Billing period falls within assignment duration (with 7-day buffer)
         if (billingStartDate.isBefore(assignment.getStartDate().minusDays(7)) ||
-            (assignment.getEndDate() != null && billingEndDate.isAfter(assignment.getEndDate().plusDays(7)))) {
-            throw new BusinessValidationException("Billing period must fall within the assignment duration.");
+                (assignment.getEndDate() != null && billingEndDate.isAfter(assignment.getEndDate().plusDays(7)))) {
+            throw new BusinessValidationException("Billing period must align within the assignment start and end dates.");
         }
 
         // 3. Prevent duplicate invoices for the same assignment and billing period
@@ -174,9 +180,9 @@ public class InvoiceServiceImpl implements InvoiceService {
         BigDecimal overtimeAmount = BigDecimal.ZERO;
 
         BigDecimal dailyHoursLimit = BigDecimal.valueOf(8.00);
-        BigDecimal agreedRate = assignment.getAgreedRatePerDay();
 
         for (Timesheet ts : timesheets) {
+            BigDecimal agreedRate = ts.getAgreedRatePerDay() != null ? ts.getAgreedRatePerDay() : assignment.getAgreedRatePerDay();
             totalRegularHours = totalRegularHours.add(ts.getHoursLogged());
             totalOvertimeHours = totalOvertimeHours.add(ts.getOvertimeLogged());
             BigDecimal regAmt = ts.getHoursLogged().divide(dailyHoursLimit, 4, java.math.RoundingMode.HALF_UP).multiply(agreedRate);
@@ -829,6 +835,225 @@ public class InvoiceServiceImpl implements InvoiceService {
                 .status(invoice.getStatus().name())
                 .contractorName(invoice.getContractor() != null ? invoice.getContractor().getName() : null)
                 .vendorName(invoice.getVendor() != null ? invoice.getVendor().getName() : null)
+                .build();
+    }
+
+    @Override
+    public BatchInvoiceResponseDTO previewMonthlyInvoices(Integer year, Integer month) {
+        User currentUser = currentUserContext.getCurrentUser();
+        if (currentUser == null) {
+            throw new AccessDeniedException("Access Denied: Unauthenticated user.");
+        }
+
+        List<Timesheet> timesheets = timesheetRepository.findByStatusAndInvoiceIsNull(TimesheetStatus.APPROVED);
+
+        final String role = currentUser.getRole().name();
+        final String orgUnitId = currentUser.getOrgUnitId();
+
+        List<Timesheet> filtered = timesheets.stream()
+                .filter(ts -> ts.getWeekStartDate().getYear() == year && ts.getWeekStartDate().getMonthValue() == month)
+                .filter(ts -> !ts.getWeekStartDate().isAfter(ts.getAssignment().getEndDate()))
+                .filter(ts -> {
+                    if ("HIRING_MANAGER".equals(role)) {
+                        return orgUnitId != null && orgUnitId.equals(ts.getOrgUnitId());
+                    }
+                    return true;
+                })
+                .collect(Collectors.toList());
+
+        BigDecimal totalBilledAmount = BigDecimal.ZERO;
+        java.util.Map<String, List<Timesheet>> groupedByAssignment = filtered.stream()
+                .collect(Collectors.groupingBy(ts -> ts.getAssignment().getId()));
+
+        BigDecimal dailyHoursLimit = BigDecimal.valueOf(8.00);
+
+        for (java.util.Map.Entry<String, List<Timesheet>> entry : groupedByAssignment.entrySet()) {
+            List<Timesheet> group = entry.getValue();
+            if (group.isEmpty()) continue;
+            Assignment asn = group.get(0).getAssignment();
+
+            BigDecimal regularAmount = BigDecimal.ZERO;
+            BigDecimal overtimeAmount = BigDecimal.ZERO;
+
+            for (Timesheet ts : group) {
+                BigDecimal agreedRate = ts.getAgreedRatePerDay() != null ? ts.getAgreedRatePerDay() : asn.getAgreedRatePerDay();
+                BigDecimal regAmt = ts.getHoursLogged().divide(dailyHoursLimit, 4, java.math.RoundingMode.HALF_UP).multiply(agreedRate);
+                regularAmount = regularAmount.add(regAmt);
+                BigDecimal otAmt = ts.getOvertimeLogged().divide(dailyHoursLimit, 4, java.math.RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(1.5)).multiply(agreedRate);
+                overtimeAmount = overtimeAmount.add(otAmt);
+            }
+
+            BigDecimal subtotal = regularAmount.add(overtimeAmount);
+            BigDecimal taxAmt = subtotal.multiply(BigDecimal.valueOf(taxPercentage / 100.0)).setScale(2, java.math.RoundingMode.HALF_UP);
+            BigDecimal invoiceTotal = subtotal.add(taxAmt).setScale(2, java.math.RoundingMode.HALF_UP);
+            totalBilledAmount = totalBilledAmount.add(invoiceTotal);
+        }
+
+        return BatchInvoiceResponseDTO.builder()
+                .invoicesGeneratedCount(groupedByAssignment.size())
+                .totalTimesheetsProcessed(filtered.size())
+                .totalAmountBilled(totalBilledAmount.setScale(2, java.math.RoundingMode.HALF_UP))
+                .invoiceIds(new ArrayList<>())
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public BatchInvoiceResponseDTO generateMonthlyInvoices(BatchInvoiceRequestDTO request) {
+        User currentUser = currentUserContext.getCurrentUser();
+        if (currentUser == null) {
+            throw new AccessDeniedException("Access Denied: Unauthenticated user.");
+        }
+
+        String role = currentUser.getRole().name();
+        if (!"HIRING_MANAGER".equals(role) && !"ADMIN".equals(role)) {
+            throw new AccessDeniedException("Access Denied: You are not authorized to generate invoices.");
+        }
+
+        Integer year = request.getYear();
+        Integer month = request.getMonth();
+
+        List<Timesheet> timesheets = timesheetRepository.findByStatusAndInvoiceIsNull(TimesheetStatus.APPROVED);
+
+        final String orgUnitId = currentUser.getOrgUnitId();
+
+        List<Timesheet> filtered = timesheets.stream()
+                .filter(ts -> ts.getWeekStartDate().getYear() == year && ts.getWeekStartDate().getMonthValue() == month)
+                .filter(ts -> !ts.getWeekStartDate().isAfter(ts.getAssignment().getEndDate()))
+                .filter(ts -> {
+                    if ("HIRING_MANAGER".equals(role)) {
+                        return orgUnitId != null && orgUnitId.equals(ts.getOrgUnitId());
+                    }
+                    return true;
+                })
+                .collect(Collectors.toList());
+
+        if (filtered.isEmpty()) {
+            throw new BusinessValidationException("No approved, uninvoiced timesheets found for the selected month.");
+        }
+
+        java.util.Map<String, List<Timesheet>> groupedByAssignment = filtered.stream()
+                .collect(Collectors.groupingBy(ts -> ts.getAssignment().getId()));
+
+        BigDecimal dailyHoursLimit = BigDecimal.valueOf(8.00);
+        List<String> invoiceIds = new ArrayList<>();
+        BigDecimal totalBilledAmount = BigDecimal.ZERO;
+
+        for (java.util.Map.Entry<String, List<Timesheet>> entry : groupedByAssignment.entrySet()) {
+            List<Timesheet> group = entry.getValue();
+            Assignment assignment = group.get(0).getAssignment();
+            com.gigforce.identity.entity.ContractorProfile contractorProfile = assignment.getContractorProfile();
+
+            BigDecimal totalRegularHours = BigDecimal.ZERO;
+            BigDecimal totalOvertimeHours = BigDecimal.ZERO;
+            BigDecimal regularAmount = BigDecimal.ZERO;
+            BigDecimal overtimeAmount = BigDecimal.ZERO;
+
+            LocalDate billingStartDate = null;
+            LocalDate billingEndDate = null;
+
+            for (Timesheet ts : group) {
+                BigDecimal agreedRate = ts.getAgreedRatePerDay() != null ? ts.getAgreedRatePerDay() : assignment.getAgreedRatePerDay();
+                totalRegularHours = totalRegularHours.add(ts.getHoursLogged());
+                totalOvertimeHours = totalOvertimeHours.add(ts.getOvertimeLogged());
+
+                BigDecimal regAmt = ts.getHoursLogged().divide(dailyHoursLimit, 4, java.math.RoundingMode.HALF_UP).multiply(agreedRate);
+                regularAmount = regularAmount.add(regAmt);
+                BigDecimal otAmt = ts.getOvertimeLogged().divide(dailyHoursLimit, 4, java.math.RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(1.5)).multiply(agreedRate);
+                overtimeAmount = overtimeAmount.add(otAmt);
+
+                if (billingStartDate == null || ts.getWeekStartDate().isBefore(billingStartDate)) {
+                    billingStartDate = ts.getWeekStartDate();
+                }
+                if (billingEndDate == null || ts.getWeekEndDate().isAfter(billingEndDate)) {
+                    billingEndDate = ts.getWeekEndDate();
+                }
+            }
+
+            BigDecimal subtotal = regularAmount.add(overtimeAmount);
+            BigDecimal taxAmt = subtotal.multiply(BigDecimal.valueOf(taxPercentage / 100.0)).setScale(2, java.math.RoundingMode.HALF_UP);
+            BigDecimal totalAmount = subtotal.add(taxAmt).setScale(2, java.math.RoundingMode.HALF_UP);
+
+            PurchaseOrder po = null;
+            if (assignment.getPurchaseOrderId() != null && !assignment.getPurchaseOrderId().trim().isEmpty()) {
+                po = purchaseOrderRepository.findById(assignment.getPurchaseOrderId())
+                        .orElseThrow(() -> new IllegalArgumentException("Purchase Order not found with ID: " + assignment.getPurchaseOrderId()));
+
+                if (po.getStatus() != PurchaseOrderStatus.ACTIVE) {
+                    throw new IllegalStateException("Cannot generate invoice against a " + po.getStatus() + " Purchase Order.");
+                }
+
+                BigDecimal remainingPOBalance = getRemainingPOBalance(po);
+                if (totalAmount.compareTo(remainingPOBalance) > 0) {
+                    throw new IllegalStateException("Invoice amount (" + totalAmount + ") exceeds remaining PO balance (" + remainingPOBalance + ").");
+                }
+            }
+
+            String invoiceNum = generateInvoiceNumber();
+            String monthName = java.time.format.DateTimeFormatter.ofPattern("MMMM yyyy")
+                    .format(LocalDate.of(year, month, 1));
+
+            ContractorInvoice invoice = ContractorInvoice.builder()
+                    .purchaseOrder(po)
+                    .assignment(assignment)
+                    .contractor(contractorProfile.getUser())
+                    .contractorProfile(contractorProfile)
+                    .vendor(assignment.getVendor())
+                    .orgUnitId(assignment.getOrgUnitId())
+                    .invoiceNumber(invoiceNum)
+                    .invoiceDate(LocalDate.now())
+                    .billingStartDate(billingStartDate)
+                    .billingEndDate(billingEndDate)
+                    .invoicePeriod(monthName)
+                    .hoursBilled(totalRegularHours.add(totalOvertimeHours))
+                    .invoiceAmount(totalAmount)
+                    .totalRegularHours(totalRegularHours.setScale(2, java.math.RoundingMode.HALF_UP))
+                    .totalOvertimeHours(totalOvertimeHours.setScale(2, java.math.RoundingMode.HALF_UP))
+                    .regularAmount(regularAmount.setScale(2, java.math.RoundingMode.HALF_UP))
+                    .overtimeAmount(overtimeAmount.setScale(2, java.math.RoundingMode.HALF_UP))
+                    .taxAmount(taxAmt)
+                    .totalAmount(totalAmount)
+                    .status(InvoiceStatus.SUBMITTED)
+                    .submittedDate(LocalDateTime.now())
+                    .build();
+
+            invoice = contractorInvoiceRepository.save(invoice);
+            invoiceIds.add(invoice.getId());
+            totalBilledAmount = totalBilledAmount.add(totalAmount);
+
+            for (Timesheet ts : group) {
+                ts.setInvoice(invoice);
+                timesheetRepository.save(ts);
+            }
+
+            if (po != null) {
+                BigDecimal updatedPOBalance = getRemainingPOBalance(po);
+                if (updatedPOBalance.compareTo(BigDecimal.ZERO) <= 0) {
+                    po.setStatus(PurchaseOrderStatus.EXHAUSTED);
+                    purchaseOrderRepository.save(po);
+                }
+            }
+
+            auditService.logAction(
+                    currentUser.getId(),
+                    "CONTRACTOR_INVOICE",
+                    invoice.getId(),
+                    "BATCH_GENERATE",
+                    "Batch generated invoice for " + monthName + ", Amount: " + totalAmount
+            );
+
+            try {
+                notificationPublisher.publishInvoiceSubmission(invoice);
+            } catch (Exception e) {
+                System.err.println("Failed to publish invoice submission notification: " + e.getMessage());
+            }
+        }
+
+        return BatchInvoiceResponseDTO.builder()
+                .invoicesGeneratedCount(groupedByAssignment.size())
+                .totalTimesheetsProcessed(filtered.size())
+                .totalAmountBilled(totalBilledAmount.setScale(2, java.math.RoundingMode.HALF_UP))
+                .invoiceIds(invoiceIds)
                 .build();
     }
 }
