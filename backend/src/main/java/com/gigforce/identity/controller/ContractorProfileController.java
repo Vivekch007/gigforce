@@ -28,7 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/contractors/profiles")
 @Tag(name = "Contractor Profile Management", description = "Endpoints for creating and managing contractor profiles and skill maps")
-public class  ContractorProfileController {
+public class ContractorProfileController {
 
     private final ContractorProfileService contractorProfileService;
     private final CurrentUserContext currentUserContext;
@@ -46,17 +46,21 @@ public class  ContractorProfileController {
         this.engagementHistoryService = engagementHistoryService;
     }
 
-//    @PostMapping
-//    @PreAuthorize("hasAnyRole('CONTRACTOR')")
-//    @Operation(summary = "Create profile for a contractor user", description = "Registers a profile for the contractor user specified by userId. Restricted to CONTRACTOR USER ONLY.")
-//    public ResponseEntity<ContractorProfileResponseDTO> createProfile(
-//            @Valid @RequestBody ContractorProfileCreationRequestDTO request) {
-//        if (request.getUserId() == null) {
-//            throw new IllegalArgumentException("User ID is required to create a contractor profile.");
-//        }
-//        ContractorProfileResponseDTO profile = contractorProfileService.createProfile(request.getUserId(), request);
-//        return ResponseEntity.status(HttpStatus.CREATED).body(profile);
-//    }
+    // @PostMapping
+    // @PreAuthorize("hasAnyRole('CONTRACTOR')")
+    // @Operation(summary = "Create profile for a contractor user", description =
+    // "Registers a profile for the contractor user specified by userId. Restricted
+    // to CONTRACTOR USER ONLY.")
+    // public ResponseEntity<ContractorProfileResponseDTO> createProfile(
+    // @Valid @RequestBody ContractorProfileCreationRequestDTO request) {
+    // if (request.getUserId() == null) {
+    // throw new IllegalArgumentException("User ID is required to create a
+    // contractor profile.");
+    // }
+    // ContractorProfileResponseDTO profile =
+    // contractorProfileService.createProfile(request.getUserId(), request);
+    // return ResponseEntity.status(HttpStatus.CREATED).body(profile);
+    // }
 
     @GetMapping("/me")
     @PreAuthorize("hasRole('CONTRACTOR')")
@@ -69,7 +73,6 @@ public class  ContractorProfileController {
         ContractorProfileResponseDTO profile = contractorProfileService.getProfileByUserId(userId);
         return ResponseEntity.ok(profile);
     }
-
 
     @GetMapping("/{id}")
     @Operation(summary = "Get contractor profile by ID", description = "Retrieves profile details by ID. Subject to owner or tenant isolation checks.")
@@ -116,10 +119,31 @@ public class  ContractorProfileController {
             @RequestParam(required = false) String email,
             @RequestParam(required = false) String phone,
             @RequestParam(required = false) String orgUnitId,
-            @RequestParam(required = false) String preferredEngagementType) {
+            @RequestParam(required = false) String preferredEngagementType,
+            @RequestParam(required = false) java.math.BigDecimal minHourlyRate,
+            @RequestParam(required = false) java.time.LocalDate availableFromDate) {
         Page<ContractorProfileResponseDTO> profiles = contractorProfileService.searchProfiles(
                 page, size, skill, minExperience, status, availability, location, certification,
-                name, email, phone, orgUnitId, preferredEngagementType);
+                name, email, phone, orgUnitId, preferredEngagementType, minHourlyRate, availableFromDate);
+        return ResponseEntity.ok(profiles);
+    }
+
+    @GetMapping("/vendor-pool")
+    @PreAuthorize("hasAnyRole('VENDOR_MANAGER', 'VENDOR')")
+    @Operation(summary = "Get vendor candidate pool", description = "Retrieves a read-only paginated list of profiles mapped to the vendor's orgUnitId.")
+    public ResponseEntity<Page<ContractorProfileResponseDTO>> getVendorPool(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String skill,
+            @RequestParam(required = false) Integer minExperience,
+            @RequestParam(required = false) String availability,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) java.math.BigDecimal minHourlyRate,
+            @RequestParam(required = false) java.time.LocalDate availableFromDate) {
+        // The service layer automatically enforces isolation based on the caller's JWT orgUnitId.
+        Page<ContractorProfileResponseDTO> profiles = contractorProfileService.searchProfiles(
+                page, size, skill, minExperience, null, availability, null, null,
+                name, null, null, null, null, minHourlyRate, availableFromDate);
         return ResponseEntity.ok(profiles);
     }
 
@@ -228,7 +252,8 @@ public class  ContractorProfileController {
     @PutMapping("/{id}/engagements/{engagementId}/approve")
     @PreAuthorize("hasAnyRole('ADMIN', 'VENDOR_MANAGER', 'VENDOR')")
     @Operation(summary = "Approve contractor engagement", description = "Restricted to ADMIN, VENDOR_MANAGER, or VENDOR.")
-    public ResponseEntity<EngagementHistoryResponseDTO> ApproveEngagement(@PathVariable String id, @PathVariable String engagementId) {
+    public ResponseEntity<EngagementHistoryResponseDTO> ApproveEngagement(@PathVariable String id,
+            @PathVariable String engagementId) {
         EngagementHistoryResponseDTO updated = engagementHistoryService.approveEngagement(id, engagementId);
         return ResponseEntity.ok(updated);
     }
@@ -304,7 +329,8 @@ public class  ContractorProfileController {
         // Hiring Manager can only view contractors in their own organization
         if (currentRole.equals("HIRING_MANAGER")) {
             if (currentOrgUnitId == null || !currentOrgUnitId.equals(profile.getOrgUnitId())) {
-                throw new AccessDeniedException("Access Denied: Hiring Managers can only view contractors in their own organization.");
+                throw new AccessDeniedException(
+                        "Access Denied: Hiring Managers can only view contractors in their own organization.");
             }
             return;
         }
@@ -312,7 +338,8 @@ public class  ContractorProfileController {
         // Vendor / Vendor Manager can only view contractors belonging to their vendor
         if (currentRole.equals("VENDOR") || currentRole.equals("VENDOR_MANAGER")) {
             if (currentOrgUnitId == null || !currentOrgUnitId.equals(profile.getOrgUnitId())) {
-                throw new AccessDeniedException("Access Denied: Vendor Managers can only view contractors belonging to their vendor.");
+                throw new AccessDeniedException(
+                        "Access Denied: Vendor Managers can only view contractors belonging to their vendor.");
             }
             return;
         }

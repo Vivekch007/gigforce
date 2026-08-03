@@ -49,6 +49,9 @@ public class Interview extends BaseEntity {
     @Column(name = "feedback", columnDefinition = "TEXT")
     private String feedback;
 
+    @Column(name = "rating", length = 15)
+    private String rating;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "scheduled_by_user_id")
     private User scheduledBy;

@@ -51,13 +51,17 @@ export function AuthProvider({ children }) {
     return data;
   }, []);
 
-  const logoutUser = useCallback(() => {
-    // Best-effort audit call; the JWT itself expires client-side regardless.
-    authService.logout().catch(() => {});
-    setToken(null);
-    setUser(null);
-    localStorage.removeItem(TOKEN_STORAGE_KEY);
-    localStorage.removeItem(USER_STORAGE_KEY);
+  const logoutUser = useCallback(async () => {
+    try {
+      await authService.logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setToken(null);
+      setUser(null);
+      localStorage.removeItem(TOKEN_STORAGE_KEY);
+      localStorage.removeItem(USER_STORAGE_KEY);
+    }
   }, []);
 
   const value = useMemo(

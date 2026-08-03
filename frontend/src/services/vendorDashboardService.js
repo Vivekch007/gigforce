@@ -20,14 +20,21 @@ export async function getVendorDashboardMetrics() {
   ]);
 
   const openReqsCount = reqs?.content?.length || 0;
-  const totalSubmitted = subs.filter(s => s.status === 'SUBMITTED' || s.status === 'UNDER_REVIEW').length;
-  const totalShortlisted = subs.filter(s => s.status === 'SHORTLISTED' || s.status === 'INTERVIEW_SCHEDULED').length;
-  const totalSelected = subs.filter(s => s.status === 'SELECTED').length;
-  const activeAssignments = asns.filter(a => a.status === 'ACTIVE').length;
+
+  const subsArray = Array.isArray(subs) ? subs : (subs?.content || []);
+  const asnsArray = Array.isArray(asns) ? asns : (asns?.content || []);
+  const tsArray = Array.isArray(ts) ? ts : (ts?.content || []);
+  const posArray = Array.isArray(pos) ? pos : (pos?.content || []);
+  const intsArray = Array.isArray(ints) ? ints : (ints?.content || []);
+
+  const totalSubmitted = subsArray.filter(s => s.status === 'SUBMITTED' || s.status === 'UNDER_REVIEW').length;
+  const totalShortlisted = subsArray.filter(s => s.status === 'SHORTLISTED' || s.status === 'INTERVIEW_SCHEDULED').length;
+  const totalSelected = subsArray.filter(s => s.status === 'SELECTED').length;
+  const activeAssignments = asnsArray.filter(a => a.status === 'ACTIVE').length;
   // PurchaseOrderResponseDTO uses PascalCase keys and has no SUBMITTED/DRAFT status -
   // PENDING is the real "awaiting hiring-manager approval" state.
-  const pendingPOs = pos.filter(p => p.Status === 'PENDING').length;
-  const pendingTimesheets = ts.filter(t => t.status === 'SUBMITTED').length;
+  const pendingPOs = posArray.filter(p => p.Status === 'PENDING').length;
+  const pendingTimesheets = tsArray.filter(t => t.status === 'SUBMITTED').length;
 
   // Build Recent Activity logs
   const recentActivities = notifications.slice(0, 5).map(n => ({
@@ -38,7 +45,7 @@ export async function getVendorDashboardMetrics() {
   }));
 
   // Filter scheduled interviews
-  const upcoming = ints.filter(i => i.status === 'SCHEDULED' || i.status === 'CONFIRMED').slice(0, 3);
+  const upcoming = intsArray.filter(i => i.status === 'SCHEDULED' || i.status === 'CONFIRMED').slice(0, 3);
 
   return {
     openReqs: openReqsCount,

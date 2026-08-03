@@ -7,6 +7,10 @@ export function getTimesheetsToApprove(params) {
   return apiClient.get('/timesheets', { params }).then((res) => res.data); // returns List<TimesheetResponseDTO>
 }
 
+export function getPayrollReadyTimesheets() {
+  return apiClient.get('/timesheets/payroll-ready').then((res) => res.data);
+}
+
 export function getTimesheetDetails(id) {
   return apiClient.get(`/timesheets/${id}`).then((res) => res.data);
 }

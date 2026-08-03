@@ -4,8 +4,7 @@ import { NavLink } from 'react-router-dom';
 function Sidebar({ brandName = 'GigForce', links = [], userRole = '', userName = '', userInitials = '', onLogout }) {
   return (
     <aside className="enterprise-sidebar">
-
-
+      
       <ul className="sidebar-menu-list">
         {links.map((link, idx) => (
           <li key={idx}>

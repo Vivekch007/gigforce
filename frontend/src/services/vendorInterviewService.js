@@ -1,13 +1,18 @@
 import apiClient from './apiClient';
 
-export function getInterviews() {
-  return apiClient.get('/interviews').then(res => {
-    return (res.data || []).map(i => ({
+export function getInterviews(params) {
+  return apiClient.get('/interviews', { params }).then(res => {
+    const content = (res.data?.content || []).map(i => ({
       ...i,
       position: i.interviewType || 'Interview',
       clientName: i.scheduledByEmail || 'Hiring Manager',
       interviewerName: i.scheduledByEmail || 'Interviewer',
     }));
+    return {
+      content,
+      totalPages: res.data?.totalPages || 1,
+      totalElements: res.data?.totalElements || 0
+    };
   });
 }
 

@@ -9,7 +9,7 @@ export function getCandidates() {
       phone: p.phone || '',
       skills: p.skills ? p.skills.map(s => s.skillName).join(', ') : '',
       experience: p.experienceYears || 0,
-      noticePeriod: 'Immediate', 
+      noticePeriod: 'Immediate',
       currentCompany: 'Freelance',
       preferredLocation: p.preferredEngagementType || 'Remote',
       availability: p.availabilityStatus,

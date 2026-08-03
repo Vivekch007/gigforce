@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -41,26 +42,39 @@ public class InterviewServiceImpl implements InterviewService {
     }
 
     @Override
-    public List<InterviewResponseDTO> getInterviews() {
+    public org.springframework.data.domain.Page<InterviewResponseDTO> getInterviews(String requisitionId, String status, java.time.LocalDate startDate, java.time.LocalDate endDate, int page, int size) {
         String role = currentUserContext.getCurrentUserRole();
         String orgUnitId = currentUserContext.getCurrentUserOrgUnitId();
 
-        List<Interview> interviews;
-        if ("ADMIN".equals(role) || "FINANCE".equals(role)) {
-            interviews = interviewRepository.findAllWithDetails();
-        } else if ("HIRING_MANAGER".equals(role)) {
-            interviews = orgUnitId != null
-                    ? interviewRepository.findByRequisitionOrgUnit(orgUnitId)
-                    : interviewRepository.findAllWithDetails();
-        } else if ("VENDOR".equals(role) || "VENDOR_MANAGER".equals(role)) {
-            interviews = orgUnitId != null
-                    ? interviewRepository.findByVendorOrg(orgUnitId)
-                    : List.of();
-        } else {
-            interviews = List.of();
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size, org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt"));
+        org.springframework.data.jpa.domain.Specification<Interview> spec = org.springframework.data.jpa.domain.Specification.where(null);
+
+        if ("HIRING_MANAGER".equals(role) && orgUnitId != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.join("vendorSubmission").join("requisition").get("orgUnitId"), orgUnitId));
+        } else if (("VENDOR".equals(role) || "VENDOR_MANAGER".equals(role)) && orgUnitId != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.join("vendorSubmission").join("submittedBy").get("orgUnitId"), orgUnitId));
+        } else if (!"ADMIN".equals(role) && !"FINANCE".equals(role)) {
+            // Unrecognized role, return empty
+            spec = spec.and((root, query, cb) -> cb.disjunction());
         }
 
-        return interviews.stream().map(this::toDto).collect(Collectors.toList());
+        if (requisitionId != null && !requisitionId.trim().isEmpty()) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.join("vendorSubmission").join("requisition").get("id"), requisitionId.trim()));
+        }
+
+        if (status != null && !status.trim().isEmpty()) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("status"), status.trim().toUpperCase()));
+        }
+
+        if (startDate != null) {
+            spec = spec.and((root, query, cb) -> cb.greaterThanOrEqualTo(root.get("date"), startDate));
+        }
+
+        if (endDate != null) {
+            spec = spec.and((root, query, cb) -> cb.lessThanOrEqualTo(root.get("date"), endDate));
+        }
+
+        return interviewRepository.findAll(spec, pageable).map(this::toDto);
     }
 
     @Override
@@ -131,7 +145,7 @@ public class InterviewServiceImpl implements InterviewService {
 
     @Override
     @Transactional
-    public InterviewResponseDTO completeInterview(String id, String feedback) {
+    public InterviewResponseDTO completeInterview(String id, Map<String, String> request) {
         String role = currentUserContext.getCurrentUserRole();
         if (!"ADMIN".equals(role) && !"HIRING_MANAGER".equals(role)) {
             throw new AccessDeniedException("Only Hiring Managers or Admins can complete interviews.");
@@ -145,7 +159,8 @@ public class InterviewServiceImpl implements InterviewService {
         }
 
         interview.setStatus("COMPLETED");
-        interview.setFeedback(feedback != null ? feedback.trim() : "");
+        interview.setFeedback(request.get("feedback") != null ? request.get("feedback").trim() : "");
+        interview.setRating(request.get("rating") != null ? request.get("rating").trim() : "");
 
         Interview updated = interviewRepository.save(interview);
         return toDto(updated);

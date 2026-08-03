@@ -28,6 +28,7 @@ import MyRequisitions from './pages/manager/MyRequisitions';
 import VendorSubmissions from './pages/manager/VendorSubmissions';
 import Interviews from './pages/manager/Interviews';
 import ManagerAssignments from './pages/manager/Assignments';
+import CreateTimesheet from './pages/manager/CreateTimesheet';
 import TimesheetApprovals from './pages/manager/TimesheetApprovals';
 import LeaveApprovals from './pages/manager/LeaveApprovals';
 import InvoiceCreation from './pages/manager/InvoiceCreation';
@@ -110,6 +111,7 @@ function App() {
               <Route path="/manager/vendor-submissions" element={<VendorSubmissions />} />
               <Route path="/manager/interviews" element={<Interviews />} />
               <Route path="/manager/assignments" element={<ManagerAssignments />} />
+              <Route path="/manager/create-timesheet" element={<CreateTimesheet />} />
               <Route path="/manager/timesheet-approvals" element={<TimesheetApprovals />} />
               <Route path="/manager/leave-approvals" element={<LeaveApprovals />} />
               <Route path="/manager/invoice-creation" element={<InvoiceCreation />} />

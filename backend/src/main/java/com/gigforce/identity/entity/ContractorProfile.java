@@ -63,6 +63,9 @@ public class ContractorProfile extends BaseEntity {
     @Column(name = "preferred_engagement_type", nullable = false, length = 30)
     private EngagementType preferredEngagementType;
 
+    @Column(name = "available_from_date")
+    private java.time.LocalDate availableFromDate;
+
     @Column(name = "address", length = 500)
     private String address;
 }

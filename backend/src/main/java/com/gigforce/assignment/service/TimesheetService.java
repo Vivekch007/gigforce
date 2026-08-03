@@ -9,6 +9,8 @@ import java.util.List;
 public interface TimesheetService {
     TimesheetResponseDTO createTimesheet(com.gigforce.assignment.dto.TimesheetCreateRequestDTO request);
 
+    MonthlyTimesheetGenerateResponseDTO generateMonthlyTimesheets(MonthlyTimesheetGenerateRequestDTO request);
+
     TimesheetResponseDTO updateTimesheet(String id, com.gigforce.assignment.dto.TimesheetUpdateRequestDTO request);
 
     TimesheetResponseDTO submitTimesheet(String id);

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Table, Button, Form, Card, Row, Col, Alert, Spinner, Pagination } from 'react-bootstrap';
 import { getInvoices, createInvoice, submitInvoice } from '../../services/invoiceCreationService';
-import { getTimesheetsToApprove } from '../../services/approvalService';
+import { getPayrollReadyTimesheets } from '../../services/approvalService';
 import { getAssignmentDetails } from '../../services/managerAssignmentService';
 import { getErrorMessage } from '../../services/errorUtils';
 
@@ -42,7 +42,7 @@ function InvoiceCreation() {
       setError('');
 
       const [tsData, invoicesData] = await Promise.all([
-        getTimesheetsToApprove({ status: 'APPROVED' }).catch(() => []),
+        getPayrollReadyTimesheets().catch(() => []),
         getInvoices().catch(() => []),
       ]);
 
@@ -121,7 +121,7 @@ function InvoiceCreation() {
     return stagedTimesheets.reduce((sum, ts) => sum + parseFloat(ts.billableAmount || 0), 0);
   };
 
-  // Step 1: Save Draft
+  // Step 1: Save Draft from Staged Form
   const handleSaveDraft = async () => {
     if (stagedTimesheets.length === 0 || !assignment) return;
     try {
@@ -139,6 +139,7 @@ function InvoiceCreation() {
         billingStartDate: minDate.toISOString().split('T')[0],
         billingEndDate: maxDate.toISOString().split('T')[0],
         remarks: remarks,
+        status: 'DRAFT'
       };
 
       const newInvoice = await createInvoice(payload);
@@ -152,7 +153,7 @@ function InvoiceCreation() {
     }
   };
 
-  // Step 2: Submit Invoice
+  // Step 2: Submit Newly Staged Invoice
   const handleSubmitInvoice = async () => {
     if (!draftInvoiceId) return;
     try {
@@ -165,6 +166,24 @@ function InvoiceCreation() {
 
       setRemarks('');
       loadInitialData();
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Step 3: Submit Existing Draft directly from Generated Invoices Table
+  const handleSubmitExistingDraft = async (invoiceId) => {
+    try {
+      setSubmitting(true);
+      setError('');
+      setSuccess('');
+
+      await submitInvoice(invoiceId);
+      setSuccess(`Invoice ${invoiceId} successfully submitted to Finance for review!`);
+
+      await loadInitialData();
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -278,7 +297,6 @@ function InvoiceCreation() {
                     <tbody>
                       {filteredUnbilled.length > 0 ? (
                         filteredUnbilled.map(ts => (
-                            console.log(ts),
                           <tr key={ts.id}>
                             <td className="fw-semibold text-slate-800">{ts.contractorName}</td>
                             <td className="small">{ts.startDate} to {ts.endDate}</td>
@@ -445,6 +463,7 @@ function InvoiceCreation() {
                         <th>Parties (Contractor / Vendor)</th>
                         <th>Amount (₹)</th>
                         <th>Status</th>
+                        <th className="text-end">Action</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -465,6 +484,7 @@ function InvoiceCreation() {
                             }
                           }
                           const amount = parseFloat(inv.totalAmount || inv.total_amount || inv.invoiceAmount || inv.invoice_amount || '0');
+                          const currentStatus = (inv.status || 'DRAFT').toUpperCase();
 
                           return (
                             <tr key={inv.id || invoiceId}>
@@ -484,12 +504,26 @@ function InvoiceCreation() {
                                   {inv.status || 'DRAFT'}
                                 </span>
                               </td>
+                              <td className="text-end">
+                                {currentStatus === 'DRAFT' ? (
+                                  <Button
+                                    size="sm"
+                                    className="btn-gf-primary py-1 px-3"
+                                    onClick={() => handleSubmitExistingDraft(invoiceId)}
+                                    disabled={submitting}
+                                  >
+                                    Submit
+                                  </Button>
+                                ) : (
+                                  <span className="text-muted small">—</span>
+                                )}
+                              </td>
                             </tr>
                           );
                         })
                       ) : (
                         <tr>
-                          <td colSpan={5}>
+                          <td colSpan={6}>
                             <div className="text-center py-5 text-muted">
                               <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mb-3 text-slate-300">
                                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>

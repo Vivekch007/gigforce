@@ -16,6 +16,7 @@ import java.util.List;
 public interface TimesheetRepository extends JpaRepository<Timesheet, String>, JpaSpecificationExecutor<Timesheet> {
 
     List<Timesheet> findByStatusAndPayrollStatus(TimesheetStatus status, PayrollStatus payrollStatus);
+    List<Timesheet> findByStatusAndPayrollStatusAndInvoiceIsNull(TimesheetStatus status, PayrollStatus payrollStatus);
 
     boolean existsByContractorIdAndAssignmentIdAndWeekStartDate(String contractorUserId, String assignmentId,
             LocalDate weekStartDate);

@@ -33,6 +33,15 @@ public class TimesheetController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    @PostMapping("/generate-monthly")
+    @PreAuthorize("hasAnyRole('HIRING_MANAGER', 'VENDOR')")
+    @Operation(summary = "Bulk generate weekly timesheet drafts for a given month")
+    public ResponseEntity<MonthlyTimesheetGenerateResponseDTO> generateMonthlyTimesheets(
+            @Valid @RequestBody MonthlyTimesheetGenerateRequestDTO request) {
+        MonthlyTimesheetGenerateResponseDTO response = timesheetService.generateMonthlyTimesheets(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN') || hasAnyRole('CONTRACTOR')")
     @Operation(summary = "Update weekly timesheet draft")

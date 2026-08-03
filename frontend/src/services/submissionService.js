@@ -3,7 +3,11 @@ import apiClient from './apiClient';
 // --- Vendor Submissions Mappings (/api/v1/submissions) ---
 
 export function getSubmissions(params) {
-  return apiClient.get('/submissions', { params }).then((res) => res.data?.content || []); // returns list of submissions from Page
+  return apiClient.get('/submissions', { params }).then((res) => ({
+    content: res.data?.content || [],
+    totalPages: res.data?.totalPages || 1,
+    totalElements: res.data?.totalElements || 0
+  }));
 }
 
 export function getSubmissionDetails(id) {

@@ -29,8 +29,14 @@ public class InterviewController {
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER', 'VENDOR_MANAGER', 'VENDOR', 'FINANCE')")
     @Operation(summary = "Retrieve all interviews (role-filtered)")
-    public ResponseEntity<List<InterviewResponseDTO>> getInterviews() {
-        return ResponseEntity.ok(interviewService.getInterviews());
+    public ResponseEntity<org.springframework.data.domain.Page<InterviewResponseDTO>> getInterviews(
+            @RequestParam(required = false) String requisitionId,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) java.time.LocalDate startDate,
+            @RequestParam(required = false) java.time.LocalDate endDate,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(interviewService.getInterviews(requisitionId, status, startDate, endDate, page, size));
     }
 
     @PostMapping("/schedule-interview")
@@ -59,7 +65,8 @@ public class InterviewController {
             @PathVariable String id,
             @RequestBody Map<String, String> body) {
         String feedback = body.getOrDefault("feedback", "");
-        InterviewResponseDTO response = interviewService.completeInterview(id, feedback);
+        String rating = body.getOrDefault("rating", "");
+        InterviewResponseDTO response = interviewService.completeInterview(id, body);
         return ResponseEntity.ok(response);
     }
 }

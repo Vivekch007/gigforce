@@ -301,12 +301,17 @@ function Dashboard() {
     return '#9CA3AF'; // low (light gray)
   };
 
+  useEffect(() => {
+    if (error) {
+      showToast(error, 'error');
+    }
+  }, [error, showToast]);
+
   if (loading) {
     return <Loader message="Loading workspace details..." />;
   }
 
   if (error) {
-    showToast(error, 'error');
     return <Alert variant="danger" className="enterprise-alert enterprise-alert-danger">{error}</Alert>;
   }
 

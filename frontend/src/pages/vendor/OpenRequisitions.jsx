@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Form, Alert, Modal } from 'react-bootstrap';
 import { getRequisitions, getRequisitionDetails } from '../../services/vendorRequisitionService';
 import { getCandidates } from '../../services/candidateService';
@@ -15,6 +15,7 @@ import Table from '../../components/Table';
 
 function OpenRequisitions() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const searchVal = searchParams.get('search') || '';
 
   const [loading, setLoading] = useState(true);
@@ -35,12 +36,7 @@ function OpenRequisitions() {
   const [selectedReq, setSelectedReq] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   
-  const [submitReq, setSubmitReq] = useState(null);
-  const [showSubmitModal, setShowSubmitModal] = useState(false);
-  const [candidates, setCandidates] = useState([]);
-  const [selectedCandId, setSelectedCandId] = useState('');
-  const [proposedRate, setProposedRate] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+
 
   const loadRequisitions = async () => {
     try {
@@ -84,46 +80,8 @@ function OpenRequisitions() {
     }
   };
 
-  const openSubmitCandidateModal = async (req) => {
-    try {
-      setError('');
-      setSubmitReq(req);
-      const cands = await getCandidates();
-      setCandidates(cands.filter(c => c.availability === 'AVAILABLE'));
-      setShowSubmitModal(true);
-      setSelectedCandId('');
-      setProposedRate('');
-    } catch (err) {
-      setError(getErrorMessage(err));
-      showToast(getErrorMessage(err), 'error');
-    }
-  };
-
-  const handleSubmitCandidate = async () => {
-    if (!selectedCandId || !proposedRate) {
-      setError('Please select a candidate and input proposed rate.');
-      showToast('Please select a candidate and input proposed rate.', 'warning');
-      return;
-    }
-
-    try {
-      setSubmitting(true);
-      setError('');
-
-      await submitCandidateToRequisition(submitReq.id, {
-        contractorProfileId: selectedCandId,
-        proposedRate: parseFloat(proposedRate),
-      });
-
-      showToast(`Candidate successfully submitted for position: ${submitReq.title}!`, 'success');
-      setShowSubmitModal(false);
-      loadRequisitions();
-    } catch (err) {
-      setError(getErrorMessage(err));
-      showToast(getErrorMessage(err), 'error');
-    } finally {
-      setSubmitting(false);
-    }
+  const openSubmitCandidateModal = (req) => {
+    navigate(`/vendor/candidates?reqId=${req.id}`);
   };
 
   const formatRupees = (amount) => {
@@ -257,53 +215,7 @@ function OpenRequisitions() {
         </Modal.Footer>
       </Modal>
 
-      {/* Submit Candidate Modal */}
-      <Modal show={showSubmitModal} onHide={() => setShowSubmitModal(false)} centered className="enterprise-modal-content">
-        <Modal.Header closeButton className="enterprise-modal-header">
-          <Modal.Title className="fw-bold text-dark">Submit Profile to Job</Modal.Title>
-        </Modal.Header>
-        <Modal.Body className="enterprise-modal-body">
-          {submitReq && (
-            <div>
-              <div className="mb-3">
-                <span className="text-muted small">Role Target</span>
-                <h5 className="fw-bold text-dark mt-1">{submitReq.title}</h5>
-              </div>
 
-              <Form.Group className="mb-3" controlId="selectCandidate">
-                <Form.Label className="enterprise-form-label">Select Available Candidate</Form.Label>
-                <Form.Select 
-                  value={selectedCandId}
-                  className="enterprise-form-select"
-                  onChange={(e) => setSelectedCandId(e.target.value)}
-                >
-                  <option value="">-- Choose Candidate --</option>
-                  {candidates.map(c => (
-                    <option key={c.id} value={c.id}>{c.name} ({c.skills} &bull; {c.experience} yrs)</option>
-                  ))}
-                </Form.Select>
-              </Form.Group>
-
-              <Form.Group className="mb-3" controlId="proposedRate">
-                <Form.Label className="enterprise-form-label">Proposed Rate (₹/day)</Form.Label>
-                <Form.Control 
-                  type="number"
-                  placeholder="e.g. 4500"
-                  className="enterprise-form-control"
-                  value={proposedRate}
-                  onChange={(e) => setProposedRate(e.target.value)}
-                />
-              </Form.Group>
-            </div>
-          )}
-        </Modal.Body>
-        <Modal.Footer className="enterprise-modal-footer">
-          <button className="btn-enterprise-secondary" onClick={() => setShowSubmitModal(false)}>Cancel</button>
-          <button className="btn-enterprise-primary" onClick={handleSubmitCandidate} disabled={submitting}>
-            {submitting ? 'Submitting...' : 'Submit Profile'}
-          </button>
-        </Modal.Footer>
-      </Modal>
     </div>
   );
 }

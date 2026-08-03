@@ -24,6 +24,7 @@ public class ContractorProfileResponseDTO {
     private BigDecimal hourlyRate;
     private Integer experienceYears;
     private String availabilityStatus;
+    private java.time.LocalDate availableFromDate;
     private String status;
     private List<ContractorSkillResponseDTO> skills;
     private String preferredEngagementType;

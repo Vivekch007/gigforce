@@ -7,6 +7,11 @@ export function createTimesheet(payload) {
   return apiClient.post('/timesheets', payload).then((res) => res.data);
 }
 
+export function generateMonthlyTimesheets(payload) {
+  // MonthlyTimesheetGenerateRequestDTO { assignmentId, month, year }
+  return apiClient.post('/timesheets/generate-monthly', payload).then((res) => res.data);
+}
+
 export function updateTimesheet(id, payload) {
   // TimesheetUpdateRequestDTO { lines: [{ workDate, hoursWorked, activityDesc }] }
   return apiClient.put(`/timesheets/${id}`, payload).then((res) => res.data);

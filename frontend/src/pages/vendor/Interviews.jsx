@@ -2,22 +2,34 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Alert, Button, Form, Modal, Row, Col } from 'react-bootstrap';
 import { getInterviews, confirmInterview, requestInterviewReschedule } from '../../services/vendorInterviewService';
+import { getRequisitions } from '../../services/vendorRequisitionService';
 import { getErrorMessage } from '../../services/errorUtils';
 
 // Reusable components
 import InterviewCard from '../../components/vendor/InterviewCard';
 import LoadingSpinner from '../../components/vendor/LoadingSpinner';
+import Pagination from '../../components/vendor/Pagination';
+import VendorFilters from '../../components/vendor/VendorFilters';
 
 function Interviews() {
   const [searchParams] = useSearchParams();
-  const searchVal = searchParams.get('search') || '';
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // Interviews state
+  // Pagination & Data
   const [interviews, setInterviews] = useState([]);
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
+  // Filters
+  const [reqFilter, setReqFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [startDateFilter, setStartDateFilter] = useState('');
+  const [endDateFilter, setEndDateFilter] = useState('');
+
+  const [openReqs, setOpenReqs] = useState([]);
 
   // Reschedule Modal
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
@@ -25,12 +37,30 @@ function Interviews() {
   const [rescheduleReason, setRescheduleReason] = useState('');
   const [resubmitting, setResubmitting] = useState(false);
 
+  const loadRequisitions = async () => {
+    try {
+      const res = await getRequisitions({ size: 100 });
+      setOpenReqs(res?.content || []);
+    } catch (err) {
+      console.error("Failed to load requisitions", err);
+    }
+  };
+
   const loadInterviews = async () => {
     try {
       setLoading(true);
       setError('');
-      const data = await getInterviews();
-      setInterviews(data || []);
+      const params = {
+        page,
+        size: 10,
+        requisitionId: reqFilter || undefined,
+        status: statusFilter || undefined,
+        startDate: startDateFilter || undefined,
+        endDate: endDateFilter || undefined,
+      };
+      const data = await getInterviews(params);
+      setInterviews(data?.content || []);
+      setTotalPages(data?.totalPages || 1);
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -39,8 +69,12 @@ function Interviews() {
   };
 
   useEffect(() => {
-    loadInterviews();
+    loadRequisitions();
   }, []);
+
+  useEffect(() => {
+    loadInterviews();
+  }, [page, reqFilter, statusFilter, startDateFilter, endDateFilter]);
 
   const handleConfirm = async (id) => {
     try {
@@ -80,17 +114,6 @@ function Interviews() {
     }
   };
 
-  // Local Search filtering
-  const filteredInterviews = interviews.filter(i => {
-    if (!searchVal.trim()) return true;
-    const q = searchVal.trim().toLowerCase();
-    return (
-      i.candidateName.toLowerCase().includes(q) ||
-      i.clientName.toLowerCase().includes(q) ||
-      i.position.toLowerCase().includes(q)
-    );
-  });
-
   return (
     <div className="container-fluid">
       {/* Header */}
@@ -102,26 +125,64 @@ function Interviews() {
       {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
       {success && <Alert variant="success" className="mb-4" onClose={() => setSuccess('')} dismissible>{success}</Alert>}
 
+      {/* Filter Row */}
+      <div className="enterprise-table-container p-3 mb-4 bg-white" style={{ borderRadius: 'var(--gf-radius)', boxShadow: 'var(--gf-shadow)' }}>
+        <div className="d-flex flex-wrap gap-3 align-items-center">
+          <div>
+            <Form.Label className="enterprise-form-label" style={{ fontSize: '12px' }}>Requisition</Form.Label>
+            <Form.Select size="sm" value={reqFilter} onChange={e => setReqFilter(e.target.value)}>
+              <option value="">All Requisitions</option>
+              {openReqs.map(req => (
+                <option key={req.id} value={req.id}>{req.title || req.jobTitle}</option>
+              ))}
+            </Form.Select>
+          </div>
+          <VendorFilters
+            label="Status"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            options={[
+              { value: '', label: 'All Statuses' },
+              { value: 'SCHEDULED', label: 'Scheduled' },
+              { value: 'COMPLETED', label: 'Completed' },
+              { value: 'CANCELLED', label: 'Cancelled' },
+              { value: 'RESCHEDULED', label: 'Rescheduled' },
+            ]}
+          />
+          <div>
+            <Form.Label className="enterprise-form-label" style={{ fontSize: '12px' }}>Start Date</Form.Label>
+            <Form.Control type="date" size="sm" value={startDateFilter} onChange={e => setStartDateFilter(e.target.value)} />
+          </div>
+          <div>
+            <Form.Label className="enterprise-form-label" style={{ fontSize: '12px' }}>End Date</Form.Label>
+            <Form.Control type="date" size="sm" value={endDateFilter} onChange={e => setEndDateFilter(e.target.value)} />
+          </div>
+        </div>
+      </div>
+
       {loading ? (
         <LoadingSpinner message="Accessing calendar slots..." />
-      ) : filteredInterviews.length > 0 ? (
-        <Row className="g-4">
-          {filteredInterviews.map(i => (
-            <Col lg={4} md={6} key={i.id}>
-              <InterviewCard
-                interview={i}
-                onConfirm={handleConfirm}
-                onReschedule={openRescheduleModal}
-              />
-            </Col>
-          ))}
-        </Row>
+      ) : interviews.length > 0 ? (
+        <>
+          <Row className="g-4 mb-4">
+            {interviews.map(i => (
+              <Col lg={4} md={6} key={i.id}>
+                <InterviewCard
+                  interview={i}
+                  onConfirm={handleConfirm}
+                  onReschedule={openRescheduleModal}
+                />
+              </Col>
+            ))}
+          </Row>
+          <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+        </>
       ) : (
         <div className="text-center py-5 gf-card bg-white border-0">
           <div className="mb-3 text-muted">
             <i className="bi bi-calendar-event" style={{ fontSize: '2.5rem' }}></i>
           </div>
-          <p className="text-muted small mb-0">No active interviews logged.</p>
+          <p className="text-muted small mb-0">No active interviews logged for the selected criteria.</p>
         </div>
       )}
 

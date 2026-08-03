@@ -183,6 +183,121 @@ public class TimesheetServiceImpl implements TimesheetService {
     }
 
     // ------------------------------------------------------------------
+    // BULK CREATE — backend pre-generates skeleton for a given month
+    // ------------------------------------------------------------------
+    @Override
+    @Transactional
+    public MonthlyTimesheetGenerateResponseDTO generateMonthlyTimesheets(MonthlyTimesheetGenerateRequestDTO request) {
+        Assignment assignment = assignmentRepository.findById(request.getAssignmentId())
+                .orElseThrow(() -> new AssignmentNotFoundException(
+                        "Assignment not found with ID: " + request.getAssignmentId()));
+
+        User currentUser = getCurrentUser();
+
+        // Authorization: Only Hiring Manager of the assignment (or ADMIN) may create a timesheet
+        String role = currentUser.getRole().name();
+        if (role.equals("HIRING_MANAGER")) {
+            if (assignment.getHiringManager() == null || !assignment.getHiringManager().getId().equals(currentUser.getId())) {
+                throw new AccessDeniedException("You are not authorized to create timesheets for this assignment.");
+            }
+        } else if (!role.equals("ADMIN")) {
+            throw new AccessDeniedException("Access Denied: Only the Hiring Manager or Admin can create timesheets.");
+        }
+
+        if (assignment.getStatus() != AssignmentStatus.ACTIVE && assignment.getStatus() != AssignmentStatus.EXTENDED) {
+            throw new BusinessValidationException(
+                    "Timesheets can only be created for ACTIVE or EXTENDED assignments. Current status: "
+                            + assignment.getStatus());
+        }
+
+        int year = request.getYear();
+        int month = request.getMonth();
+
+        // Get the first day of the requested month
+        LocalDate firstOfMonth = LocalDate.of(year, month, 1);
+        
+        // Find the Monday on or immediately preceding the 1st
+        LocalDate currentWeekStart = firstOfMonth.with(java.time.temporal.TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        
+        // Find the end of the requested month
+        LocalDate endOfMonth = firstOfMonth.with(java.time.temporal.TemporalAdjusters.lastDayOfMonth());
+
+        ContractorProfile profile = assignment.getContractorProfile();
+        int weeksCreated = 0;
+        boolean truncated = false;
+        LocalDate finalEffectiveEndDate = null;
+
+        while (!currentWeekStart.isAfter(endOfMonth) && !currentWeekStart.isAfter(assignment.getEndDate())) {
+            
+            // Check boundary
+            LocalDate weekSunday = currentWeekStart.plusDays(6);
+            LocalDate effectiveEndDate = weekSunday;
+            
+            if (weekSunday.isAfter(assignment.getEndDate())) {
+                effectiveEndDate = assignment.getEndDate();
+                truncated = true;
+            }
+
+            // Check duplicate
+            if (!timesheetRepository.existsByAssignmentIdAndWeekStartDate(assignment.getId(), currentWeekStart)) {
+                
+                // Create timesheet
+                Timesheet timesheet = Timesheet.builder()
+                        .assignment(assignment)
+                        .contractor(profile)
+                        .weekStartDate(currentWeekStart)
+                        .weekEndDate(effectiveEndDate) // Truncated end date
+                        .hoursLogged(BigDecimal.ZERO)
+                        .overtimeLogged(BigDecimal.ZERO)
+                        .billableAmount(BigDecimal.ZERO)
+                        .status(TimesheetStatus.DRAFT)
+                        .payrollStatus(PayrollStatus.NOT_PROCESSED)
+                        .orgUnitId(assignment.getOrgUnitId())
+                        .agreedRatePerDay(assignment.getAgreedRatePerDay())
+                        .build();
+
+                Timesheet saved = timesheetRepository.save(timesheet);
+
+                // Pre-generate an empty line for each working day (Mon-Fri), truncated to effectiveEndDate
+                List<TimesheetLine> skeleton = new ArrayList<>();
+                for (LocalDate d = currentWeekStart; !d.isAfter(effectiveEndDate); d = d.plusDays(1)) {
+                    if (isWeekend(d)) {
+                        continue;
+                    }
+                    skeleton.add(TimesheetLine.builder()
+                            .timesheet(saved)
+                            .workDate(d)
+                            .hoursWorked(BigDecimal.ZERO)
+                            .overtimeHours(BigDecimal.ZERO)
+                            .activityDesc(null)
+                            .status(TimesheetStatus.DRAFT)
+                            .build());
+                }
+                timesheetLineRepository.saveAll(skeleton);
+                
+                weeksCreated++;
+                finalEffectiveEndDate = effectiveEndDate;
+                
+                auditService.logAction(
+                        currentUser.getId(),
+                        "TIMESHEET_CREATED",
+                        "Timesheet",
+                        saved.getId(),
+                        String.format("Monthly bulk generation created timesheet draft for contractor %s for week %s",
+                                profile.getUser().getEmail(), saved.getWeekStartDate()));
+            }
+
+            currentWeekStart = currentWeekStart.plusWeeks(1);
+        }
+
+        return MonthlyTimesheetGenerateResponseDTO.builder()
+                .weeksCreated(weeksCreated)
+                .truncated(truncated)
+                .finalEffectiveEndDate(finalEffectiveEndDate)
+                .build();
+    }
+
+    // ------------------------------------------------------------------
     // UPDATE — contractor fills hours + activity on the weekday lines
     // ------------------------------------------------------------------
     @Override
@@ -636,7 +751,7 @@ public class TimesheetServiceImpl implements TimesheetService {
 
     @Override
     public List<TimesheetResponseDTO> getPayrollReadyTimesheets() {
-        return timesheetRepository.findByStatusAndPayrollStatus(TimesheetStatus.APPROVED, PayrollStatus.NOT_PROCESSED)
+        return timesheetRepository.findByStatusAndPayrollStatusAndInvoiceIsNull(TimesheetStatus.APPROVED, PayrollStatus.NOT_PROCESSED)
                 .stream()
                 .map(this::toDto)
                 .collect(Collectors.toList());

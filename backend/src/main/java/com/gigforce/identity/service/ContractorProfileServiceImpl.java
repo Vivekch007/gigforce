@@ -189,6 +189,9 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
 
         profile.setHourlyRate(request.getHourlyRate());
         profile.setExperienceYears(request.getExperienceYears());
+        if (request.getAvailableFromDate() != null) {
+            profile.setAvailableFromDate(request.getAvailableFromDate());
+        }
 
         // Fetch actor
         String actorEmail = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -313,7 +316,9 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
             String email,
             String phone,
             String orgUnitId,
-            String preferredEngagementType) {
+            String preferredEngagementType,
+            BigDecimal minHourlyRate,
+            java.time.LocalDate availableFromDate) {
         Pageable pageable = PageRequest.of(page, size);
         Specification<ContractorProfile> spec = Specification.where(null);
 
@@ -425,6 +430,16 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
             } catch (IllegalArgumentException e) {
                 // ignore
             }
+        }
+
+        // 13. Min Hourly Rate
+        if (minHourlyRate != null) {
+            spec = spec.and((root, query, cb) -> cb.greaterThanOrEqualTo(root.get("hourlyRate"), minHourlyRate));
+        }
+
+        // 14. Available From Date (on or before selected date)
+        if (availableFromDate != null) {
+            spec = spec.and((root, query, cb) -> cb.lessThanOrEqualTo(root.get("availableFromDate"), availableFromDate));
         }
 
         Page<ContractorProfile> profilePage = contractorProfileRepository.findAll(spec, pageable);
@@ -657,6 +672,7 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
                 .userName(profile.getUser().getName())
                 .userEmail(profile.getUser().getEmail())
                 .availabilityStatus(profile.getAvailabilityStatus() != null ? profile.getAvailabilityStatus().name() : null)
+                .availableFromDate(profile.getAvailableFromDate())
                 .status(mappedStatus)
                 .hourlyRate(profile.getHourlyRate())
                 .experienceYears(profile.getExperienceYears())

@@ -8,8 +8,10 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+
 @Repository
-public interface InterviewRepository extends JpaRepository<Interview, String> {
+public interface InterviewRepository extends JpaRepository<Interview, String>, JpaSpecificationExecutor<Interview> {
 
     @Query("SELECT i FROM Interview i " +
            "LEFT JOIN FETCH i.vendorSubmission vs " +

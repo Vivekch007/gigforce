@@ -7,6 +7,7 @@ import { useConfirmation } from '../../context/ConfirmationContext';
 
 // Reusable components
 import LoadingSpinner from '../../components/vendor/LoadingSpinner';
+import Pagination from '../../components/vendor/Pagination';
 
 function MySubmissions() {
   const { showConfirmation } = useConfirmation();
@@ -19,6 +20,8 @@ function MySubmissions() {
 
   // Submissions list
   const [submissions, setSubmissions] = useState([]);
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   // Detail Modal
   const [selectedSub, setSelectedSub] = useState(null);
@@ -28,8 +31,13 @@ function MySubmissions() {
     try {
       setLoading(true);
       setError('');
-      const data = await getSubmissions();
-      setSubmissions(data || []);
+      const params = { page, size: 10 };
+      if (searchVal.trim()) {
+        params.search = searchVal.trim();
+      }
+      const data = await getSubmissions(params);
+      setSubmissions(data?.content || []);
+      setTotalPages(data?.totalPages || 1);
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -39,7 +47,7 @@ function MySubmissions() {
 
   useEffect(() => {
     loadSubmissions();
-  }, []);
+  }, [page, searchVal]);
 
   const handleWithdraw = async (submissionId) => {
     const confirmed = await showConfirmation({ title: 'Withdraw Candidate', message: 'Are you sure you want to withdraw this candidate submission?' });
@@ -147,6 +155,7 @@ function MySubmissions() {
               </tbody>
             </Table>
           </div>
+          <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
         </Card>
       ) : (
         <div className="text-center py-5 gf-card bg-white border-0">

@@ -45,4 +45,5 @@ public class ContractorProfileUpdateRequestDTO {
 
     private String phone;
     private String address;
+    private java.time.LocalDate availableFromDate;
 }

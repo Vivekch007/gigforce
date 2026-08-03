@@ -218,7 +218,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
             throw new AccessDeniedException("Access Denied: Only Admin, Vendor Manager, and Vendor roles can view Vendor Scorecard.");
         }
 
-        if ("VENDOR".equals(role) || "VENDOR_MANAGER".equals(role)) {
+        if ("VENDOR".equals(role) || "VENDOR_MANAGER".equals(role) || "self".equalsIgnoreCase(vendorId)) {
             vendorId = currentUser.getId();
         }
 
