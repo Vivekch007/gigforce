@@ -1,7 +1,6 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Alert, Row, Col } from 'react-bootstrap';
-import { Chart, registerables } from 'chart.js';
 import { useAuth } from '../../hooks/useAuth';
 import { getRequisitions } from '../../services/requisitionService';
 import { searchSubmissions } from '../../services/vendorSubmissionService';
@@ -15,9 +14,6 @@ import { useToast } from '../../context/ToastContext';
 import KpiCard from '../../components/KpiCard';
 import Table from '../../components/Table';
 import Loader from '../../components/Loader';
-
-// Register Chart.js components
-Chart.register(...registerables);
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -51,10 +47,6 @@ function Dashboard() {
     vendors: [],
     candidates: [],
   });
-
-  // Chart Canvas Refs
-  const hiringTrendCanvasRef = useRef(null);
-  const fillRateCanvasRef = useRef(null);
 
   const loadDashboardData = async () => {
     try {
@@ -222,78 +214,6 @@ function Dashboard() {
   useEffect(() => {
     loadDashboardData();
   }, [searchQuery]);
-
-  // Initializing Chart.js charts
-  useEffect(() => {
-    if (loading || searchQuery.trim()) return;
-
-    let trendChartInstance = null;
-    let fillChartInstance = null;
-
-    if (hiringTrendCanvasRef.current) {
-      const ctx = hiringTrendCanvasRef.current.getContext('2d');
-      trendChartInstance = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: ['Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'],
-          datasets: [{
-            label: 'Placements',
-            data: [5, 12, 18, 25, 30, stats.activeContractors],
-            borderColor: '#2563EB',
-            backgroundColor: 'rgba(37, 99, 235, 0.05)',
-            borderWidth: 2.5,
-            fill: true,
-            tension: 0.35,
-            pointBackgroundColor: '#2563EB',
-            pointBorderColor: '#FFFFFF',
-            pointRadius: 4
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false }
-          },
-          scales: {
-            x: { grid: { display: false } },
-            y: {
-              grid: { color: '#E5E7EB', drawTicks: false },
-              border: { dash: [4, 4] }
-            }
-          }
-        }
-      });
-    }
-
-    if (fillRateCanvasRef.current) {
-      const ctx = fillRateCanvasRef.current.getContext('2d');
-      fillChartInstance = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-          labels: ['Filled', 'Open'],
-          datasets: [{
-            data: [stats.fillRate, 100 - stats.fillRate],
-            backgroundColor: ['#16A34A', '#F3F4F6'],
-            borderWidth: 0
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          cutout: '75%',
-          plugins: {
-            legend: { display: false }
-          }
-        }
-      });
-    }
-
-    return () => {
-      if (trendChartInstance) trendChartInstance.destroy();
-      if (fillChartInstance) fillChartInstance.destroy();
-    };
-  }, [loading, searchQuery, stats]);
 
   const getCircleColor = (priority) => {
     if (priority === 'high') return '#D97706'; // warning (orange)
@@ -476,63 +396,26 @@ function Dashboard() {
           <div className="row g-4">
             {/* Left Column (Merged Action Required into Quick Actions) */}
             <div className="col-lg-8 d-flex flex-column gap-4">
-              {/* Charts Panel using Chart.js canvases */}
               <div className="enterprise-table-container p-4">
-                <h5 className="small fw-semibold text-uppercase text-muted mb-4"><i className="bi bi-bar-chart-line me-2"></i>Workforce Summary Analytics</h5>
-                <div className="row g-4">
-                  {/* Hiring Trend */}
-                  <div className="col-md-6">
-                    <h6 className="fw-bold text-dark mb-3 text-center small text-uppercase">Hiring Trend (Last 6 Months)</h6>
-                    <div style={{ height: '180px', position: 'relative' }}>
-                      <canvas ref={hiringTrendCanvasRef} />
-                    </div>
-                  </div>
-
-                  {/* Fill Rate circular gauge */}
-                  <div className="col-md-6 d-flex flex-column align-items-center justify-content-center">
-                    <h6 className="fw-bold text-dark mb-3 text-center small text-uppercase">Requisition Fill Rate</h6>
-                    <div style={{ width: '130px', height: '130px', position: 'relative' }}>
-                      <canvas ref={fillRateCanvasRef} />
-                      <div className="position-absolute start-50 top-50 translate-middle text-center" style={{ zIndex: 1 }}>
-                        <div className="fs-4 fw-bold text-dark">{stats.fillRate}%</div>
-                        <div className="text-muted" style={{ fontSize: '10px' }}>Filled Jobs</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Vendor Performance */}
-              <div className="enterprise-table-container p-4">
-                <h5 className="small fw-semibold text-uppercase text-muted mb-3"><i className="bi bi-building me-2"></i>Top Vendor Placement Performance</h5>
-                <div className="d-flex flex-column gap-3 py-1">
+                <h5 className="small fw-semibold text-uppercase text-muted mb-4"><i className="bi bi-clipboard-data me-2"></i>Requisition Overview</h5>
+                <div className="d-flex flex-column gap-3">
                   <div>
                     <div className="d-flex justify-content-between text-muted small mb-1">
-                      <span className="fw-semibold text-dark">TCS (Tata Consultancy Services)</span>
-                      <span>85% (12 hired / 14 proposed)</span>
+                      <span className="fw-semibold text-dark">Fill Rate</span>
+                      <span>{stats.fillRate}% ({stats.filledJobs} filled / {stats.openJobs + stats.filledJobs} total)</span>
                     </div>
                     <div className="progress" style={{ height: '8px', borderRadius: '4px' }}>
-                      <div className="progress-bar bg-success" style={{ width: '85%' }}></div>
+                      <div className="progress-bar bg-success" style={{ width: `${stats.fillRate}%` }}></div>
                     </div>
                   </div>
-
-                  <div>
-                    <div className="d-flex justify-content-between text-muted small mb-1">
-                      <span className="fw-semibold text-dark">Infosys Limited</span>
-                      <span>70% (7 hired / 10 proposed)</span>
+                  <div className="row g-3 pt-1">
+                    <div className="col-6">
+                      <div className="text-muted small">Pending Timesheets</div>
+                      <div className="fs-5 fw-bold text-dark">{stats.pendingTimesheets}</div>
                     </div>
-                    <div className="progress" style={{ height: '8px', borderRadius: '4px' }}>
-                      <div className="progress-bar bg-success" style={{ width: '70%' }}></div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="d-flex justify-content-between text-muted small mb-1">
-                      <span className="fw-semibold text-dark">Wipro Org</span>
-                      <span>50% (4 hired / 8 proposed)</span>
-                    </div>
-                    <div className="progress" style={{ height: '8px', borderRadius: '4px' }}>
-                      <div className="progress-bar bg-warning" style={{ width: '50%' }}></div>
+                    <div className="col-6">
+                      <div className="text-muted small">Pending Leave Requests</div>
+                      <div className="fs-5 fw-bold text-dark">{stats.pendingLeaves}</div>
                     </div>
                   </div>
                 </div>

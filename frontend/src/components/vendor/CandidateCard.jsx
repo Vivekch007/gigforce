@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card } from 'react-bootstrap';
 
-function CandidateCard({ candidate, onEdit, onDelete, onUploadResume }) {
+function CandidateCard({ candidate, onSubmitCandidate }) {
   const getAvailabilityClass = (status) => {
     return status?.toLowerCase() === 'available' ? 'success' : 'danger';
   };
@@ -26,19 +26,17 @@ function CandidateCard({ candidate, onEdit, onDelete, onUploadResume }) {
         <div className="text-dark"><strong>Preferred Daily Rate:</strong> <span className="text-success fw-bold">₹ {candidate.rate}/day</span></div>
       </div>
 
-      <div className="d-flex justify-content-between align-items-center gap-1 border-top pt-2">
-        <button className="btn-enterprise-secondary py-1 px-2" style={{ height: '32px', fontSize: '13px' }} onClick={() => onUploadResume(candidate)}>
-          <i className={`bi ${candidate.resumeUrl ? 'bi-file-earmark-text' : 'bi-upload'} me-2`}></i>
-          {candidate.resumeUrl ? 'View Resume' : 'Upload Resume'}
+      <div className="border-top pt-2">
+        <button
+          className="btn-enterprise-primary w-100 py-1 px-2"
+          style={{ height: '32px', fontSize: '13px' }}
+          disabled={!onSubmitCandidate}
+          title={!onSubmitCandidate ? 'Select a requisition above to submit this candidate' : undefined}
+          onClick={() => onSubmitCandidate && onSubmitCandidate(candidate)}
+        >
+          <i className="bi bi-send me-2"></i>
+          Submit to Requisition
         </button>
-        <div className="d-flex gap-1">
-          <button className="btn-enterprise-secondary py-1 px-2" style={{ height: '32px', fontSize: '13px' }} onClick={() => onEdit(candidate)}>
-            Edit
-          </button>
-          <button className="btn-enterprise-ghost text-danger py-1 px-2 border-0" style={{ height: '32px', fontSize: '13px' }} onClick={() => onDelete(candidate.id)}>
-            Delete
-          </button>
-        </div>
       </div>
     </Card>
   );

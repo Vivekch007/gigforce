@@ -26,8 +26,7 @@ function Interviews() {
   // Filters
   const [reqFilter, setReqFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [startDateFilter, setStartDateFilter] = useState('');
-  const [endDateFilter, setEndDateFilter] = useState('');
+  const [monthFilter, setMonthFilter] = useState(''); // YYYY-MM format
 
   const [openReqs, setOpenReqs] = useState([]);
 
@@ -36,6 +35,11 @@ function Interviews() {
   const [rescheduleInt, setRescheduleInt] = useState(null);
   const [rescheduleReason, setRescheduleReason] = useState('');
   const [resubmitting, setResubmitting] = useState(false);
+
+  // Reset page to 0 when any filter changes
+  useEffect(() => {
+    setPage(0);
+  }, [reqFilter, statusFilter, monthFilter]);
 
   const loadRequisitions = async () => {
     try {
@@ -55,8 +59,7 @@ function Interviews() {
         size: 10,
         requisitionId: reqFilter || undefined,
         status: statusFilter || undefined,
-        startDate: startDateFilter || undefined,
-        endDate: endDateFilter || undefined,
+        month: monthFilter || undefined,
       };
       const data = await getInterviews(params);
       setInterviews(data?.content || []);
@@ -74,14 +77,14 @@ function Interviews() {
 
   useEffect(() => {
     loadInterviews();
-  }, [page, reqFilter, statusFilter, startDateFilter, endDateFilter]);
+  }, [page, reqFilter, statusFilter, monthFilter]);
 
   const handleConfirm = async (id) => {
     try {
       setError('');
       setSuccess('');
       await confirmInterview(id);
-      setSuccess('Interview confirmed successfully! Client notified.');
+      setSuccess('Interview confirmed successfully! Hiring Manager notified.');
       loadInterviews();
     } catch (err) {
       setError(getErrorMessage(err));
@@ -104,7 +107,7 @@ function Interviews() {
       setError('');
       setSuccess('');
       await requestInterviewReschedule(rescheduleInt.id, rescheduleReason);
-      setSuccess('Reschedule request logged. The manager will review the proposal.');
+      setSuccess('Reschedule request logged. The hiring manager will review the proposal.');
       setShowRescheduleModal(false);
       loadInterviews();
     } catch (err) {
@@ -125,11 +128,11 @@ function Interviews() {
       {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
       {success && <Alert variant="success" className="mb-4" onClose={() => setSuccess('')} dismissible>{success}</Alert>}
 
-      {/* Filter Row */}
+      {/* Single-Line Filter Row */}
       <div className="enterprise-table-container p-3 mb-4 bg-white" style={{ borderRadius: 'var(--gf-radius)', boxShadow: 'var(--gf-shadow)' }}>
-        <div className="d-flex flex-wrap gap-3 align-items-center">
-          <div>
-            <Form.Label className="enterprise-form-label" style={{ fontSize: '12px' }}>Requisition</Form.Label>
+        <div className="d-flex align-items-end gap-3 flex-nowrap overflow-auto py-1">
+          <div style={{ minWidth: '200px' }}>
+            <Form.Label className="enterprise-form-label mb-1" style={{ fontSize: '12px' }}>Requisition</Form.Label>
             <Form.Select size="sm" value={reqFilter} onChange={e => setReqFilter(e.target.value)}>
               <option value="">All Requisitions</option>
               {openReqs.map(req => (
@@ -137,26 +140,48 @@ function Interviews() {
               ))}
             </Form.Select>
           </div>
-          <VendorFilters
-            label="Status"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            options={[
-              { value: '', label: 'All Statuses' },
-              { value: 'SCHEDULED', label: 'Scheduled' },
-              { value: 'COMPLETED', label: 'Completed' },
-              { value: 'CANCELLED', label: 'Cancelled' },
-              { value: 'RESCHEDULED', label: 'Rescheduled' },
-            ]}
-          />
-          <div>
-            <Form.Label className="enterprise-form-label" style={{ fontSize: '12px' }}>Start Date</Form.Label>
-            <Form.Control type="date" size="sm" value={startDateFilter} onChange={e => setStartDateFilter(e.target.value)} />
+
+          <div style={{ minWidth: '160px' }}>
+            <VendorFilters
+              label="Status"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              options={[
+                { value: '', label: 'All Statuses' },
+                { value: 'SCHEDULED', label: 'Scheduled' },
+                { value: 'COMPLETED', label: 'Completed' },
+                { value: 'CANCELLED', label: 'Cancelled' },
+                { value: 'RESCHEDULED', label: 'Rescheduled' },
+              ]}
+            />
           </div>
-          <div>
-            <Form.Label className="enterprise-form-label" style={{ fontSize: '12px' }}>End Date</Form.Label>
-            <Form.Control type="date" size="sm" value={endDateFilter} onChange={e => setEndDateFilter(e.target.value)} />
+
+          <div style={{ minWidth: '150px' }}>
+            <Form.Label className="enterprise-form-label mb-1" style={{ fontSize: '12px' }}>Month</Form.Label>
+            <Form.Control
+              type="month"
+              size="sm"
+              value={monthFilter}
+              onChange={e => setMonthFilter(e.target.value)}
+            />
           </div>
+
+          {(reqFilter || statusFilter || monthFilter) && (
+            <div className="pb-1">
+              <Button
+                size="sm"
+                variant="link"
+                className="text-decoration-none text-muted p-0 ms-1"
+                onClick={() => {
+                  setReqFilter('');
+                  setStatusFilter('');
+                  setMonthFilter('');
+                }}
+              >
+                Clear Filters
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -196,7 +221,9 @@ function Interviews() {
             <div>
               <div className="mb-3">
                 <span className="text-muted text-xs">Request Reschedule for:</span>
-                <h6 className="fw-bold text-slate-800">{rescheduleInt.candidateName} &bull; {rescheduleInt.clientName}</h6>
+                <h6 className="fw-bold text-slate-800">
+                  {rescheduleInt.candidateName} &bull; Hiring Manager: {rescheduleInt.hiringManagerName || rescheduleInt.clientName || 'N/A'}
+                </h6>
               </div>
 
               <Form.Group controlId="reason">

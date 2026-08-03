@@ -24,7 +24,7 @@ function InterviewCard({ interview, onConfirm, onReschedule }) {
       </div>
 
       <div className="small text-slate-600 mb-3 flex-grow-1">
-        <div><strong>Client:</strong> {interview.clientName}</div>
+        <div><strong>HR:</strong> {interview.clientName}</div>
         <div><strong>Date:</strong> {interview.date}</div>
         <div><strong>Time:</strong> {interview.time}</div>
         {interview.feedback && <div className="mt-2 text-danger small"><strong>Feedback/Notes:</strong> {interview.feedback}</div>}

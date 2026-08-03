@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Card, Table, Button, Alert, Modal } from 'react-bootstrap';
+import { Card, Table, Button, Alert, Modal, Form } from 'react-bootstrap';
 import { getSubmissions, withdrawSubmission, getSubmissionDetails } from '../../services/submissionService';
 import { getErrorMessage } from '../../services/errorUtils';
 import { useConfirmation } from '../../context/ConfirmationContext';
@@ -23,18 +23,35 @@ function MySubmissions() {
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
+  // New Filter States
+  const [statusFilter, setStatusFilter] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState(''); // Format: YYYY-MM
+
   // Detail Modal
   const [selectedSub, setSelectedSub] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(0);
+  }, [searchVal, statusFilter, selectedMonth]);
 
   const loadSubmissions = async () => {
     try {
       setLoading(true);
       setError('');
       const params = { page, size: 10 };
+
       if (searchVal.trim()) {
         params.search = searchVal.trim();
       }
+      if (statusFilter) {
+        params.status = statusFilter;
+      }
+      if (selectedMonth) {
+        params.month = selectedMonth;
+      }
+
       const data = await getSubmissions(params);
       setSubmissions(data?.content || []);
       setTotalPages(data?.totalPages || 1);
@@ -47,10 +64,13 @@ function MySubmissions() {
 
   useEffect(() => {
     loadSubmissions();
-  }, [page, searchVal]);
+  }, [page, searchVal, statusFilter, selectedMonth]);
 
   const handleWithdraw = async (submissionId) => {
-    const confirmed = await showConfirmation({ title: 'Withdraw Candidate', message: 'Are you sure you want to withdraw this candidate submission?' });
+    const confirmed = await showConfirmation({
+      title: 'Withdraw Candidate',
+      message: 'Are you sure you want to withdraw this candidate submission?'
+    });
     if (!confirmed) return;
     try {
       setError('');
@@ -77,32 +97,88 @@ function MySubmissions() {
   // Status style helper
   const getBadgeType = (status) => {
     switch (status?.toUpperCase()) {
-      case 'SELECTED': return 'approved';
+      case 'SELECTED':
       case 'SHORTLISTED': return 'approved';
       case 'INTERVIEW_SCHEDULED': return 'info';
-      case 'UNDER_REVIEW': return 'pending';
+      case 'UNDER_REVIEW':
       case 'SUBMITTED': return 'pending';
       default: return 'rejected';
     }
   };
 
-  // Local Search filtering
+  // Local filtering fallbacks for client-side evaluation
   const filteredSubmissions = submissions.filter(s => {
-    if (!searchVal.trim()) return true;
-    const q = searchVal.trim().toLowerCase();
-    return (
-      s.contractorName?.toLowerCase().includes(q) ||
-      s.requisitionTitle?.toLowerCase().includes(q) ||
-      s.clientName?.toLowerCase().includes(q)
-    );
+    // Search text filter
+    if (searchVal.trim()) {
+      const q = searchVal.trim().toLowerCase();
+      const matchesSearch = (
+        s.contractorName?.toLowerCase().includes(q) ||
+        s.requisitionTitle?.toLowerCase().includes(q) ||
+        s.clientName?.toLowerCase().includes(q)
+      );
+      if (!matchesSearch) return false;
+    }
+
+    // Status filter
+    if (statusFilter && s.status?.toUpperCase() !== statusFilter.toUpperCase()) {
+      return false;
+    }
+
+    // Month filter (YYYY-MM)
+    if (selectedMonth && s.submissionDate) {
+      const subMonth = s.submissionDate.substring(0, 7); // Extracts YYYY-MM from YYYY-MM-DD
+      if (subMonth !== selectedMonth) return false;
+    }
+
+    return true;
   });
 
   return (
     <div className="container-fluid">
-      {/* Header */}
-      <div className="mb-4">
-        <h2 className="fw-black text-slate-800 mb-0">My Submissions</h2>
-        <p className="text-muted small mt-1 mb-0">Track statuses of candidates submitted to client jobs and manage active proposals.</p>
+      {/* Header & Top Right Filters */}
+      <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+        <div>
+          <h2 className="fw-black text-slate-800 mb-0">My Submissions</h2>
+          <p className="text-muted small mt-1 mb-0">Track statuses of candidates submitted to client jobs and manage active proposals.</p>
+        </div>
+
+        {/* Top-Right Filters (Status + Month Sort) */}
+        <div className="d-flex align-items-center gap-2 flex-wrap">
+          <Form.Select
+            size="sm"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            style={{ width: '160px' }}
+          >
+            <option value="">All Statuses</option>
+            <option value="SUBMITTED">Submitted</option>
+            <option value="UNDER_REVIEW">Under Review</option>
+            <option value="INTERVIEW_SCHEDULED">Interview Scheduled</option>
+            <option value="SHORTLISTED">Shortlisted</option>
+            <option value="SELECTED">Selected</option>
+            <option value="REJECTED">Rejected</option>
+            <option value="WITHDRAWN">Withdrawn</option>
+          </Form.Select>
+
+          <Form.Control
+            type="month"
+            size="sm"
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(e.target.value)}
+            style={{ width: '160px' }}
+          />
+
+          {(statusFilter || selectedMonth) && (
+            <Button
+              size="sm"
+              variant="link"
+              className="text-decoration-none text-muted p-0 ms-1"
+              onClick={() => { setStatusFilter(''); setSelectedMonth(''); }}
+            >
+              Clear
+            </Button>
+          )}
+        </div>
       </div>
 
       {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
@@ -111,7 +187,7 @@ function MySubmissions() {
       {loading ? (
         <LoadingSpinner message="Querying submissions log..." />
       ) : filteredSubmissions.length > 0 ? (
-        <Card className="gf-card p-4 border-0">
+        <Card className="gf-card p-4 border-0 shadow-sm">
           <div className="table-responsive">
             <Table className="table table-hover align-middle mb-0">
               <thead className="table-light">
@@ -155,12 +231,19 @@ function MySubmissions() {
               </tbody>
             </Table>
           </div>
-          <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+
+          <div className="mt-4">
+            <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              onPageChange={(newPage) => setPage(newPage)}
+            />
+          </div>
         </Card>
       ) : (
-        <div className="text-center py-5 gf-card bg-white border-0">
+        <div className="text-center py-5 gf-card bg-white border-0 shadow-sm">
           <span className="fs-1">📥</span>
-          <p className="text-muted small mt-2 mb-0">No active candidate submissions tracked.</p>
+          <p className="text-muted small mt-2 mb-0">No active candidate submissions tracked matching the selected criteria.</p>
         </div>
       )}
 

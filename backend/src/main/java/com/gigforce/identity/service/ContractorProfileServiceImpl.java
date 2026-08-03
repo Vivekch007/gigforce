@@ -338,10 +338,9 @@ public class ContractorProfileServiceImpl implements ContractorProfileService {
             if (role.equals("HIRING_MANAGER")) {
                 String userOrg = currentUser.getOrgUnitId();
                 spec = spec.and((root, query, cb) -> cb.equal(root.get("user").get("orgUnitId"), userOrg));
-            } else if (role.equals("VENDOR") || role.equals("VENDOR_MANAGER")) {
-                String vendorOrg = currentUser.getOrgUnitId();
-                spec = spec.and((root, query, cb) -> cb.equal(root.get("user").get("orgUnitId"), vendorOrg));
             }
+            // Vendors are not org-scoped (contractors have no orgUnitId either), so they browse the
+            // full contractor marketplace to source candidates for any open requisition, same as Admin/Finance.
         }
 
         // 2. Explicit orgUnitId search parameter (normalized to match stored values)
