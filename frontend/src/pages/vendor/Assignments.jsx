@@ -145,9 +145,7 @@ function Assignments() {
         <>
         <Table headers={['Assignment ID', 'Contractor', 'Client', 'Job Title', 'Start Date', 'End Date', 'Status', 'Actions']}>
           {paginatedAssignments.map(a => (
-              console.log(a),
             <tr key={a.id}>
-
               <td className="fw-bold">{a.id}</td>
               <td className="fw-semibold text-dark">{a.contractorName}</td>
               <td>{a.orgUnitId || 'Partner Client'}</td>
@@ -155,7 +153,7 @@ function Assignments() {
               <td>{a.startDate}</td>
               <td>{a.endDate || 'Ongoing'}</td>
               <td>
-                <span className={`status-pill ${a.status === 'ACTIVE' ? 'success' : 'secondary'}`}>
+                <span className={`status-pill ${a.status === 'ACTIVE' || a.status === 'EXTENDED' ? 'success' : 'secondary'}`}>
                   {a.status}
                 </span>
               </td>
@@ -164,7 +162,7 @@ function Assignments() {
                   <button className="btn-enterprise-secondary py-1 px-3" onClick={() => openDrawer(a.id)}>
                     View Agreement
                   </button>
-                  {a.status === 'ACTIVE' && (
+                  {(a.status === 'ACTIVE' || a.status === 'EXTENDED') && (
                     <button className="btn-enterprise-primary py-1 px-3" onClick={() => openExtensionModal(a)}>
                       Request Extension
                     </button>
