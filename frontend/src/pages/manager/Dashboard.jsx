@@ -138,30 +138,32 @@ function Dashboard() {
       // Assemble merged Quick Actions list
       const actions = [];
 
-      if (pendingTimesheetsCount > 0) {
-        actions.push({
-          title: 'Review Pending Timesheets',
-          desc: `${pendingTimesheetsCount} contractor time logs are awaiting review.`,
-          path: '/manager/timesheet-approvals',
-          priority: 'high'
-        });
-      }
-      if (pendingLeavesCount > 0) {
-        actions.push({
-          title: 'Review Pending Leave Requests',
-          desc: `${pendingLeavesCount} leave absence requests need approval.`,
-          path: '/manager/leave-approvals',
-          priority: 'high'
-        });
-      }
-      if (approvedUnbilledTimesheetsCount > 0) {
-        actions.push({
-          title: 'Create Contractor Invoices',
-          desc: `${approvedUnbilledTimesheetsCount} approved timesheets ready for billing.`,
-          path: '/manager/invoice-creation',
-          priority: 'medium'
-        });
-      }
+       if (pendingTimesheetsCount > 0) {
+         actions.push({
+           title: 'Review Pending Timesheets',
+           desc: `${pendingTimesheetsCount} contractor time logs are awaiting review.`,
+           path: '/manager/timesheet-approvals',
+           priority: 'high'
+         });
+       }
+       if (pendingLeavesCount > 0) {
+         actions.push({
+           title: 'Review Pending Leave Requests',
+           desc: `${pendingLeavesCount} leave absence requests need approval.`,
+           path: '/manager/leave-approvals',
+           priority: 'high'
+         });
+       }
+
+       // Always show Create Contractor Invoices with current count
+       actions.push({
+         title: 'Create Contractor Invoices',
+         desc: approvedUnbilledTimesheetsCount > 0
+           ? `${approvedUnbilledTimesheetsCount} approved timesheets ready for billing.`
+           : 'No timesheets awaiting billing at this time.',
+         path: '/manager/invoice-creation',
+         priority: approvedUnbilledTimesheetsCount > 0 ? 'medium' : 'low'
+       });
 
       // Default actions
       actions.push({
