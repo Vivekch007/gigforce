@@ -247,6 +247,8 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
                 .id(po.getId())
                 .assignmentId(po.getAssignment().getId())
                 .vendorId(po.getVendor().getId())
+                .vendorName(po.getVendor().getName())
+                .contractorName(po.getAssignment().getContractorProfile().getUser().getName())
                 .poAmount(po.getPoAmount())
                 .currency(po.getCurrency())
                 .issuedDate(po.getIssuedDate())

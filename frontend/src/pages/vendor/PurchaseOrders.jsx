@@ -155,7 +155,7 @@ function PurchaseOrders() {
       }
 
       const newPo = await createPurchaseOrder(payload);
-      setSuccess(`Purchase Order raised successfully with Ref ID: ${newPo.id || 'PO-2026-092'}! Routed to Finance.`);
+      setSuccess(`Purchase Order raised successfully with Ref ID: ${newPo.id}! Routed to Finance.`);
       setShowCreateModal(false);
       setShowPreviewModal(false);
       loadData();
@@ -238,8 +238,8 @@ function PurchaseOrders() {
                     {paginatedPOs.length > 0 ? (
                       paginatedPOs.map(po => (
                         <tr key={po.id}>
-                          <td className="fw-bold">{po.id || 'PO-2026-092'}</td>
-                          <td>{po.contractorName || 'Staff Member'}</td>
+                          <td className="fw-bold">{po.id}</td>
+                          <td>{po.contractorName}</td>
                           <td className="text-green-600 fw-bold">₹{parseFloat(po.poAmount || po.amount || 0).toLocaleString()}</td>
                           <td>{po.currency || 'INR'}</td>
                           <td>

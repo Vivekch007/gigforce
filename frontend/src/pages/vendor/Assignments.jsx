@@ -180,13 +180,15 @@ function Assignments() {
         <Loader message="Retrieving placements..." />
       ) : filteredAssignments.length > 0 ? (
         <>
-        <Table headers={['Assignment ID', 'Contractor', 'Client', 'Job Title', 'Start Date', 'End Date', 'Status', 'Actions']}>
+        <Table headers={['Assignment ID', 'Contractor', 'Client', 'Job Title', 'PO ID', 'Vendor Org', 'Start Date', 'End Date', 'Status', 'Actions']}>
           {paginatedAssignments.map(a => (
             <tr key={a.id}>
               <td className="fw-bold">{a.id}</td>
               <td className="fw-semibold text-dark">{a.contractorName}</td>
               <td>{a.clientName || 'Partner Client'}</td>
               <td>{a.requisitionTitle || 'Specialist'}</td>
+              <td>{a.poId || <span className="text-muted">Pending</span>}</td>
+              <td>{a.vendorName || 'Staffing Partner'}</td>
               <td>{a.startDate}</td>
               <td>{a.endDate || 'Ongoing'}</td>
               <td>

@@ -25,6 +25,10 @@ public class PurchaseOrderResponseDTO {
     @JsonAlias({"vendorId", "vendorID"})
     private String vendorId;
 
+    private String vendorName;
+
+    private String contractorName;
+
     @JsonProperty("POAmount")
     @JsonAlias({"poAmount", "po_amount"})
     private BigDecimal poAmount;

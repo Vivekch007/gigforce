@@ -69,85 +69,64 @@ function Reports() {
           {/* KPI Metrics */}
           <div className="row row-cols-2 row-cols-md-4 g-3 mb-4">
             <div className="col">
-              <FinanceMetricCard title="Total POs Reviewing" value={scorecard?.pendingPOs + 5} desc="Purchase orders logged" />
+              <FinanceMetricCard title="Pending Purchase Orders" value={scorecard?.pendingPOs || 0} desc="Purchase orders logged" />
             </div>
             <div className="col">
-              <FinanceMetricCard title="Total Invoices" value={scorecard?.invoicesReady + 3} desc="Aggregated client billings" />
+              <FinanceMetricCard title="Invoices Ready" value={scorecard?.invoicesReady || 0} desc="Aggregated client billings" />
             </div>
             <div className="col">
-              <FinanceMetricCard title="Pending Payments" value={scorecard?.paymentsPending} desc="Awaiting bank release" />
+              <FinanceMetricCard title="Pending Payments" value={scorecard?.paymentsPending || 0} desc="Awaiting bank release" />
             </div>
             <div className="col">
-              <FinanceMetricCard title="Completed Payments" value={scorecard?.paymentsCompleted} desc="Paid transactions reconciled" />
+              <FinanceMetricCard title="Completed Payments" value={scorecard?.paymentsCompleted || 0} desc="Paid transactions reconciled" />
             </div>
             <div className="col">
-              <FinanceMetricCard title="Monthly Invoice Value" value={`$${Math.round(scorecard?.totalInvoiceValue || 0).toLocaleString()}`} desc="Total invoiced value" />
+              <FinanceMetricCard title="Total Invoice Value" value={`$${Math.round(scorecard?.totalInvoiceValue || 0).toLocaleString()}`} desc="Total invoiced value" />
             </div>
             <div className="col">
-              <FinanceMetricCard title="Monthly Payment Value" value={`$${Math.round(scorecard?.totalPayments || 0).toLocaleString()}`} desc="Total payouts value" />
+              <FinanceMetricCard title="Total Payments Disbursed" value={`$${Math.round(scorecard?.totalPayments || 0).toLocaleString()}`} desc="Total payouts value" />
             </div>
             <div className="col">
               <FinanceMetricCard title="Outstanding Payments" value={`$${Math.round(scorecard?.outstandingAmount || 0).toLocaleString()}`} desc="Unsettled approved billings" />
             </div>
             <div className="col">
-              <FinanceMetricCard title="Payment Success Rate" value="98.5%" desc="ACH/Wire successful rate" />
+              <FinanceMetricCard
+                title="Payment Success Rate"
+                value={(() => {
+                  const paid = scorecard?.paymentSummary?.paid || 0;
+                  const failed = scorecard?.paymentSummary?.failed || 0;
+                  const total = paid + failed;
+                  return total > 0 ? `${Math.round((paid / total) * 100)}%` : 'N/A';
+                })()}
+                desc="Paid vs. failed disbursements"
+              />
             </div>
           </div>
 
-          {/* SVG Charts */}
-          <Row className="g-4 mb-4">
-            {/* Donut Chart: Invoice Status Distribution */}
-            <Col lg={4}>
-              <Card className="gf-card h-100 p-4 border-0 bg-white">
-                <h5 className="fw-bold mb-4 text-slate-800 text-center">Invoice Clearance Ratios</h5>
-                <div className="d-flex flex-column align-items-center justify-content-center h-100">
-                  <div style={{ width: '150px', height: '150px', position: 'relative' }} className="mb-3">
-                    <svg viewBox="0 0 36 36" className="w-100 h-100">
-                      <circle cx="18" cy="18" r="15.915" fill="none" stroke="#f1f5f9" strokeWidth="3" />
-                      <circle cx="18" cy="18" r="15.915" fill="none" stroke="#4f46e5" strokeWidth="3" 
-                              strokeDasharray="90 10" strokeDashoffset="25" />
-                    </svg>
-                    <div className="position-absolute start-50 top-50 translate-middle text-center">
-                      <div className="fs-3 fw-black text-slate-800">90%</div>
-                      <div className="text-muted" style={{ fontSize: '0.6rem' }}>Clearance Rate</div>
-                    </div>
-                  </div>
-                  <p className="text-muted small text-center mb-0 mt-2">
-                    90% of approved invoices are processed and settled within the standard 30-day net payment period.
-                  </p>
+          {/* Payment Status Breakdown */}
+          <Card className="gf-card p-4 border-0 bg-white">
+            <h5 className="fw-bold mb-3 text-slate-800">Payment Status Breakdown</h5>
+            <Row className="g-3">
+              <Col md={4}>
+                <div className="p-3 rounded border">
+                  <div className="text-muted small">Pending</div>
+                  <div className="fs-4 fw-bold text-dark">{scorecard?.paymentSummary?.pending || 0}</div>
                 </div>
-              </Card>
-            </Col>
-
-            {/* Line Trend: Payment trends */}
-            <Col lg={8}>
-              <Card className="gf-card h-100 p-4 border-0 bg-white">
-                <h5 className="fw-bold mb-4 text-slate-800">Payment Outflow Trends</h5>
-                <div style={{ height: '220px', position: 'relative' }}>
-                  <svg viewBox="0 0 100 40" className="w-100 h-100">
-                    <defs>
-                      <linearGradient id="financeChartGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#4f46e5" stopOpacity="0.35" />
-                        <stop offset="100%" stopColor="#4f46e5" stopOpacity="0.0" />
-                      </linearGradient>
-                    </defs>
-                    <path d="M0,35 L20,32 L40,22 L60,14 L80,18 L100,5 L100,40 L0,40 Z" fill="url(#financeChartGrad)" />
-                    <path d="M0,35 L20,32 L40,22 L60,14 L80,18 L100,5" fill="none" stroke="#4f46e5" strokeWidth="1.5" />
-                    <line x1="0" y1="35" x2="100" y2="35" stroke="#e2e8f0" strokeWidth="0.5" strokeDasharray="1,1" />
-                    <line x1="0" y1="20" x2="100" y2="20" stroke="#e2e8f0" strokeWidth="0.5" strokeDasharray="1,1" />
-                  </svg>
-                  <div className="d-flex justify-content-between mt-2 text-muted" style={{ fontSize: '0.7rem' }}>
-                    <span>Jan</span>
-                    <span>Feb</span>
-                    <span>Mar</span>
-                    <span>Apr</span>
-                    <span>May</span>
-                    <span>Jun</span>
-                  </div>
+              </Col>
+              <Col md={4}>
+                <div className="p-3 rounded border">
+                  <div className="text-muted small">Paid</div>
+                  <div className="fs-4 fw-bold text-success">{scorecard?.paymentSummary?.paid || 0}</div>
                 </div>
-              </Card>
-            </Col>
-          </Row>
+              </Col>
+              <Col md={4}>
+                <div className="p-3 rounded border">
+                  <div className="text-muted small">Failed</div>
+                  <div className="fs-4 fw-bold text-danger">{scorecard?.paymentSummary?.failed || 0}</div>
+                </div>
+              </Col>
+            </Row>
+          </Card>
         </div>
       )}
     </div>

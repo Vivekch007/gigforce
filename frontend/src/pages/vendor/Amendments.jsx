@@ -10,6 +10,9 @@ import { useAuth } from '../../hooks/useAuth';
 import AssignmentDrawer from '../../components/vendor/AssignmentDrawer';
 import Loader from '../../components/Loader';
 import Table from '../../components/Table';
+import Pagination from '../../components/vendor/Pagination';
+
+const PAGE_SIZE = 10;
 
 function Amendments() {
   const { user } = useAuth();
@@ -23,6 +26,7 @@ function Amendments() {
 
   // Assignments state
   const [assignments, setAssignments] = useState([]);
+  const [page, setPage] = useState(0);
 
   // Offcanvas details drawer
   const [showDrawer, setShowDrawer] = useState(false);
@@ -61,6 +65,10 @@ function Amendments() {
   useEffect(() => {
     loadAssignments();
   }, []);
+
+  useEffect(() => {
+    setPage(0);
+  }, [searchVal]);
 
   const openDrawer = async (asnId) => {
     try {
@@ -174,6 +182,9 @@ function Amendments() {
     );
   });
 
+  const totalPages = Math.ceil(filteredAssignments.length / PAGE_SIZE) || 1;
+  const paginatedAssignments = filteredAssignments.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
   return (
     <div className="container-fluid">
       {/* Header */}
@@ -188,8 +199,9 @@ function Amendments() {
       {loading ? (
         <Loader message="Retrieving assignments..." />
       ) : filteredAssignments.length > 0 ? (
+        <>
         <Table headers={['Assignment ID', 'Contractor', 'Client', 'Job Title', 'Start Date', 'End Date', 'Status', 'Actions']}>
-          {filteredAssignments.map(a => (
+          {paginatedAssignments.map(a => (
             <tr key={a.id}>
               <td className="fw-bold">{a.id}</td>
               <td className="fw-semibold text-dark">{a.contractorName}</td>
@@ -215,6 +227,8 @@ function Amendments() {
             </tr>
           ))}
         </Table>
+        <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+        </>
       ) : (
         <div className="text-center py-5 gf-card bg-white border-0" style={{ borderRadius: 'var(--gf-radius)', boxShadow: 'var(--gf-shadow)' }}>
           <i className="bi bi-clipboard-x fs-1 text-muted"></i>

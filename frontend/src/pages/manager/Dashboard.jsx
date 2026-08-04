@@ -394,10 +394,10 @@ function Dashboard() {
           </div>
 
           {/* First Row: Requisition Overview & Quick Actions */}
-          <div className="row g-4 mb-4">
+          <div className="row g-4 mb-4 align-items-stretch">
             {/* Requisition Overview */}
             <div className="col-lg-8">
-              <div className="enterprise-table-container p-4">
+              <div className="enterprise-table-container p-4 h-100">
                 <h5 className="small fw-semibold text-uppercase text-muted mb-4"><i className="bi bi-clipboard-data me-2"></i>Requisition Overview</h5>
                 <div className="d-flex flex-column gap-4">
                   <div>
@@ -429,9 +429,9 @@ function Dashboard() {
 
             {/* Quick Actions */}
             <div className="col-lg-4">
-              <div className="enterprise-table-container p-4">
+              <div className="enterprise-table-container p-4 h-100 d-flex flex-column">
                 <h5 className="small fw-semibold text-uppercase text-muted mb-3">Quick Actions</h5>
-                <div className="d-flex flex-column gap-3 pe-1" style={{ maxHeight: '190px', overflowY: 'auto' }}>
+                <div className="d-flex flex-column gap-3 pe-1 flex-grow-1" style={{ overflowY: 'auto' }}>
                   {quickActionsList.map((action, idx) => (
                     <button
                       key={idx}

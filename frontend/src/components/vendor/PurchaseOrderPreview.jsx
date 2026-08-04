@@ -11,7 +11,7 @@ function PurchaseOrderPreview({ poData }) {
           <span className="text-muted small">Vendor Staffing Services</span>
         </div>
         <div className="text-end">
-          <h5 className="fw-bold text-slate-700">Ref: PO-TEMP-PREVIEW</h5>
+          <h5 className="fw-bold text-slate-700">Ref: {poData.id || 'Generated on submission'}</h5>
           <span className="text-muted small">Date: {new Date().toLocaleDateString()}</span>
         </div>
       </div>
