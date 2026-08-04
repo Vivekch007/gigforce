@@ -77,13 +77,18 @@ function Dashboard() {
       const subs = subsData?.content || [];
       const asns = asnData?.content || [];
 
-      const openJobsCount = reqs.filter(r => r.status === 'OPEN').length;
-      const pendingSubsCount = subs.filter(s => s.status === 'SUBMITTED').length;
-      const activeContractorsCount = asns.filter(a => a.status === 'ACTIVE').length;
-      const pendingTimesheetsCount = tsData.filter(t => t.status === 'SUBMITTED').length;
-      const pendingLeavesCount = leavesData.filter(l => l.status === 'PENDING').length;
+       const openJobsCount = reqs.filter(r => r.status === 'OPEN').length;
+       const pendingSubsCount = subs.filter(s => s.status === 'SUBMITTED').length;
+       const activeContractorsCount = asns.filter(a => a.status === 'ACTIVE').length;
+       const pendingTimesheetsCount = tsData.filter(t => t.status === 'SUBMITTED').length;
+       const pendingLeavesCount = leavesData.filter(l => l.status === 'PENDING').length;
 
-      const approvedUnbilledTimesheetsCount = tsData.filter(t => t.status === 'APPROVED' && !t.billed).length;
+       // Count unbilled timesheets: APPROVED status, NOT_PROCESSED payroll status, and no invoice_id
+       const approvedUnbilledTimesheetsCount = tsData.filter(t =>
+         t.status === 'APPROVED' &&
+         (t.payroll_status || t.payrollStatus) === 'NOT_PROCESSED' &&
+         !t.invoice_id
+       ).length;
 
       const openRequisitionsCount = buDashboard ? buDashboard.openRequisitions : openJobsCount;
       const filledRequisitionsCount = buDashboard ? buDashboard.filledRequisitions : reqs.filter(r => r.status === 'FILLED').length;
