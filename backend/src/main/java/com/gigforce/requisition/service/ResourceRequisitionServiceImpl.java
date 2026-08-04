@@ -47,8 +47,10 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
     private final NotificationPublisher notificationPublisher;
     private final VendorSubmissionRepository submissionRepository;
     private final AssignmentRepository assignmentRepository;
+    private final ResourceRequisitionRepository resourceRequisitionRepository;
 
     public ResourceRequisitionServiceImpl(
+            ResourceRequisitionRepository resourceRequisitionRepository,
             ResourceRequisitionRepository requisitionRepository,
             SkillRepository skillRepository,
             UserRepository userRepository,
@@ -61,6 +63,7 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
         this.skillRepository = skillRepository;
         this.userRepository = userRepository;
         this.auditService = auditService;
+        this.resourceRequisitionRepository = resourceRequisitionRepository;
         this.currentUserContext = currentUserContext;
         this.notificationPublisher = notificationPublisher;
         this.submissionRepository = submissionRepository;
@@ -409,6 +412,7 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
     }
 
     private ResourceRequisitionResponseDTO toDto(ResourceRequisition requisition) {
+        String createdOrg = requisition.getOrgUnitId();
         return ResourceRequisitionResponseDTO.builder()
                 .id(requisition.getId())
                 .title(requisition.getTitle())
@@ -419,6 +423,7 @@ public class ResourceRequisitionServiceImpl implements ResourceRequisitionServic
                 .maxHourlyRate(requisition.getMaxHourlyRate())
                 .quantity(requisition.getQuantity())
                 .status(requisition.getStatus())
+                .createdOrg(createdOrg)
                 .creatorId(requisition.getCreator().getId())
                 .creatorEmail(requisition.getCreator().getEmail())
                 .engagementType(requisition.getEngagementType())

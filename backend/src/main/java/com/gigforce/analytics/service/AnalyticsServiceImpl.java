@@ -134,56 +134,56 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         Long activeContractors = Long.valueOf(getActiveContractorsCount());
 
         Long totalContractors = entityManager.createQuery(
-                "SELECT COUNT(cp.id) FROM ContractorProfile cp", Long.class)
+                        "SELECT COUNT(cp.id) FROM ContractorProfile cp", Long.class)
                 .getSingleResult();
 
         Long availableContractors = entityManager.createQuery(
-                "SELECT COUNT(cp.id) FROM ContractorProfile cp WHERE cp.availabilityStatus = :status", Long.class)
+                        "SELECT COUNT(cp.id) FROM ContractorProfile cp WHERE cp.availabilityStatus = :status", Long.class)
                 .setParameter("status", AvailabilityStatus.AVAILABLE)
                 .getSingleResult();
 
         Long contractorsOnAssignment = entityManager.createQuery(
-                "SELECT COUNT(cp.id) FROM ContractorProfile cp WHERE cp.availabilityStatus = :status", Long.class)
+                        "SELECT COUNT(cp.id) FROM ContractorProfile cp WHERE cp.availabilityStatus = :status", Long.class)
                 .setParameter("status", AvailabilityStatus.ON_ASSIGNMENT)
                 .getSingleResult();
 
         Long pendingTimesheets = entityManager.createQuery(
-                "SELECT COUNT(t.id) FROM Timesheet t WHERE t.status = :status", Long.class)
+                        "SELECT COUNT(t.id) FROM Timesheet t WHERE t.status = :status", Long.class)
                 .setParameter("status", TimesheetStatus.SUBMITTED)
                 .getSingleResult();
 
         Long pendingInvoices = entityManager.createQuery(
-                "SELECT COUNT(ci.id) FROM ContractorInvoice ci WHERE ci.status = :status", Long.class)
+                        "SELECT COUNT(ci.id) FROM ContractorInvoice ci WHERE ci.status = :status", Long.class)
                 .setParameter("status", InvoiceStatus.SUBMITTED)
                 .getSingleResult();
 
         Long openRequisitions = entityManager.createQuery(
-                "SELECT COUNT(r.id) FROM ResourceRequisition r WHERE r.status = :status", Long.class)
+                        "SELECT COUNT(r.id) FROM ResourceRequisition r WHERE r.status = :status", Long.class)
                 .setParameter("status", RequisitionStatus.OPEN)
                 .getSingleResult();
 
         Long filledRequisitions = entityManager.createQuery(
-                "SELECT COUNT(r.id) FROM ResourceRequisition r WHERE r.status = :status", Long.class)
+                        "SELECT COUNT(r.id) FROM ResourceRequisition r WHERE r.status = :status", Long.class)
                 .setParameter("status", RequisitionStatus.FILLED)
                 .getSingleResult();
 
         Long activeAssignments = entityManager.createQuery(
-                "SELECT COUNT(a.id) FROM Assignment a WHERE a.status = :status", Long.class)
+                        "SELECT COUNT(a.id) FROM Assignment a WHERE a.status = :status", Long.class)
                 .setParameter("status", AssignmentStatus.ACTIVE)
                 .getSingleResult();
 
         Long approvedTimesheets = entityManager.createQuery(
-                "SELECT COUNT(t.id) FROM Timesheet t WHERE t.status = :status", Long.class)
+                        "SELECT COUNT(t.id) FROM Timesheet t WHERE t.status = :status", Long.class)
                 .setParameter("status", TimesheetStatus.APPROVED)
                 .getSingleResult();
 
         BigDecimal approvedInvoiceAmount = entityManager.createQuery(
-                "SELECT COALESCE(SUM(ci.invoiceAmount), 0) FROM ContractorInvoice ci WHERE ci.status = :status", BigDecimal.class)
+                        "SELECT COALESCE(SUM(ci.invoiceAmount), 0) FROM ContractorInvoice ci WHERE ci.status = :status", BigDecimal.class)
                 .setParameter("status", InvoiceStatus.APPROVED)
                 .getSingleResult();
 
         BigDecimal paidAmount = entityManager.createQuery(
-                "SELECT COALESCE(SUM(ci.invoiceAmount), 0) FROM ContractorInvoice ci WHERE ci.status = :status", BigDecimal.class)
+                        "SELECT COALESCE(SUM(ci.invoiceAmount), 0) FROM ContractorInvoice ci WHERE ci.status = :status", BigDecimal.class)
                 .setParameter("status", InvoiceStatus.PAID)
                 .getSingleResult();
 
@@ -223,18 +223,18 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         }
 
         Long totalSubmissions = entityManager.createQuery(
-                "SELECT COUNT(s.id) FROM VendorSubmission s WHERE s.submittedBy.id = :vendorId", Long.class)
+                        "SELECT COUNT(s.id) FROM VendorSubmission s WHERE s.submittedBy.id = :vendorId", Long.class)
                 .setParameter("vendorId", vendorId)
                 .getSingleResult();
 
         Long selectedSubmissions = entityManager.createQuery(
-                "SELECT COUNT(s.id) FROM VendorSubmission s WHERE s.submittedBy.id = :vendorId AND s.status = :status", Long.class)
+                        "SELECT COUNT(s.id) FROM VendorSubmission s WHERE s.submittedBy.id = :vendorId AND s.status = :status", Long.class)
                 .setParameter("vendorId", vendorId)
                 .setParameter("status", SubmissionStatus.SELECTED)
                 .getSingleResult();
 
         Long rejectedSubmissions = entityManager.createQuery(
-                "SELECT COUNT(s.id) FROM VendorSubmission s WHERE s.submittedBy.id = :vendorId AND s.status = :status", Long.class)
+                        "SELECT COUNT(s.id) FROM VendorSubmission s WHERE s.submittedBy.id = :vendorId AND s.status = :status", Long.class)
                 .setParameter("vendorId", vendorId)
                 .setParameter("status", SubmissionStatus.REJECTED)
                 .getSingleResult();
@@ -246,22 +246,22 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         }
 
         Double fillRateVal = entityManager.createQuery(
-                "SELECT (COUNT(a.id) * 100.0) / COALESCE(SUM(r.quantity), 1) " +
-                "FROM ResourceRequisition r LEFT JOIN Assignment a ON a.requisition = r AND a.vendor.id = :vendorId " +
-                "WHERE r.id IN (SELECT DISTINCT vs.requisition.id FROM VendorSubmission vs WHERE vs.submittedBy.id = :vendorId)", Double.class)
+                        "SELECT (COUNT(a.id) * 100.0) / COALESCE(SUM(r.quantity), 1) " +
+                                "FROM ResourceRequisition r LEFT JOIN Assignment a ON a.requisition = r AND a.vendor.id = :vendorId " +
+                                "WHERE r.id IN (SELECT DISTINCT vs.requisition.id FROM VendorSubmission vs WHERE vs.submittedBy.id = :vendorId)", Double.class)
                 .setParameter("vendorId", vendorId)
                 .getSingleResult();
         BigDecimal fillRate = fillRateVal != null ? BigDecimal.valueOf(fillRateVal).setScale(2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
 
         Long activeAssignments = entityManager.createQuery(
-                "SELECT COUNT(a.id) FROM Assignment a WHERE a.vendor.id = :vendorId AND a.status = :status", Long.class)
+                        "SELECT COUNT(a.id) FROM Assignment a WHERE a.vendor.id = :vendorId AND a.status = :status", Long.class)
                 .setParameter("vendorId", vendorId)
                 .setParameter("status", AssignmentStatus.ACTIVE)
                 .getSingleResult();
 
         BigDecimal totalRevenueGenerated = entityManager.createQuery(
-                "SELECT COALESCE(SUM(ci.invoiceAmount), 0) FROM ContractorInvoice ci " +
-                "WHERE ci.assignment.vendor.id = :vendorId AND ci.status IN (:statuses)", BigDecimal.class)
+                        "SELECT COALESCE(SUM(ci.invoiceAmount), 0) FROM ContractorInvoice ci " +
+                                "WHERE ci.assignment.vendor.id = :vendorId AND ci.status IN (:statuses)", BigDecimal.class)
                 .setParameter("vendorId", vendorId)
                 .setParameter("statuses", List.of(InvoiceStatus.APPROVED, InvoiceStatus.PAID))
                 .getSingleResult();
@@ -298,26 +298,26 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         }
 
         Long openRequisitions = entityManager.createQuery(
-                "SELECT COUNT(r.id) FROM ResourceRequisition r WHERE r.orgUnitId = :bu AND r.status = :status", Long.class)
+                        "SELECT COUNT(r.id) FROM ResourceRequisition r WHERE r.orgUnitId = :bu AND r.status = :status", Long.class)
                 .setParameter("bu", businessUnit)
                 .setParameter("status", RequisitionStatus.OPEN)
                 .getSingleResult();
 
         Long filledRequisitions = entityManager.createQuery(
-                "SELECT COUNT(r.id) FROM ResourceRequisition r WHERE r.orgUnitId = :bu AND r.status = :status", Long.class)
+                        "SELECT COUNT(r.id) FROM ResourceRequisition r WHERE r.orgUnitId = :bu AND r.status = :status", Long.class)
                 .setParameter("bu", businessUnit)
                 .setParameter("status", RequisitionStatus.FILLED)
                 .getSingleResult();
 
         Long activeContractors = entityManager.createQuery(
-                "SELECT COUNT(DISTINCT a.contractorProfile.user.id) FROM Assignment a WHERE a.orgUnitId = :bu AND a.status = :status", Long.class)
+                        "SELECT COUNT(DISTINCT a.contractorProfile.user.id) FROM Assignment a WHERE a.orgUnitId = :bu AND a.status = :status", Long.class)
                 .setParameter("bu", businessUnit)
                 .setParameter("status", AssignmentStatus.ACTIVE)
                 .getSingleResult();
 
         BigDecimal totalSpend = entityManager.createQuery(
-                "SELECT COALESCE(SUM(ci.invoiceAmount), 0) FROM ContractorInvoice ci " +
-                "WHERE ci.orgUnitId = :bu AND ci.status = :status", BigDecimal.class)
+                        "SELECT COALESCE(SUM(ci.invoiceAmount), 0) FROM ContractorInvoice ci " +
+                                "WHERE ci.orgUnitId = :bu AND ci.status = :status", BigDecimal.class)
                 .setParameter("bu", businessUnit)
                 .setParameter("status", InvoiceStatus.PAID)
                 .getSingleResult();
@@ -344,62 +344,62 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         }
 
         String orgUnitId = currentUser.getOrgUnitId();
-        
+
         Long contractorsBySkill;
         Long openDemandBySkill;
         BigDecimal fillRateBySkill;
-        
+
         if ("HIRING_MANAGER".equals(role)) {
             if (orgUnitId == null) {
                 throw new IllegalStateException("Hiring Manager does not have an orgUnitId assigned.");
             }
-            
+
             contractorsBySkill = entityManager.createQuery(
-                    "SELECT COUNT(DISTINCT cs.contractorProfile.user.id) FROM ContractorSkill cs " +
-                    "WHERE cs.skill.name = :skill " +
-                    "AND cs.contractorProfile.id IN (" +
-                    "   SELECT a.contractorProfile.id FROM Assignment a WHERE a.orgUnitId = :orgUnitId" +
-                    ")", Long.class)
+                            "SELECT COUNT(DISTINCT cs.contractorProfile.user.id) FROM ContractorSkill cs " +
+                                    "WHERE cs.skill.name = :skill " +
+                                    "AND cs.contractorProfile.id IN (" +
+                                    "   SELECT a.contractorProfile.id FROM Assignment a WHERE a.orgUnitId = :orgUnitId" +
+                                    ")", Long.class)
                     .setParameter("skill", skill)
                     .setParameter("orgUnitId", orgUnitId)
                     .getSingleResult();
-            
+
             openDemandBySkill = entityManager.createQuery(
-                    "SELECT COALESCE(SUM(r.quantity), 0L) FROM ResourceRequisition r " +
-                    "WHERE r.requiredSkill.name = :skill AND r.status = :status AND r.orgUnitId = :orgUnitId", Long.class)
+                            "SELECT COALESCE(SUM(r.quantity), 0L) FROM ResourceRequisition r " +
+                                    "WHERE r.requiredSkill.name = :skill AND r.status = :status AND r.orgUnitId = :orgUnitId", Long.class)
                     .setParameter("skill", skill)
                     .setParameter("status", RequisitionStatus.OPEN)
                     .setParameter("orgUnitId", orgUnitId)
                     .getSingleResult();
-            
+
             Double fillRateBySkillVal = entityManager.createQuery(
-                    "SELECT (COUNT(a.id) * 100.0) / COALESCE(SUM(r.quantity), 1) " +
-                    "FROM ResourceRequisition r LEFT JOIN Assignment a ON a.requisition = r " +
-                    "WHERE r.requiredSkill.name = :skill AND r.status <> :draftStatus AND r.orgUnitId = :orgUnitId", Double.class)
+                            "SELECT (COUNT(a.id) * 100.0) / COALESCE(SUM(r.quantity), 1) " +
+                                    "FROM ResourceRequisition r LEFT JOIN Assignment a ON a.requisition = r " +
+                                    "WHERE r.requiredSkill.name = :skill AND r.status <> :draftStatus AND r.orgUnitId = :orgUnitId", Double.class)
                     .setParameter("skill", skill)
                     .setParameter("draftStatus", RequisitionStatus.DRAFT)
                     .setParameter("orgUnitId", orgUnitId)
                     .getSingleResult();
             fillRateBySkill = fillRateBySkillVal != null ? BigDecimal.valueOf(fillRateBySkillVal).setScale(2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
-            
+
         } else {
             contractorsBySkill = entityManager.createQuery(
-                    "SELECT COUNT(DISTINCT cs.contractorProfile.user.id) FROM ContractorSkill cs " +
-                    "WHERE cs.skill.name = :skill", Long.class)
+                            "SELECT COUNT(DISTINCT cs.contractorProfile.user.id) FROM ContractorSkill cs " +
+                                    "WHERE cs.skill.name = :skill", Long.class)
                     .setParameter("skill", skill)
                     .getSingleResult();
 
             openDemandBySkill = entityManager.createQuery(
-                    "SELECT COALESCE(SUM(r.quantity), 0L) FROM ResourceRequisition r " +
-                    "WHERE r.requiredSkill.name = :skill AND r.status = :status", Long.class)
+                            "SELECT COALESCE(SUM(r.quantity), 0L) FROM ResourceRequisition r " +
+                                    "WHERE r.requiredSkill.name = :skill AND r.status = :status", Long.class)
                     .setParameter("skill", skill)
                     .setParameter("status", RequisitionStatus.OPEN)
                     .getSingleResult();
 
             Double fillRateBySkillVal = entityManager.createQuery(
-                    "SELECT (COUNT(a.id) * 100.0) / COALESCE(SUM(r.quantity), 1) " +
-                    "FROM ResourceRequisition r LEFT JOIN Assignment a ON a.requisition = r " +
-                    "WHERE r.requiredSkill.name = :skill AND r.status <> :draftStatus", Double.class)
+                            "SELECT (COUNT(a.id) * 100.0) / COALESCE(SUM(r.quantity), 1) " +
+                                    "FROM ResourceRequisition r LEFT JOIN Assignment a ON a.requisition = r " +
+                                    "WHERE r.requiredSkill.name = :skill AND r.status <> :draftStatus", Double.class)
                     .setParameter("skill", skill)
                     .setParameter("draftStatus", RequisitionStatus.DRAFT)
                     .getSingleResult();
@@ -443,11 +443,11 @@ public class AnalyticsServiceImpl implements AnalyticsService {
 
         if (vendorId != null) {
             return entityManager.createQuery(
-                    "SELECT COUNT(c.id) FROM ContractorCertification c " +
-                    "WHERE c.expiryDate BETWEEN :today AND :endDate " +
-                    "AND c.contractorProfile.id IN (" +
-                    "   SELECT a.contractorProfile.id FROM Assignment a WHERE a.vendor.id = :vendorId" +
-                    ")", Long.class)
+                            "SELECT COUNT(c.id) FROM ContractorCertification c " +
+                                    "WHERE c.expiryDate BETWEEN :today AND :endDate " +
+                                    "AND c.contractorProfile.id IN (" +
+                                    "   SELECT a.contractorProfile.id FROM Assignment a WHERE a.vendor.id = :vendorId" +
+                                    ")", Long.class)
                     .setParameter("today", LocalDate.now())
                     .setParameter("endDate", endDate)
                     .setParameter("vendorId", vendorId)
@@ -455,8 +455,8 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         }
 
         return entityManager.createQuery(
-                "SELECT COUNT(c.id) FROM ContractorCertification c " +
-                "WHERE c.expiryDate BETWEEN :today AND :endDate", Long.class)
+                        "SELECT COUNT(c.id) FROM ContractorCertification c " +
+                                "WHERE c.expiryDate BETWEEN :today AND :endDate", Long.class)
                 .setParameter("today", LocalDate.now())
                 .setParameter("endDate", endDate)
                 .getSingleResult();
@@ -477,26 +477,26 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         String contractorUserId = currentUser.getId();
 
         Long activeAssignmentsCount = entityManager.createQuery(
-                "SELECT COUNT(a.id) FROM Assignment a WHERE a.contractorProfile.user.id = :userId AND a.status = :status", Long.class)
+                        "SELECT COUNT(a.id) FROM Assignment a WHERE a.contractorProfile.user.id = :userId AND a.status = :status", Long.class)
                 .setParameter("userId", contractorUserId)
                 .setParameter("status", AssignmentStatus.ACTIVE)
                 .getSingleResult();
 
         BigDecimal totalHoursVal = entityManager.createQuery(
-                "SELECT COALESCE(SUM(tl.hoursWorked + tl.overtimeHours), 0) FROM TimesheetLine tl WHERE tl.timesheet.contractor.user.id = :userId AND tl.timesheet.status = :status", BigDecimal.class)
+                        "SELECT COALESCE(SUM(tl.hoursWorked + tl.overtimeHours), 0) FROM TimesheetLine tl WHERE tl.timesheet.contractor.user.id = :userId AND tl.timesheet.status = :status", BigDecimal.class)
                 .setParameter("userId", contractorUserId)
                 .setParameter("status", TimesheetStatus.APPROVED)
                 .getSingleResult();
         BigDecimal totalHoursLogged = totalHoursVal != null ? totalHoursVal.setScale(2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
 
         Long pendingTimesheetsCount = entityManager.createQuery(
-                "SELECT COUNT(t.id) FROM Timesheet t WHERE t.contractor.user.id = :userId AND t.status IN :statuses", Long.class)
+                        "SELECT COUNT(t.id) FROM Timesheet t WHERE t.contractor.user.id = :userId AND t.status IN :statuses", Long.class)
                 .setParameter("userId", contractorUserId)
                 .setParameter("statuses", java.util.List.of(TimesheetStatus.DRAFT, TimesheetStatus.REJECTED, TimesheetStatus.REVISED))
                 .getSingleResult();
 
         BigDecimal totalPaidAmount = entityManager.createQuery(
-                "SELECT COALESCE(SUM(ci.invoiceAmount), 0) FROM ContractorInvoice ci WHERE ci.contractor.id = :userId AND ci.status = :status", BigDecimal.class)
+                        "SELECT COALESCE(SUM(ci.invoiceAmount), 0) FROM ContractorInvoice ci WHERE ci.contractor.id = :userId AND ci.status = :status", BigDecimal.class)
                 .setParameter("userId", contractorUserId)
                 .setParameter("status", InvoiceStatus.PAID)
                 .getSingleResult();
@@ -524,16 +524,16 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         String contractorUserId = currentUser.getId();
 
         List<ContractorInvoice> invoices = entityManager.createQuery(
-                "SELECT ci FROM ContractorInvoice ci WHERE ci.contractor.id = :userId AND ci.status IN (:statuses) ORDER BY ci.invoiceDate DESC", ContractorInvoice.class)
+                        "SELECT ci FROM ContractorInvoice ci WHERE ci.contractor.id = :userId AND ci.status IN (:statuses) ORDER BY ci.invoiceDate DESC", ContractorInvoice.class)
                 .setParameter("userId", contractorUserId)
                 .setParameter("statuses", List.of(InvoiceStatus.PAID, InvoiceStatus.APPROVED, InvoiceStatus.SUBMITTED))
                 .getResultList();
 
         return invoices.stream().map(ci -> {
             LocalDate baseDate = ci.getBillingEndDate() != null ? ci.getBillingEndDate() : ci.getInvoiceDate();
-            String monthDisplay = baseDate != null 
-                ? baseDate.getMonth().name().substring(0, 1) + baseDate.getMonth().name().substring(1).toLowerCase() + " " + baseDate.getYear()
-                : "Unknown Period";
+            String monthDisplay = baseDate != null
+                    ? baseDate.getMonth().name().substring(0, 1) + baseDate.getMonth().name().substring(1).toLowerCase() + " " + baseDate.getYear()
+                    : "Unknown Period";
 
             String statusDisplay = "Processing";
             if (ci.getStatus() == InvoiceStatus.PAID) {
@@ -560,14 +560,14 @@ public class AnalyticsServiceImpl implements AnalyticsService {
             String assignmentStatus,
             String invoiceStatus,
             String timesheetStatus) {
-        
+
         User currentUser = currentUserContext.getCurrentUser();
         if (currentUser == null) {
             throw new AccessDeniedException("Access Denied: Unauthenticated.");
         }
 
         String role = currentUser.getRole().name();
-        
+
         // Enforce RBAC filtering:
         if ("HIRING_MANAGER".equals(role)) {
             orgUnitId = currentUser.getOrgUnitId();
@@ -1148,8 +1148,8 @@ public class AnalyticsServiceImpl implements AnalyticsService {
 
     private Integer getActiveContractorsCount() {
         return entityManager.createQuery(
-                "SELECT COUNT(DISTINCT a.contractorProfile.user.id) FROM Assignment a " +
-                "WHERE a.status = :status", Long.class)
+                        "SELECT COUNT(DISTINCT a.contractorProfile.user.id) FROM Assignment a " +
+                                "WHERE a.status = :status", Long.class)
                 .setParameter("status", AssignmentStatus.ACTIVE)
                 .getSingleResult()
                 .intValue();
@@ -1157,17 +1157,17 @@ public class AnalyticsServiceImpl implements AnalyticsService {
 
     private BigDecimal getTotalSpendValue() {
         return entityManager.createQuery(
-                "SELECT COALESCE(SUM(ci.invoiceAmount), 0) FROM ContractorInvoice ci " +
-                "WHERE ci.status IN (:statuses)", BigDecimal.class)
+                        "SELECT COALESCE(SUM(ci.invoiceAmount), 0) FROM ContractorInvoice ci " +
+                                "WHERE ci.status IN (:statuses)", BigDecimal.class)
                 .setParameter("statuses", List.of(InvoiceStatus.APPROVED, InvoiceStatus.PAID))
                 .getSingleResult();
     }
 
     private BigDecimal getFillRateValue() {
         Double result = entityManager.createQuery(
-                "SELECT (COUNT(a.id) * 100.0) / COALESCE(SUM(r.quantity), 1) " +
-                "FROM ResourceRequisition r LEFT JOIN Assignment a ON a.requisition = r " +
-                "WHERE r.status <> :draftStatus", Double.class)
+                        "SELECT (COUNT(a.id) * 100.0) / COALESCE(SUM(r.quantity), 1) " +
+                                "FROM ResourceRequisition r LEFT JOIN Assignment a ON a.requisition = r " +
+                                "WHERE r.status <> :draftStatus", Double.class)
                 .setParameter("draftStatus", RequisitionStatus.DRAFT)
                 .getSingleResult();
         return result != null ? BigDecimal.valueOf(result).setScale(2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
@@ -1175,8 +1175,8 @@ public class AnalyticsServiceImpl implements AnalyticsService {
 
     private BigDecimal getAvgTimeToFillValue() {
         Double result = entityManager.createQuery(
-                "SELECT COALESCE(AVG(FUNCTION('DATEDIFF', a.createdAt, r.createdAt)), 0.0) " +
-                "FROM Assignment a JOIN a.requisition r", Double.class)
+                        "SELECT COALESCE(AVG(FUNCTION('DATEDIFF', a.createdAt, r.createdAt)), 0.0) " +
+                                "FROM Assignment a JOIN a.requisition r", Double.class)
                 .getSingleResult();
         return result != null ? BigDecimal.valueOf(result).setScale(2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
     }

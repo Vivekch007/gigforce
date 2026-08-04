@@ -145,7 +145,7 @@ function Assignments() {
         <>
         <Table headers={['Assignment ID', 'Contractor', 'Client', 'Job Title', 'Start Date', 'End Date', 'Status', 'Actions']}>
           {paginatedAssignments.map(a => (
-              
+              console.log(a),
             <tr key={a.id}>
 
               <td className="fw-bold">{a.id}</td>

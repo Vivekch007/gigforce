@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Form, Alert, Modal } from 'react-bootstrap';
+import { Form, Modal } from 'react-bootstrap';
 import { getRequisitions, getRequisitionDetails } from '../../services/vendorRequisitionService';
 import { getCandidates } from '../../services/candidateService';
 import { submitCandidateToRequisition, getSubmissions } from '../../services/submissionService';
@@ -18,7 +18,6 @@ function OpenRequisitions() {
   const searchVal = searchParams.get('search') || '';
 
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const { showToast } = useToast();
 
   // Requisitions state
@@ -44,12 +43,9 @@ function OpenRequisitions() {
   const [proposedRate, setProposedRate] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-
-
   const loadRequisitions = async () => {
     try {
       setLoading(true);
-      setError('');
 
       const params = {
         page,
@@ -66,7 +62,8 @@ function OpenRequisitions() {
       setTotalPages(res?.totalPages || 1);
 
     } catch (err) {
-      setError(getErrorMessage(err));
+      // Trigger slide-in popup error
+      showToast(getErrorMessage(err), 'error');
     } finally {
       setLoading(false);
     }
@@ -78,12 +75,10 @@ function OpenRequisitions() {
 
   const viewDetails = async (reqId) => {
     try {
-      setError('');
       const details = await getRequisitionDetails(reqId);
       setSelectedReq(details);
       setShowDetailModal(true);
     } catch (err) {
-      setError(getErrorMessage(err));
       showToast(getErrorMessage(err), 'error');
     }
   };
@@ -99,8 +94,7 @@ function OpenRequisitions() {
         getCandidates({ size: 100, availability: 'AVAILABLE' }),
         getSubmissions({ requisitionId: req.id, size: 100 }),
       ]);
-      // Exclude candidates who already have a submission (of any status) for this requisition -
-      // resubmitting the same contractor to the same job is rejected by the backend anyway.
+
       const alreadySubmittedIds = new Set(
         (submissionsData?.content || []).map(s => String(s.contractorProfileId))
       );
@@ -162,13 +156,10 @@ function OpenRequisitions() {
         <p className="muted-text">View open demands posted by clients, check skill criteria, and submit candidate profiles.</p>
       </div>
 
-      {error && <Alert variant="danger" className="enterprise-alert enterprise-alert-danger mb-4">{error}</Alert>}
-
       {/* Filter Row */}
       <div className="enterprise-table-container p-3 mb-4 bg-white" style={{ borderRadius: 'var(--gf-radius)', boxShadow: 'var(--gf-shadow)' }}>
         <div className="d-flex flex-wrap gap-3 justify-content-between align-items-center">
           <div className="d-flex flex-wrap gap-3 align-items-center">
-
             <VendorFilters
               label="Skill"
               value={skillFilter}
@@ -200,18 +191,21 @@ function OpenRequisitions() {
         <Loader message="Searching open postings..." />
       ) : requisitions.length > 0 ? (
         <div>
-          <Table headers={['Job Title', 'Client', 'Core Skill', 'Experience', 'Positions', 'Rate Budget', 'Actions']}>
+          <Table headers={['Job Title', 'Client', 'Core Skill', 'Experience', 'Positions', 'Rate Budget', 'Status', 'Actions']}>
             {requisitions.map(req => (
               <tr key={req.id}>
                 <td>
                   <span className="fw-semibold text-dark d-block">{req.title || req.jobTitle}</span>
                   <span className="text-muted small" style={{ fontSize: '11px' }}>ID: {req.id}</span>
                 </td>
-                <td>{req.clientName || req.businessUnitId || 'Client BU'}</td>
-                <td>{req.requiredSkillName || req.requiredSkillId || 'Java'}</td>
+                <td>{req.createdOrg || 'Client BU'}</td>
+                <td>{req.requiredSkillName}</td>
                 <td>{req.minExperienceYears || 3} yrs</td>
                 <td>{req.quantity} vacant</td>
                 <td className="text-success fw-bold">{formatRupees(req.maxHourlyRate || 500)}/hr</td>
+                <td>
+                  <span className="status-pill success">{req.status}</span>
+                </td>
                 <td>
                   <div className="d-flex gap-2 justify-content-start">
                     <button className="btn-enterprise-secondary py-1 px-3" onClick={() => viewDetails(req.id)}>
@@ -250,7 +244,7 @@ function OpenRequisitions() {
               <hr />
               <div className="row g-3 small text-dark">
                 <div className="col-sm-6">
-                  <strong>HR Organization:</strong> {selectedReq.businessUnitId || selectedReq.creatorEmail || 'Partner Client'}
+                  <strong>HR Organization:</strong> {selectedReq.createdOrg || 'Partner Client'}
                 </div>
                 <div className="col-sm-6">
                   <strong>Core Required Skill:</strong> {selectedReq.requiredSkillName || 'Technical'}
@@ -276,7 +270,7 @@ function OpenRequisitions() {
         </Modal.Footer>
       </Modal>
 
-      {/* Submit Candidate Modal (stays on this page - no redirect) */}
+      {/* Submit Candidate Modal */}
       <Modal show={showSubmitModal} onHide={() => setShowSubmitModal(false)} centered className="enterprise-modal-content">
         <Modal.Header closeButton className="enterprise-modal-header">
           <Modal.Title className="fw-bold text-dark">Submit Candidate</Modal.Title>
@@ -328,7 +322,6 @@ function OpenRequisitions() {
           </button>
         </Modal.Footer>
       </Modal>
-
     </div>
   );
 }

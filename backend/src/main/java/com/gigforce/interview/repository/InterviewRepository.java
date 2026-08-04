@@ -32,4 +32,6 @@ public interface InterviewRepository extends JpaRepository<Interview, String>, J
            "WHERE vs.requisition.orgUnitId = :orgUnitId " +
            "ORDER BY i.date ASC")
     List<Interview> findByRequisitionOrgUnit(@Param("orgUnitId") String orgUnitId);
+
+    boolean existsByVendorSubmissionIdAndStatus(String vendorSubmissionId, String status);
 }

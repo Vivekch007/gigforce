@@ -556,9 +556,9 @@ public class AssignmentServiceImpl implements AssignmentService {
     private void updateContractorAvailabilityOnCompletion(ContractorProfile profile, String excludedAssignmentId) {
         boolean hasOtherActive = assignmentRepository.findByContractorProfileId(profile.getId()).stream()
                 .anyMatch(a -> !a.getId().equals(excludedAssignmentId)
-                        && (a.getStatus() == AssignmentStatus.ACTIVE 
-                            || a.getStatus() == AssignmentStatus.EXTENDED 
-                            || a.getStatus() == AssignmentStatus.CREATED));
+                        && (a.getStatus() == AssignmentStatus.ACTIVE
+                        || a.getStatus() == AssignmentStatus.EXTENDED
+                        || a.getStatus() == AssignmentStatus.CREATED));
         if (!hasOtherActive) {
             profile.setAvailabilityStatus(AvailabilityStatus.AVAILABLE);
             contractorProfileRepository.save(profile);

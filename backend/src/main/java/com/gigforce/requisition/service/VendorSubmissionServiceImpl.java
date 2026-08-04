@@ -45,6 +45,7 @@ public class VendorSubmissionServiceImpl implements VendorSubmissionService {
     private final EngagementHistoryRepository engagementHistoryRepository;
     private final AuditService auditService;
     private final com.gigforce.notification.publisher.NotificationPublisher notificationPublisher;
+    private final com.gigforce.interview.repository.InterviewRepository interviewRepository;
 
     public VendorSubmissionServiceImpl(
             VendorSubmissionRepository submissionRepository,
@@ -53,7 +54,8 @@ public class VendorSubmissionServiceImpl implements VendorSubmissionService {
             UserRepository userRepository,
             EngagementHistoryRepository engagementHistoryRepository,
             AuditService auditService,
-            com.gigforce.notification.publisher.NotificationPublisher notificationPublisher) {
+            com.gigforce.notification.publisher.NotificationPublisher notificationPublisher,
+            com.gigforce.interview.repository.InterviewRepository interviewRepository) {
         this.submissionRepository = submissionRepository;
         this.requisitionRepository = requisitionRepository;
         this.contractorProfileRepository = contractorProfileRepository;
@@ -61,6 +63,7 @@ public class VendorSubmissionServiceImpl implements VendorSubmissionService {
         this.engagementHistoryRepository = engagementHistoryRepository;
         this.auditService = auditService;
         this.notificationPublisher = notificationPublisher;
+        this.interviewRepository = interviewRepository;
     }
 
     @Override
@@ -177,6 +180,12 @@ public class VendorSubmissionServiceImpl implements VendorSubmissionService {
 
         // 3. TARGET STATUS SPECIFIC LOGIC
         if (targetStatus == SubmissionStatus.SELECTED) {
+            // Require at least one COMPLETED interview for this submission before selection by HR/Admin
+            boolean completedInterviewExists = interviewRepository.existsByVendorSubmissionIdAndStatus(submission.getId(), "COMPLETED");
+            if (!completedInterviewExists) {
+                throw new BusinessValidationException("Cannot select submission until candidate interview is completed.");
+            }
+
             ContractorProfile profile = submission.getContractorProfile();
             if (profile.getAvailabilityStatus() != AvailabilityStatus.AVAILABLE
                     && profile.getAvailabilityStatus() != AvailabilityStatus.ON_NOTICE) {
