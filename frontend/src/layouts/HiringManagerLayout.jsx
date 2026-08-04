@@ -12,6 +12,7 @@ const SEARCH_PLACEHOLDERS = {
   '/manager/assignments': 'Search Assignments...',
   '/manager/timesheet-approvals': 'Search timesheets pending review...',
   '/manager/leave-approvals': 'Search leave registries...',
+  '/manager/purchase-orders': 'Search purchase orders...',
   '/manager/notifications': 'Search manager alerts...',
 };
 
@@ -25,6 +26,7 @@ const SIDEBAR_LINKS = [
   { to: '/manager/create-timesheet', label: 'Create Timesheet', icon: 'bi bi-clock-history' },
   { to: '/manager/timesheet-approvals', label: 'Weekly Timesheets', icon: 'bi bi-check2-square' },
   { to: '/manager/leave-approvals', label: 'Leave Registry', icon: 'bi bi-calendar-check' },
+  { to: '/manager/purchase-orders', label: 'Purchase Orders', icon: 'bi bi-receipt' },
   { to: '/manager/invoice-creation', label: 'Invoice Generate', icon: 'bi bi-shield-check' },
   { to: '/manager/reports', label: 'Analytics Reports', icon: 'bi bi-bar-chart-line' },
 ];

@@ -14,3 +14,11 @@ export function createPurchaseOrder(payload) {
   // PurchaseOrderRequestDTO { assignmentId, vendorId, poAmount, currency }
   return apiClient.post('/purchase-orders', payload).then((res) => res.data);
 }
+
+export function approvePurchaseOrder(id) {
+  return apiClient.put(`/purchase-orders/${id}/approve`).then((res) => res.data);
+}
+
+export function cancelPurchaseOrder(id) {
+  return apiClient.put(`/purchase-orders/${id}/cancel`).then((res) => res.data);
+}

@@ -79,8 +79,11 @@ function PurchaseOrders() {
   }, []);
 
   // Only assignments with no PO already raised against them are eligible.
+  // Includes CREATED (assignment made but start date hasn't arrived yet) - a PO
+  // can be raised for the full duration ahead of the work actually starting.
+  const ELIGIBLE_STATUSES = ['CREATED', 'ACTIVE', 'EXTENDED'];
   const unassignedAssignments = assignments.filter(
-    a => !a.poId && !a.POID && (a.status === 'ACTIVE' || a.status === 'EXTENDED' || a.Status === 'ACTIVE' || a.Status === 'EXTENDED')
+    a => !a.poId && !a.POID && (ELIGIBLE_STATUSES.includes(a.status) || ELIGIBLE_STATUSES.includes(a.Status))
   );
 
   const openManualPOModal = () => {

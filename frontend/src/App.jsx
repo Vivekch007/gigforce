@@ -31,6 +31,7 @@ import ManagerAssignments from './pages/manager/Assignments';
 import CreateTimesheet from './pages/manager/CreateTimesheet';
 import TimesheetApprovals from './pages/manager/TimesheetApprovals';
 import LeaveApprovals from './pages/manager/LeaveApprovals';
+import ManagerPurchaseOrders from './pages/manager/PurchaseOrders';
 import InvoiceCreation from './pages/manager/InvoiceCreation';
 import ManagerReports from './pages/manager/Reports';
 import ManagerNotifications from './pages/manager/Notifications';
@@ -114,6 +115,7 @@ function App() {
               <Route path="/manager/create-timesheet" element={<CreateTimesheet />} />
               <Route path="/manager/timesheet-approvals" element={<TimesheetApprovals />} />
               <Route path="/manager/leave-approvals" element={<LeaveApprovals />} />
+              <Route path="/manager/purchase-orders" element={<ManagerPurchaseOrders />} />
               <Route path="/manager/invoice-creation" element={<InvoiceCreation />} />
               <Route path="/manager/reports" element={<ManagerReports />} />
               <Route path="/manager/notifications" element={<ManagerNotifications />} />
