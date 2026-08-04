@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Form, Modal, Row, Col, Alert, Spinner, Pagination, Offcanvas, Card, ProgressBar, Table as BootstrapTable } from 'react-bootstrap';
-import { getAssignments, getAssignmentDetails, completeAssignment, requestAmendment, getAssignmentAmendments } from '../../services/managerAssignmentService';
+import { getAssignments, getAssignmentDetails, completeAssignment, requestAmendment, getAssignmentAmendments, getPendingAmendments, approveAmendment, rejectAmendment } from '../../services/managerAssignmentService';
 import { getErrorMessage } from '../../services/errorUtils';
 import { useConfirmation } from '../../context/ConfirmationContext';
 import Table from '../../components/Table';
@@ -47,6 +47,14 @@ function Assignments() {
   const [selectedAmendment, setSelectedAmendment] = useState(null);
   const [submittingAction, setSubmittingAction] = useState(false);
 
+  // Pending amendment approvals (extension/rate/termination requests raised by vendors)
+  const [pendingAmendments, setPendingAmendments] = useState([]);
+  const [loadingPendingAmendments, setLoadingPendingAmendments] = useState(true);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewAmendment, setReviewAmendment] = useState(null);
+  const [reviewRemarks, setReviewRemarks] = useState('');
+  const [reviewingAction, setReviewingAction] = useState(false);
+
   const loadAssignments = async () => {
     try {
       setLoading(true);
@@ -72,6 +80,66 @@ function Assignments() {
   useEffect(() => {
     loadAssignments();
   }, [statusFilter]);
+
+  const loadPendingAmendments = async () => {
+    try {
+      setLoadingPendingAmendments(true);
+      const data = await getPendingAmendments();
+      setPendingAmendments(data || []);
+    } catch (err) {
+      console.error('Failed to load pending amendments', err);
+    } finally {
+      setLoadingPendingAmendments(false);
+    }
+  };
+
+  useEffect(() => {
+    loadPendingAmendments();
+  }, []);
+
+  const openReviewModal = (amendment) => {
+    setReviewAmendment(amendment);
+    setReviewRemarks('');
+    setError('');
+    setShowReviewModal(true);
+  };
+
+  const handleApproveAmendment = async () => {
+    try {
+      setReviewingAction(true);
+      setError('');
+      setSuccess('');
+      await approveAmendment(reviewAmendment.id, reviewRemarks || undefined);
+      setSuccess(`Amendment approved — assignment ${reviewAmendment.assignmentId} has been updated automatically.`);
+      setShowReviewModal(false);
+      loadPendingAmendments();
+      loadAssignments();
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setReviewingAction(false);
+    }
+  };
+
+  const handleRejectAmendment = async () => {
+    if (!reviewRemarks.trim()) {
+      setError('Remarks are required to reject an amendment.');
+      return;
+    }
+    try {
+      setReviewingAction(true);
+      setError('');
+      setSuccess('');
+      await rejectAmendment(reviewAmendment.id, reviewRemarks);
+      setSuccess('Amendment request rejected.');
+      setShowReviewModal(false);
+      loadPendingAmendments();
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setReviewingAction(false);
+    }
+  };
 
   const viewAssignmentDetails = async (asn) => {
     try {
@@ -312,6 +380,47 @@ function Assignments() {
 
       {error && <Alert variant="danger" className="enterprise-alert enterprise-alert-danger mb-4">{error}</Alert>}
       {success && <Alert variant="success" className="enterprise-alert enterprise-alert-success mb-4" onClose={() => setSuccess('')} dismissible>{success}</Alert>}
+
+      {/* Pending Amendment Requests - vendor-submitted extensions/rate revisions/terminations awaiting HR approval */}
+      {!loadingPendingAmendments && pendingAmendments.length > 0 && (
+        <div className="enterprise-table-container p-3 mb-4 bg-white" style={{ borderRadius: 'var(--gf-radius)', boxShadow: 'var(--gf-shadow)' }}>
+          <h5 className="small fw-semibold text-uppercase text-muted mb-3">
+            <i className="bi bi-hourglass-split me-2"></i>Pending Extension &amp; Amendment Requests ({pendingAmendments.length})
+          </h5>
+          <div className="table-responsive">
+            <BootstrapTable className="table table-hover align-middle mb-0 small">
+              <thead className="table-light">
+                <tr>
+                  <th>Assignment ID</th>
+                  <th>Type</th>
+                  <th>New Value</th>
+                  <th>Reason</th>
+                  <th>Requested</th>
+                  <th className="text-end">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pendingAmendments.map((am) => (
+                  <tr key={am.id}>
+                    <td className="fw-bold">{am.assignmentId}</td>
+                    <td>{am.amendmentType}</td>
+                    <td>{am.amendmentType === 'RATE_REVISION' ? `₹${am.newValue}/day` : am.newValue}</td>
+                    <td>{am.reason || 'N/A'}</td>
+                    <td>{am.createdAt ? am.createdAt.substring(0, 10) : ''}</td>
+                    <td className="text-end">
+                      <div className="d-flex gap-2 justify-content-end">
+                        <button className="btn-enterprise-secondary py-1 px-3" onClick={() => openReviewModal(am)}>
+                          Review
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </BootstrapTable>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <Loader message="Loading assignment records..." />
@@ -854,6 +963,75 @@ function Assignments() {
         </Modal.Body>
         <Modal.Footer className="enterprise-modal-footer">
           <button className="btn-enterprise-secondary" onClick={() => setShowHistoryModal(false)}>Close</button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Review Pending Amendment Modal - Approve auto-applies the change to the assignment */}
+      <Modal show={showReviewModal} onHide={() => setShowReviewModal(false)} centered className="enterprise-modal-content">
+        <Modal.Header closeButton className="enterprise-modal-header">
+          <Modal.Title className="fw-bold text-dark">Review Amendment Request</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="enterprise-modal-body">
+          {error && <Alert variant="danger" className="mb-3">{error}</Alert>}
+          {reviewAmendment && (
+            <div className="d-flex flex-column gap-2">
+              <Row className="g-2 small">
+                <Col xs={6}>
+                  <span className="text-muted d-block text-uppercase" style={{ fontSize: '10px', fontWeight: 'bold' }}>Assignment</span>
+                  <span className="fw-semibold text-dark">{reviewAmendment.assignmentId}</span>
+                </Col>
+                <Col xs={6}>
+                  <span className="text-muted d-block text-uppercase" style={{ fontSize: '10px', fontWeight: 'bold' }}>Amendment Type</span>
+                  <span className="fw-semibold text-dark">{reviewAmendment.amendmentType}</span>
+                </Col>
+                <Col xs={6} className="mt-2">
+                  <span className="text-muted d-block text-uppercase" style={{ fontSize: '10px', fontWeight: 'bold' }}>Effective Date</span>
+                  <span className="fw-semibold text-dark">{reviewAmendment.effectiveDate}</span>
+                </Col>
+                <Col xs={6} className="mt-2">
+                  <span className="text-muted d-block text-uppercase" style={{ fontSize: '10px', fontWeight: 'bold' }}>New Value</span>
+                  <span className="fw-semibold text-dark">
+                    {reviewAmendment.amendmentType === 'RATE_REVISION' ? `₹${reviewAmendment.newValue}/day` : reviewAmendment.newValue}
+                  </span>
+                </Col>
+                <Col xs={12} className="mt-2">
+                  <span className="text-muted d-block text-uppercase" style={{ fontSize: '10px', fontWeight: 'bold' }}>Reason</span>
+                  <span className="fw-semibold text-dark">{reviewAmendment.reason || 'N/A'}</span>
+                </Col>
+                {reviewAmendment.remarks && (
+                  <Col xs={12} className="mt-2">
+                    <span className="text-muted d-block text-uppercase" style={{ fontSize: '10px', fontWeight: 'bold' }}>Vendor Remarks</span>
+                    <span className="text-dark">{reviewAmendment.remarks}</span>
+                  </Col>
+                )}
+              </Row>
+
+              <p className="text-muted small mt-2 mb-0">
+                Approving will automatically apply this change to the assignment (e.g. extend the end date and mark it EXTENDED) — no further action needed.
+              </p>
+
+              <Form.Group className="mt-2" controlId="reviewRemarks">
+                <Form.Label className="enterprise-form-label">Remarks {<span className="text-muted">(required to reject)</span>}</Form.Label>
+                <Form.Control
+                  as="textarea"
+                  rows={2}
+                  placeholder="Add approval notes, or a reason for rejection..."
+                  value={reviewRemarks}
+                  onChange={(e) => setReviewRemarks(e.target.value)}
+                  className="enterprise-form-control"
+                />
+              </Form.Group>
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer className="enterprise-modal-footer">
+          <button className="btn-enterprise-secondary" onClick={() => setShowReviewModal(false)}>Cancel</button>
+          <button className="btn-enterprise-ghost text-danger border-danger py-1 px-3" onClick={handleRejectAmendment} disabled={reviewingAction}>
+            {reviewingAction ? <Spinner animation="border" size="sm" /> : 'Reject'}
+          </button>
+          <button className="btn-enterprise-primary" onClick={handleApproveAmendment} disabled={reviewingAction}>
+            {reviewingAction ? <Spinner animation="border" size="sm" /> : 'Approve'}
+          </button>
         </Modal.Footer>
       </Modal>
     </div>

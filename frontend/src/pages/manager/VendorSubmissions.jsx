@@ -4,6 +4,8 @@ import { Table, Button, Form, Modal, Row, Col, Alert, Spinner, Pagination, Offca
 import { searchSubmissions, shortlistSubmission, transitionSubmissionToScheduled, selectSubmission, rejectSubmission } from '../../services/vendorSubmissionService';
 import { getProfileById, getProfileCerts, getProfileEngagements } from '../../services/contractorService';
 import { scheduleInterview } from '../../services/interviewService';
+import { createAssignment } from '../../services/assignmentService';
+import { getRequisitionDetails } from '../../services/requisitionService';
 import { getErrorMessage } from '../../services/errorUtils';
 
 function VendorSubmissions() {
@@ -51,6 +53,18 @@ function VendorSubmissions() {
     time: '',
     interviewer: '',
   });
+
+  // Create Assignment modal (finalizes a SELECTED submission into an actual Assignment)
+  const [showCreateAssignmentModal, setShowCreateAssignmentModal] = useState(false);
+  const [assignRequisition, setAssignRequisition] = useState(null);
+  const [loadingAssignReq, setLoadingAssignReq] = useState(false);
+  const [assignForm, setAssignForm] = useState({
+    startDate: '',
+    endDate: '',
+    agreedRatePerDay: '',
+    sowReference: '',
+  });
+  const [creatingAssignment, setCreatingAssignment] = useState(false);
 
   // Today's date formatted as YYYY-MM-DD
   const todayStr = useMemo(() => {
@@ -290,7 +304,7 @@ function VendorSubmissions() {
         setSuccess(`Candidate submission rejected.`);
       } else {
         await selectSubmission(selectedSub.id, remarksText);
-        setSuccess(`Candidate selected! Contractor assignment will be initialized.`);
+        setSuccess(`Candidate selected! Click "Create Assignment" to finalize the placement.`);
       }
 
       setShowRemarksModal(false);
@@ -299,6 +313,66 @@ function VendorSubmissions() {
       setError(getErrorMessage(err));
     } finally {
       setSubmittingAction(false);
+    }
+  };
+
+  const openCreateAssignmentModal = async (sub) => {
+    setSelectedSub(sub);
+    setAssignForm({
+      startDate: '',
+      endDate: '',
+      agreedRatePerDay: sub.proposedRate || '',
+      sowReference: '',
+    });
+    setAssignRequisition(null);
+    setError('');
+    setShowCreateAssignmentModal(true);
+    try {
+      setLoadingAssignReq(true);
+      const req = await getRequisitionDetails(sub.requisitionId);
+      setAssignRequisition(req);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setLoadingAssignReq(false);
+    }
+  };
+
+  const handleCreateAssignmentSubmit = async () => {
+    if (!assignForm.startDate || !assignForm.endDate) {
+      setError('Start date and end date are required.');
+      return;
+    }
+    if (!assignForm.agreedRatePerDay || parseFloat(assignForm.agreedRatePerDay) <= 0) {
+      setError('Agreed daily rate must be a positive number.');
+      return;
+    }
+    if (!assignRequisition?.engagementType) {
+      setError('Requisition engagement type could not be loaded. Please retry.');
+      return;
+    }
+
+    try {
+      setCreatingAssignment(true);
+      setError('');
+      setSuccess('');
+
+      await createAssignment({
+        vendorSubmissionId: selectedSub.id,
+        startDate: assignForm.startDate,
+        endDate: assignForm.endDate,
+        agreedRatePerDay: parseFloat(assignForm.agreedRatePerDay),
+        engagementType: assignRequisition.engagementType,
+        sowReference: assignForm.sowReference || undefined,
+      });
+
+      setSuccess(`Assignment created for ${selectedSub.contractorName}.`);
+      setShowCreateAssignmentModal(false);
+      loadSubmissions();
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setCreatingAssignment(false);
     }
   };
 
@@ -454,6 +528,12 @@ function VendorSubmissions() {
                                 Reject
                               </Button>
                             </>
+                          )}
+
+                          {sub.status === 'SELECTED' && (
+                            <Button size="sm" className="btn-gf-primary" onClick={() => openCreateAssignmentModal(sub)}>
+                              Create Assignment
+                            </Button>
                           )}
                         </div>
                       </td>
@@ -708,6 +788,93 @@ function VendorSubmissions() {
             disabled={submittingAction}
           >
             {submittingAction ? <Spinner animation="border" size="sm" /> : remarksType === 'REJECT' ? 'Reject Candidate' : 'Select Candidate'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Create Assignment Modal - finalizes a SELECTED submission into an active placement */}
+      <Modal show={showCreateAssignmentModal} onHide={() => setShowCreateAssignmentModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title className="fw-bold text-slate-800">Create Assignment</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {error && <Alert variant="danger" className="mb-3">{error}</Alert>}
+          {selectedSub && (
+            <div>
+              <div className="mb-3">
+                <span className="text-muted small">Contractor</span>
+                <h6 className="fw-bold text-slate-800 mt-1">{selectedSub.contractorName}</h6>
+                <span className="text-muted small">{selectedSub.requisitionTitle || 'Job Requisition'}</span>
+              </div>
+
+              {loadingAssignReq ? (
+                <div className="text-center py-3">
+                  <Spinner animation="border" size="sm" variant="primary" />
+                </div>
+              ) : (
+                <Form onSubmit={(e) => e.preventDefault()}>
+                  <Row className="g-3">
+                    <Col md={6}>
+                      <Form.Group controlId="assignStartDate">
+                        <Form.Label className="uppercase-label">Start Date</Form.Label>
+                        <Form.Control
+                          type="date"
+                          value={assignForm.startDate}
+                          onChange={(e) => setAssignForm(prev => ({ ...prev, startDate: e.target.value }))}
+                          required
+                        />
+                      </Form.Group>
+                    </Col>
+                    <Col md={6}>
+                      <Form.Group controlId="assignEndDate">
+                        <Form.Label className="uppercase-label">End Date</Form.Label>
+                        <Form.Control
+                          type="date"
+                          value={assignForm.endDate}
+                          onChange={(e) => setAssignForm(prev => ({ ...prev, endDate: e.target.value }))}
+                          required
+                        />
+                      </Form.Group>
+                    </Col>
+                    <Col md={12}>
+                      <Form.Group controlId="assignRate">
+                        <Form.Label className="uppercase-label">Agreed Daily Rate (₹)</Form.Label>
+                        <Form.Control
+                          type="number"
+                          value={assignForm.agreedRatePerDay}
+                          onChange={(e) => setAssignForm(prev => ({ ...prev, agreedRatePerDay: e.target.value }))}
+                          required
+                        />
+                      </Form.Group>
+                    </Col>
+                    <Col md={12}>
+                      <Form.Group controlId="assignEngagementType">
+                        <Form.Label className="uppercase-label">Engagement Type</Form.Label>
+                        <Form.Control type="text" value={assignRequisition?.engagementType || ''} disabled readOnly className="bg-light" />
+                        <Form.Text className="text-muted">Fixed by the requisition&apos;s engagement type.</Form.Text>
+                      </Form.Group>
+                    </Col>
+                    <Col md={12}>
+                      <Form.Group controlId="assignSow">
+                        <Form.Label className="uppercase-label">SOW Reference (Optional)</Form.Label>
+                        <Form.Control
+                          type="text"
+                          placeholder="e.g. SOW-2026-0451"
+                          value={assignForm.sowReference}
+                          onChange={(e) => setAssignForm(prev => ({ ...prev, sowReference: e.target.value }))}
+                        />
+                      </Form.Group>
+                    </Col>
+                  </Row>
+                </Form>
+              )}
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowCreateAssignmentModal(false)}>Cancel</Button>
+          <Button className="btn-gf-primary" onClick={handleCreateAssignmentSubmit} disabled={creatingAssignment || loadingAssignReq}>
+            {creatingAssignment ? <Spinner animation="border" size="sm" /> : 'Create Assignment'}
           </Button>
         </Modal.Footer>
       </Modal>
