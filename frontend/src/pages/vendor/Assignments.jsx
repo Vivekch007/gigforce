@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card, Form, Modal, Alert } from 'react-bootstrap';
-import { getAssignments, getAssignmentDetails, requestAssignmentExtension } from '../../services/vendorAssignmentService';
+import { getAssignments, getAssignmentDetails, requestAmendment, getAssignmentAmendments } from '../../services/vendorAssignmentService';
 import { getErrorMessage } from '../../services/errorUtils';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../hooks/useAuth';
@@ -31,13 +31,26 @@ function Assignments() {
   const [showDrawer, setShowDrawer] = useState(false);
   const [selectedAsn, setSelectedAsn] = useState(null);
 
-  // Extension Modal
+  // Amendment Modal (Extension / Rate Revision / Scope Change / Early Termination)
   const [showExtensionModal, setShowExtensionModal] = useState(false);
   const [extAsn, setExtAsn] = useState(null);
-  const [newEndDate, setNewEndDate] = useState('');
-  const [extReason, setExtReason] = useState('Project Extension');
-  const [extRemarks, setExtRemarks] = useState('');
+  const [amendForm, setAmendForm] = useState({
+    amendmentType: 'EXTENSION',
+    effectiveDate: '',
+    newValue: '',
+    reason: '',
+    remarks: '',
+  });
+  const [amendmentsHistory, setAmendmentsHistory] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
   const [submittingExt, setSubmittingExt] = useState(false);
+
+  // New Value's input type follows the amendment type, but the field is always just "New Value".
+  const getNewValueInputType = (type) => {
+    if (type === 'RATE_REVISION') return 'number';
+    if (type === 'SCOPE_CHANGE') return 'text';
+    return 'date'; // EXTENSION, EARLY_TERMINATION
+  };
 
   const loadAssignments = async () => {
     try {
@@ -72,23 +85,51 @@ function Assignments() {
     }
   };
 
+  const fetchAmendmentsHistory = async (assignmentId) => {
+    try {
+      setLoadingHistory(true);
+      const data = await getAssignmentAmendments(assignmentId);
+      setAmendmentsHistory(data || []);
+    } catch (err) {
+      console.error('Failed to load amendment history', err);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
   const openExtensionModal = (asn) => {
     setExtAsn(asn);
-    setNewEndDate('');
-    setExtReason('Project Extension');
-    setExtRemarks('');
+    setAmendForm({
+      amendmentType: 'EXTENSION',
+      effectiveDate: new Date().toISOString().split('T')[0],
+      newValue: '',
+      reason: '',
+      remarks: '',
+    });
+    setAmendmentsHistory([]);
+    fetchAmendmentsHistory(asn.id);
     setShowExtensionModal(true);
   };
 
+  const handleAmendmentTypeChange = (type) => {
+    setAmendForm(prev => ({ ...prev, amendmentType: type, newValue: '' }));
+  };
+
+  const hasPendingOfSelectedType = amendmentsHistory.some(
+    (item) => item.status === 'PENDING' && item.amendmentType === amendForm.amendmentType
+  );
+
   const handleRequestExtension = async () => {
-    if (!newEndDate) {
-      setError('Please select a target extension end date.');
-      showToast('Please select a target extension end date.', 'warning');
+    if (!amendForm.effectiveDate) {
+      showToast('Effective Date is required.', 'warning');
       return;
     }
-    if (!extReason) {
-      setError('Please select a reason for the extension.');
-      showToast('Please select a reason for the extension.', 'warning');
+    if (!amendForm.newValue) {
+      showToast('New Value is required.', 'warning');
+      return;
+    }
+    if (!amendForm.reason.trim()) {
+      showToast('Reason is required.', 'warning');
       return;
     }
 
@@ -97,14 +138,15 @@ function Assignments() {
       setError('');
 
       const payload = {
-        effectiveDate: new Date().toISOString().split('T')[0],
-        newValue: newEndDate,
-        reason: extReason,
-        remarks: extRemarks,
+        amendmentType: amendForm.amendmentType,
+        effectiveDate: amendForm.effectiveDate,
+        newValue: amendForm.newValue,
+        reason: amendForm.reason,
+        remarks: amendForm.remarks,
       };
 
-      await requestAssignmentExtension(extAsn.id, payload);
-      showToast(`Extension amendment request submitted for contractor: ${extAsn.contractorName}!`, 'success');
+      await requestAmendment(extAsn.id, payload);
+      showToast(`Amendment request submitted for contractor: ${extAsn.contractorName}!`, 'success');
       setShowExtensionModal(false);
       loadAssignments();
     } catch (err) {
@@ -164,7 +206,7 @@ function Assignments() {
                   </button>
                   {(a.status === 'ACTIVE' || a.status === 'EXTENDED') && (
                     <button className="btn-enterprise-primary py-1 px-3" onClick={() => openExtensionModal(a)}>
-                      Request Extension
+                      Request Amendment
                     </button>
                   )}
                 </div>
@@ -184,65 +226,152 @@ function Assignments() {
       {/* Details drawer */}
       <AssignmentDrawer show={showDrawer} onHide={() => setShowDrawer(false)} assignment={selectedAsn} />
 
-      {/* Extension request modal */}
-      <Modal show={showExtensionModal} onHide={() => setShowExtensionModal(false)} backdrop="static" centered style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+      {/* Amendment request modal */}
+      <Modal show={showExtensionModal} onHide={() => setShowExtensionModal(false)} backdrop="static" size="lg" centered style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
         <Modal.Header closeButton className="bg-white border-bottom-0">
-          <Modal.Title className="fw-bold text-dark">Request Assignment Extension</Modal.Title>
+          <Modal.Title className="fw-bold text-dark">Request Assignment Amendment</Modal.Title>
         </Modal.Header>
         <Modal.Body className="bg-white">
           {extAsn && (
             <div>
-              <div className="mb-3">
-                <span className="text-muted small">Contractor</span>
-                <h6 className="fw-bold text-dark mt-1">{extAsn.contractorName}</h6>
-                <span className="text-muted small">Current End Date: {extAsn.endDate || 'Ongoing'}</span>
+              <div className="p-3 mb-3 rounded bg-light border">
+                <div className="row g-2">
+                  <div className="col-md-6">
+                    <span className="text-muted small">Contractor</span>
+                    <div className="fw-bold text-dark">{extAsn.contractorName}</div>
+                  </div>
+                  <div className="col-md-6">
+                    <span className="text-muted small">Job Title</span>
+                    <div className="fw-bold text-dark">{extAsn.requisitionTitle || 'Specialist'}</div>
+                  </div>
+                  <div className="col-md-6 mt-2">
+                    <span className="text-muted small">Current End Date</span>
+                    <div className="fw-semibold text-dark">{extAsn.endDate || 'Ongoing'}</div>
+                  </div>
+                  <div className="col-md-6 mt-2">
+                    <span className="text-muted small">Current Agreed Rate</span>
+                    <div className="fw-semibold text-success">₹{extAsn.agreedRatePerDay}/day</div>
+                  </div>
+                </div>
               </div>
 
-              <Form.Group className="mb-3" controlId="newEndDate">
-                <Form.Label className="enterprise-form-label">Proposed New End Date</Form.Label>
-                <Form.Control
-                  type="date"
-                  required
-                  className="enterprise-form-control"
-                  value={newEndDate}
-                  onChange={(e) => setNewEndDate(e.target.value)}
-                />
-              </Form.Group>
-
-              <Form.Group className="mb-3" controlId="extReason">
-                <Form.Label className="enterprise-form-label">Reason <span className="text-danger">*</span></Form.Label>
+              <Form.Group className="mb-3" controlId="amendType">
+                <Form.Label className="enterprise-form-label">Amendment Type *</Form.Label>
                 <Form.Select
-                  value={extReason}
-                  onChange={(e) => setExtReason(e.target.value)}
                   className="enterprise-form-select"
-                  required
+                  value={amendForm.amendmentType}
+                  onChange={(e) => handleAmendmentTypeChange(e.target.value)}
                 >
-                  <option value="Project Extension">Project Extension</option>
-                  <option value="Client Request">Client Request</option>
-                  <option value="Business Requirement">Business Requirement</option>
-                  <option value="Performance Retention">Performance Retention</option>
-                  <option value="Other">Other</option>
+                  <option value="EXTENSION">Extension</option>
+                  <option value="RATE_REVISION">Rate Revision</option>
+                  <option value="SCOPE_CHANGE">Scope Change</option>
+                  <option value="EARLY_TERMINATION">Early Termination</option>
                 </Form.Select>
               </Form.Group>
 
+              {hasPendingOfSelectedType && (
+                <Alert variant="warning" className="py-2 small mb-3">
+                  A {amendForm.amendmentType.replace('_', ' ').toLowerCase()} request is already pending for this assignment.
+                  You can raise another once it&apos;s approved or rejected by the hiring manager.
+                </Alert>
+              )}
+
+              <div className="row g-3">
+                <div className="col-md-6">
+                  <Form.Group className="mb-3" controlId="effectiveDate">
+                    <Form.Label className="enterprise-form-label">Effective Date *</Form.Label>
+                    <Form.Control
+                      type="date"
+                      required
+                      className="enterprise-form-control"
+                      value={amendForm.effectiveDate}
+                      onChange={(e) => setAmendForm(prev => ({ ...prev, effectiveDate: e.target.value }))}
+                    />
+                  </Form.Group>
+                </div>
+                <div className="col-md-6">
+                  <Form.Group className="mb-3" controlId="newValue">
+                    <Form.Label className="enterprise-form-label">New Value *</Form.Label>
+                    <Form.Control
+                      type={getNewValueInputType(amendForm.amendmentType)}
+                      required
+                      step={amendForm.amendmentType === 'RATE_REVISION' ? '0.01' : undefined}
+                      placeholder={amendForm.amendmentType === 'RATE_REVISION' ? 'e.g. 6000' : amendForm.amendmentType === 'SCOPE_CHANGE' ? 'Describe the new scope...' : undefined}
+                      className="enterprise-form-control"
+                      value={amendForm.newValue}
+                      onChange={(e) => setAmendForm(prev => ({ ...prev, newValue: e.target.value }))}
+                    />
+                  </Form.Group>
+                </div>
+                <div className="col-md-12">
+                  <Form.Group className="mb-3" controlId="reason">
+                    <Form.Label className="enterprise-form-label">Reason *</Form.Label>
+                    <Form.Control
+                      type="text"
+                      required
+                      placeholder="e.g. Project Extension, Client Request..."
+                      className="enterprise-form-control"
+                      value={amendForm.reason}
+                      onChange={(e) => setAmendForm(prev => ({ ...prev, reason: e.target.value }))}
+                    />
+                  </Form.Group>
+                </div>
+              </div>
+
               <Form.Group className="mb-3" controlId="remarks">
-                <Form.Label className="enterprise-form-label">Extension Rationale</Form.Label>
+                <Form.Label className="enterprise-form-label">Remarks (Optional)</Form.Label>
                 <Form.Control
                   as="textarea"
-                  rows={3}
+                  rows={2}
                   className="enterprise-form-control"
-                  placeholder="e.g. Project timeline extended. Continuing deliverables."
-                  value={extRemarks}
-                  onChange={(e) => setExtRemarks(e.target.value)}
+                  placeholder="Provide additional details..."
+                  value={amendForm.remarks}
+                  onChange={(e) => setAmendForm(prev => ({ ...prev, remarks: e.target.value }))}
                 />
               </Form.Group>
+
+              <div className="border-top pt-3">
+                <h6 className="fw-bold mb-3 text-dark">Previous Amendments ({amendmentsHistory.length})</h6>
+                {loadingHistory ? (
+                  <div className="py-2 text-center text-muted small">Loading history...</div>
+                ) : amendmentsHistory.length > 0 ? (
+                  <div className="table-responsive">
+                    <table className="table table-hover table-sm align-middle">
+                      <thead>
+                        <tr className="bg-light text-muted small">
+                          <th>Date</th>
+                          <th>Type</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {amendmentsHistory.map((item) => (
+                          <tr key={item.id}>
+                            <td className="small">{item.createdAt?.substring(0, 10) || item.effectiveDate}</td>
+                            <td className="small fw-semibold">{item.amendmentType}</td>
+                            <td>
+                              <span className={`status-pill ${item.status?.toLowerCase() === 'approved' ? 'success' : item.status?.toLowerCase() === 'pending' ? 'warning' : 'secondary'}`}>
+                                {item.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="py-2 text-center text-muted small bg-light rounded border">
+                    No previous amendments found for this assignment.
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </Modal.Body>
         <Modal.Footer className="bg-white border-top-0">
           <button className="btn-enterprise-secondary" onClick={() => setShowExtensionModal(false)}>Cancel</button>
-          <button className="btn-enterprise-primary" onClick={handleRequestExtension} disabled={submittingExt}>
-            {submittingExt ? 'Submitting...' : 'Request Extension'}
+          <button className="btn-enterprise-primary" onClick={handleRequestExtension} disabled={submittingExt || hasPendingOfSelectedType}>
+            {submittingExt ? 'Submitting...' : 'Request Amendment'}
           </button>
         </Modal.Footer>
       </Modal>

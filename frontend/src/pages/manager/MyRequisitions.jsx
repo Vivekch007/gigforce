@@ -339,7 +339,7 @@ function MyRequisitions() {
       )}
 
       {/* Details View Modal */}
-      <Modal show={showViewModal} onHide={() => setShowViewModal(false)} size="lg" centered className="enterprise-modal-content">
+      <Modal show={showViewModal} onHide={() => setShowViewModal(false)} size="lg" centered contentClassName="enterprise-modal-content">
         <Modal.Header closeButton className="enterprise-modal-header">
           <Modal.Title className="fw-bold text-dark">Job Requisition Details ({selectedReq?.id})</Modal.Title>
         </Modal.Header>
@@ -398,7 +398,7 @@ function MyRequisitions() {
       </Modal>
 
       {/* Edit Modal (only allowed in DRAFT) */}
-      <Modal show={showEditModal} onHide={() => setShowEditModal(false)} size="lg" centered className="enterprise-modal-content">
+      <Modal show={showEditModal} onHide={() => setShowEditModal(false)} size="lg" centered contentClassName="enterprise-modal-content">
         <Modal.Header closeButton className="enterprise-modal-header">
           <Modal.Title className="fw-bold text-dark">Edit Requisition ({selectedReq?.id})</Modal.Title>
         </Modal.Header>

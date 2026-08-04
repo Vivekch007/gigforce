@@ -613,7 +613,7 @@ function Assignments() {
       </Offcanvas>
 
       {/* Amend Assignment Modal */}
-      <Modal show={showAmendModal} onHide={() => setShowAmendModal(false)} centered className="enterprise-modal-content">
+      <Modal show={showAmendModal} onHide={() => setShowAmendModal(false)} centered contentClassName="enterprise-modal-content">
         <Modal.Header closeButton className="enterprise-modal-header">
           <Modal.Title className="fw-bold text-dark">Amend Assignment</Modal.Title>
         </Modal.Header>
@@ -779,7 +779,7 @@ function Assignments() {
       </Modal>
 
       {/* Amendment View Detail Modal */}
-      <Modal show={showViewDetailModal} onHide={() => setShowViewDetailModal(false)} centered className="enterprise-modal-content" style={{ zIndex: 1060 }}>
+      <Modal show={showViewDetailModal} onHide={() => setShowViewDetailModal(false)} centered contentClassName="enterprise-modal-content" style={{ zIndex: 1060 }}>
         <Modal.Header closeButton className="enterprise-modal-header">
           <Modal.Title className="fw-bold text-dark">Amendment Details</Modal.Title>
         </Modal.Header>
@@ -850,7 +850,7 @@ function Assignments() {
       </Modal>
 
       {/* Amendment History Modal */}
-      <Modal show={showHistoryModal} onHide={() => setShowHistoryModal(false)} centered className="enterprise-modal-content">
+      <Modal show={showHistoryModal} onHide={() => setShowHistoryModal(false)} centered contentClassName="enterprise-modal-content">
         <Modal.Header closeButton className="enterprise-modal-header">
           <Modal.Title className="fw-bold text-dark">SOW Amendment Logs ({selectedAsn?.id})</Modal.Title>
         </Modal.Header>
@@ -876,7 +876,7 @@ function Assignments() {
       </Modal>
 
       {/* Review Pending Amendment Modal - Approve auto-applies the change to the assignment */}
-      <Modal show={showReviewModal} onHide={() => setShowReviewModal(false)} centered className="enterprise-modal-content">
+      <Modal show={showReviewModal} onHide={() => setShowReviewModal(false)} centered contentClassName="enterprise-modal-content">
         <Modal.Header closeButton className="enterprise-modal-header">
           <Modal.Title className="fw-bold text-dark">Review Amendment Request</Modal.Title>
         </Modal.Header>

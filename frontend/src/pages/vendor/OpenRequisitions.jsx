@@ -229,7 +229,7 @@ function OpenRequisitions() {
       )}
 
       {/* Detail Modal */}
-      <Modal show={showDetailModal} onHide={() => setShowDetailModal(false)} centered size="lg" className="enterprise-modal-content">
+      <Modal show={showDetailModal} onHide={() => setShowDetailModal(false)} centered size="lg" contentClassName="enterprise-modal-content">
         <Modal.Header closeButton className="enterprise-modal-header">
           <Modal.Title className="fw-bold text-dark">Job Specification Details</Modal.Title>
         </Modal.Header>
@@ -271,7 +271,7 @@ function OpenRequisitions() {
       </Modal>
 
       {/* Submit Candidate Modal */}
-      <Modal show={showSubmitModal} onHide={() => setShowSubmitModal(false)} centered className="enterprise-modal-content">
+      <Modal show={showSubmitModal} onHide={() => setShowSubmitModal(false)} centered contentClassName="enterprise-modal-content">
         <Modal.Header closeButton className="enterprise-modal-header">
           <Modal.Title className="fw-bold text-dark">Submit Candidate</Modal.Title>
         </Modal.Header>

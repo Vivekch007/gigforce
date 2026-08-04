@@ -341,7 +341,7 @@ function TimesheetApprovals() {
       )}
 
       {/* Daily Breakdown Modal */}
-      <Modal show={showViewModal} onHide={() => setShowViewModal(false)} size="lg" centered className="enterprise-modal-content">
+      <Modal show={showViewModal} onHide={() => setShowViewModal(false)} size="lg" centered contentClassName="enterprise-modal-content">
         <Modal.Header closeButton className="enterprise-modal-header">
           <Modal.Title className="fw-bold text-dark">Weekly Log Breakdown ({selectedTs?.id})</Modal.Title>
         </Modal.Header>
@@ -427,7 +427,7 @@ function TimesheetApprovals() {
       </Modal>
 
       {/* Action Modal (Approve or Reject with comments) */}
-      <Modal show={showActionModal} onHide={() => setShowActionModal(false)} centered className="enterprise-modal-content">
+      <Modal show={showActionModal} onHide={() => setShowActionModal(false)} centered contentClassName="enterprise-modal-content">
         <Modal.Header closeButton className="enterprise-modal-header">
           <Modal.Title className="fw-bold text-dark">
             {actionType === 'APPROVE' ? 'Approve Timesheet' : 'Reject Timesheet'}

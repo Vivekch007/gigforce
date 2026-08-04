@@ -266,7 +266,7 @@ function CandidateDatabase() {
       )}
 
       {/* Submit Candidate Modal */}
-      <Modal show={showSubmitModal} onHide={() => setShowSubmitModal(false)} centered className="enterprise-modal-content">
+      <Modal show={showSubmitModal} onHide={() => setShowSubmitModal(false)} centered contentClassName="enterprise-modal-content">
         <Modal.Header closeButton className="enterprise-modal-header">
           <Modal.Title className="fw-bold text-dark">Submit to Requisition</Modal.Title>
         </Modal.Header>

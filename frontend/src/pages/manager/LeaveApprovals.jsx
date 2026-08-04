@@ -506,7 +506,7 @@ function LeaveApprovals() {
       )}
 
       {/* Details View Modal */}
-      <Modal show={showViewModal} onHide={() => setShowViewModal(false)} centered className="enterprise-modal-content">
+      <Modal show={showViewModal} onHide={() => setShowViewModal(false)} centered contentClassName="enterprise-modal-content">
         <Modal.Header closeButton className="enterprise-modal-header">
           <Modal.Title className="fw-bold text-dark">Leave Absence Details ({selectedLeave?.id})</Modal.Title>
         </Modal.Header>
@@ -555,7 +555,7 @@ function LeaveApprovals() {
       </Modal>
 
       {/* Reject Modal with mandatory reason */}
-      <Modal show={showRejectModal} onHide={() => setShowRejectModal(false)} centered className="enterprise-modal-content">
+      <Modal show={showRejectModal} onHide={() => setShowRejectModal(false)} centered contentClassName="enterprise-modal-content">
         <Modal.Header closeButton className="enterprise-modal-header">
           <Modal.Title className="fw-bold text-dark">Reject Leave Request</Modal.Title>
         </Modal.Header>
