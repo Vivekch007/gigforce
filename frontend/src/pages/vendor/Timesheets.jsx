@@ -17,9 +17,9 @@ function Timesheets() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Date range filters
-  const [filterStartDate, setFilterStartDate] = useState('');
-  const [filterEndDate, setFilterEndDate] = useState('');
+  // Month & Year filters (Format: YYYY-MM)
+  const [filterStartMonth, setFilterStartMonth] = useState('');
+  const [filterEndMonth, setFilterEndMonth] = useState('');
 
   // Status filter
   const [statusFilter, setStatusFilter] = useState('');
@@ -53,7 +53,7 @@ function Timesheets() {
 
   useEffect(() => {
     setPage(0);
-  }, [searchVal, filterStartDate, filterEndDate, statusFilter]);
+  }, [searchVal, filterStartMonth, filterEndMonth, statusFilter]);
 
   const handleView = async (id) => {
     try {
@@ -75,7 +75,7 @@ function Timesheets() {
     }
   };
 
-  // Local Search filtering
+  // Local Search & Month-Year filtering
   const filteredTimesheets = timesheets.filter(t => {
     let match = true;
     if (searchVal.trim()) {
@@ -85,12 +85,20 @@ function Timesheets() {
         t.status?.toLowerCase().includes(q)
       );
     }
-    if (match && filterStartDate) {
-      if (new Date(t.startDate) < new Date(filterStartDate)) match = false;
+
+    // Filter by Start Month (First day of selected month)
+    if (match && filterStartMonth) {
+      const startOfMonth = new Date(`${filterStartMonth}-01T00:00:00`);
+      if (new Date(t.startDate) < startOfMonth) match = false;
     }
-    if (match && filterEndDate) {
-      if (new Date(t.endDate) > new Date(filterEndDate)) match = false;
+
+    // Filter by End Month (Last day of selected month)
+    if (match && filterEndMonth) {
+      const [year, month] = filterEndMonth.split('-').map(Number);
+      const endOfMonth = new Date(year, month, 0, 23, 59, 59); // Last second of the month
+      if (new Date(t.endDate) > endOfMonth) match = false;
     }
+
     return match;
   });
 
@@ -119,17 +127,38 @@ function Timesheets() {
             <option value="REVISED">Revised</option>
           </select>
         </div>
+
+        {/* Start Month Selector */}
         <div style={{ maxWidth: '200px' }}>
-          <label className="form-label small text-muted mb-1">Start Date</label>
-          <input type="date" className="form-control" value={filterStartDate} onChange={(e) => setFilterStartDate(e.target.value)} />
+          <label className="form-label small text-muted mb-1">Start Month</label>
+          <input
+            type="month"
+            className="form-control"
+            value={filterStartMonth}
+            onChange={(e) => setFilterStartMonth(e.target.value)}
+          />
         </div>
+
+        {/* End Month Selector */}
         <div style={{ maxWidth: '200px' }}>
-          <label className="form-label small text-muted mb-1">End Date</label>
-          <input type="date" className="form-control" value={filterEndDate} onChange={(e) => setFilterEndDate(e.target.value)} />
+          <label className="form-label small text-muted mb-1">End Month</label>
+          <input
+            type="month"
+            className="form-control"
+            value={filterEndMonth}
+            onChange={(e) => setFilterEndMonth(e.target.value)}
+          />
         </div>
-        {(filterStartDate || filterEndDate || statusFilter) && (
+
+        {(filterStartMonth || filterEndMonth || statusFilter) && (
           <div className="mt-4">
-            <Button variant="outline-secondary" size="sm" onClick={() => { setFilterStartDate(''); setFilterEndDate(''); setStatusFilter(''); }}>Clear Filters</Button>
+            <Button
+              variant="outline-secondary"
+              size="sm"
+              onClick={() => { setFilterStartMonth(''); setFilterEndMonth(''); setStatusFilter(''); }}
+            >
+              Clear Filters
+            </Button>
           </div>
         )}
       </div>

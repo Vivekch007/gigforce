@@ -11,7 +11,6 @@ import PurchaseOrderPreview from '../../components/vendor/PurchaseOrderPreview';
 import LoadingSpinner from '../../components/vendor/LoadingSpinner';
 import Pagination from '../../components/vendor/Pagination';
 
-const PAGE_SIZE = 10;
 const PO_BUFFER_DAYS = 20;
 
 // PO amount = (full assignment duration + buffer days) x agreed day-rate. Not user-editable.
@@ -37,8 +36,9 @@ function PurchaseOrders() {
   const [assignments, setAssignments] = useState([]);
   const [statusFilter, setStatusFilter] = useState('');
 
-  // Pagination
+  // Dynamic Pagination States
   const [poPage, setPoPage] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
 
   // Modal form
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -72,7 +72,7 @@ function PurchaseOrders() {
 
   useEffect(() => {
     setPoPage(0);
-  }, [searchVal, statusFilter]);
+  }, [searchVal, statusFilter, pageSize]);
 
   useEffect(() => {
     loadData();
@@ -80,7 +80,7 @@ function PurchaseOrders() {
 
   // Only assignments with no PO already raised against them are eligible.
   const unassignedAssignments = assignments.filter(
-    a => !a.poId && (a.status === 'ACTIVE' || a.status === 'EXTENDED')
+    a => !a.poId && !a.POID && (a.status === 'ACTIVE' || a.status === 'EXTENDED' || a.Status === 'ACTIVE' || a.Status === 'EXTENDED')
   );
 
   const openManualPOModal = () => {
@@ -92,7 +92,7 @@ function PurchaseOrders() {
 
   const handleAssignmentSelect = (assignmentId) => {
     setManualAssignmentId(assignmentId);
-    const asn = unassignedAssignments.find(a => a.id === assignmentId) || null;
+    const asn = unassignedAssignments.find(a => (a.id || a.AssignmentID) === assignmentId) || null;
     setSelectedAsn(asn);
   };
 
@@ -105,7 +105,7 @@ function PurchaseOrders() {
       requisitionTitle: selectedAsn.requisitionTitle || 'Specialist',
       clientName: selectedAsn.clientName || 'Client Partner',
       vendorName: selectedAsn.vendorName || 'Vendor Org',
-      assignmentId: selectedAsn.id,
+      assignmentId: selectedAsn.id || selectedAsn.AssignmentID,
       startDate: selectedAsn.startDate,
       endDate: selectedAsn.endDate,
       rate: selectedAsn.agreedRatePerDay,
@@ -126,14 +126,15 @@ function PurchaseOrders() {
       setSuccess('');
 
       const payload = {
-        assignmentId: selectedAsn.id,
-        vendorId: user?.profileId || 'vnd-1',
+        assignmentId: selectedAsn.id || selectedAsn.AssignmentID,
+        vendorId: user?.profileId || selectedAsn.VendorID || 'vnd-1',
         poAmount: calculatePoAmount(selectedAsn),
         currency: currency,
       };
 
       const newPo = await createPurchaseOrder(payload);
-      setSuccess(`Purchase Order raised successfully with Ref ID: ${newPo.id}! Routed to Finance.`);
+      const newPoId = newPo?.POID || newPo?.id || 'New PO';
+      setSuccess(`Purchase Order raised successfully with Ref ID: ${newPoId}! Routed to Finance.`);
       setShowCreateModal(false);
       setShowPreviewModal(false);
       loadData();
@@ -146,7 +147,8 @@ function PurchaseOrders() {
 
   const getStatusBadge = (status) => {
     switch (status?.toUpperCase()) {
-      case 'APPROVED': return 'approved';
+      case 'APPROVED':
+      case 'ACTIVE': return 'approved';
       case 'SUBMITTED': return 'info';
       case 'DRAFT': return 'pending';
       default: return 'rejected';
@@ -154,17 +156,25 @@ function PurchaseOrders() {
   };
 
   const filteredPOs = purchaseOrders.filter(po => {
-    if (statusFilter && statusFilter !== '' && po.status !== statusFilter) return false;
+    const poStatus = po.Status || po.status || '';
+    const poId = po.POID || po.id || '';
+    const assignmentId = po.AssignmentID || po.assignmentId || '';
+    const contractor = po.contractorName || '';
+
+    if (statusFilter && statusFilter !== '' && poStatus.toUpperCase() !== statusFilter.toUpperCase()) return false;
     if (!searchVal.trim()) return true;
+
     const q = searchVal.trim().toLowerCase();
     return (
-      po.id?.toLowerCase().includes(q) ||
-      po.status?.toLowerCase().includes(q)
+      poId.toLowerCase().includes(q) ||
+      assignmentId.toLowerCase().includes(q) ||
+      poStatus.toLowerCase().includes(q) ||
+      contractor.toLowerCase().includes(q)
     );
   });
 
-  const poTotalPages = Math.ceil(filteredPOs.length / PAGE_SIZE) || 1;
-  const paginatedPOs = filteredPOs.slice(poPage * PAGE_SIZE, (poPage + 1) * PAGE_SIZE);
+  const poTotalPages = Math.ceil(filteredPOs.length / pageSize) || 1;
+  const paginatedPOs = filteredPOs.slice(poPage * pageSize, (poPage + 1) * pageSize);
 
   const previewAmount = selectedAsn ? calculatePoAmount(selectedAsn) : 0;
 
@@ -190,18 +200,23 @@ function PurchaseOrders() {
         <Card className="gf-card p-4 border-0">
           <div className="d-flex justify-content-between align-items-center mb-3">
             <h5 className="fw-bold text-slate-800 mb-0">📄 Raised Purchase Orders</h5>
+
+            {/* Status Filter Dropdown */}
             <Form.Select size="sm" style={{ width: '150px' }} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
               <option value="">All Statuses</option>
+              <option value="ACTIVE">Active</option>
               <option value="DRAFT">Draft</option>
               <option value="SUBMITTED">Submitted</option>
               <option value="APPROVED">Approved</option>
             </Form.Select>
           </div>
+
           <div className="table-responsive">
             <Table className="table table-hover align-middle mb-0">
               <thead className="table-light">
                 <tr>
                   <th>PO Ref</th>
+                  <th>Assignment ID</th>
                   <th>Contractor</th>
                   <th>PO Amount</th>
                   <th>Currency</th>
@@ -210,28 +225,69 @@ function PurchaseOrders() {
               </thead>
               <tbody>
                 {paginatedPOs.length > 0 ? (
-                  paginatedPOs.map(po => (
-                    <tr key={po.id}>
-                      <td className="fw-bold">{po.id}</td>
-                      <td>{po.contractorName}</td>
-                      <td className="text-green-600 fw-bold">₹{parseFloat(po.poAmount || po.amount || 0).toLocaleString()}</td>
-                      <td>{po.currency || 'INR'}</td>
-                      <td>
-                        <span className={`gf-badge badge-${getStatusBadge(po.status)}`}>
-                          {po.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
+                  paginatedPOs.map(po => {
+                    const poRef = po.POID || po.id;
+                    const assignmentId = po.AssignmentID || po.assignmentId || 'N/A';
+                    const contractor = po.contractorName || 'N/A';
+                    const rawAmount = po.POAmount ?? po.poAmount ?? po.amount ?? 0;
+                    const poCurrency = po.Currency || po.currency || 'INR';
+                    const currentStatus = po.Status || po.status || 'N/A';
+
+                    return (
+                      <tr key={poRef}>
+                        <td className="fw-bold">{poRef}</td>
+                        <td className="fw-semibold text-slate-700">{assignmentId}</td>
+                        <td>{contractor}</td>
+                        <td className="text-green-600 fw-bold">
+                          {poCurrency === 'INR' ? '₹' : poCurrency === 'USD' ? '$' : '€'}
+                          {parseFloat(rawAmount).toLocaleString()}
+                        </td>
+                        <td>{poCurrency}</td>
+                        <td>
+                          <span className={`gf-badge badge-${getStatusBadge(currentStatus)}`}>
+                            {currentStatus}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })
                 ) : (
                   <tr>
-                    <td colSpan={5} className="text-center text-muted small py-4">No raised purchase orders found.</td>
+                    <td colSpan={6} className="text-center text-muted small py-4">No raised purchase orders found.</td>
                   </tr>
                 )}
               </tbody>
             </Table>
           </div>
-          <Pagination currentPage={poPage} totalPages={poTotalPages} onPageChange={setPoPage} />
+
+          {/* Bottom Footer Controls */}
+          <div className="d-flex justify-content-between align-items-center mt-3">
+            {/* Bottom-Left Controls: Page Size Dropdown Beside Status Text */}
+            <div className="d-flex align-items-center gap-3">
+              <div className="d-flex align-items-center gap-2">
+                <span className="text-muted small text-nowrap">Show:</span>
+                <Form.Select
+                  size="sm"
+                  style={{ width: '75px' }}
+                  value={pageSize}
+                  onChange={(e) => setPageSize(Number(e.target.value))}
+                >
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </Form.Select>
+              </div>
+
+              <span className="text-muted small">
+                Showing {filteredPOs.length > 0 ? poPage * pageSize + 1 : 0} to {Math.min((poPage + 1) * pageSize, filteredPOs.length)} of {filteredPOs.length} entries
+              </span>
+            </div>
+
+            {/* Bottom-Right Controls: Pagination Buttons */}
+            <Pagination currentPage={poPage} totalPages={poTotalPages} onPageChange={setPoPage} />
+          </div>
         </Card>
       )}
 
@@ -245,9 +301,14 @@ function PurchaseOrders() {
             <Form.Label className="uppercase-label">Select Assignment</Form.Label>
             <Form.Select value={manualAssignmentId} onChange={(e) => handleAssignmentSelect(e.target.value)}>
               <option value="">-- Choose Assignment --</option>
-              {unassignedAssignments.map(a => (
-                <option key={a.id} value={a.id}>{a.id} - {a.contractorName}</option>
-              ))}
+              {unassignedAssignments.map(a => {
+                const id = a.AssignmentID || a.id;
+                return (
+                  <option key={id} value={id}>
+                    {id} - {a.contractorName}
+                  </option>
+                );
+              })}
             </Form.Select>
             {unassignedAssignments.length === 0 && (
               <Form.Text className="text-muted">All active assignments already have a Purchase Order raised.</Form.Text>
