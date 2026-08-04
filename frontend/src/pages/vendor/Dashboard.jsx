@@ -250,7 +250,9 @@ function Dashboard() {
             <Col lg={4}>
               <div className="enterprise-table-container p-4 h-100">
                 <h5 className="small fw-semibold text-uppercase text-muted mb-3"><i className="bi bi-activity me-2"></i>Recent Portal Activity</h5>
-                <ActivityTimeline activities={metrics?.recentActivities} />
+                <div style={{ maxHeight: '320px', overflowY: 'auto' }} className="pe-1">
+                  <ActivityTimeline activities={metrics?.recentActivities} />
+                </div>
               </div>
             </Col>
           </Row>
