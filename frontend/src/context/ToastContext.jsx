@@ -17,13 +17,12 @@ const toastCss = `/* Container fixed to the top-left of the viewport */
   pointer-events: auto;
   min-width: 300px;
   max-width: 420px;
-  padding: 14px 18px;
-  border-radius: 10px;
+  padding: 10px 16px;
+  border-radius: 6px;
   color: #ffffff;
   font-family: inherit;
   font-size: 14px;
   font-weight: 500;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
   cursor: pointer;
 
   /* Slide in from left, then fade out right before 5s */
@@ -45,25 +44,21 @@ const toastCss = `/* Container fixed to the top-left of the viewport */
   line-height: 1.4;
 }
 
-/* Gradient Backgrounds */
+/* Flat Backgrounds */
 .toast-popup.error {
-  background: linear-gradient(135deg, #eb3941 0%, #f15e64 100%);
-  border-left: 5px solid #900C3F;
+  background: #DC2626;
 }
 
 .toast-popup.success {
-  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-  border-left: 5px solid #056334;
+  background: #16A34A;
 }
 
 .toast-popup.warning {
-  background: linear-gradient(135deg, #ff9900 0%, #ff5500 100%);
-  border-left: 5px solid #a33600;
+  background: #D97706;
 }
 
 .toast-popup.info {
-  background: linear-gradient(135deg, #1d976c 0%, #93f9b9 100%);
-  border-left: 5px solid #0f5238;
+  background: #2563EB;
 }
 
 /* Left-to-Right Entrance Animation */

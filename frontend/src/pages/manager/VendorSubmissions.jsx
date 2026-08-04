@@ -4,7 +4,7 @@ import { Table, Button, Form, Modal, Row, Col, Alert, Spinner, Pagination, Offca
 import { searchSubmissions, shortlistSubmission, transitionSubmissionToScheduled, selectSubmission, rejectSubmission } from '../../services/vendorSubmissionService';
 import { getProfileById, getProfileCerts, getProfileEngagements } from '../../services/contractorService';
 import { scheduleInterview } from '../../services/interviewService';
-import { createAssignment } from '../../services/assignmentService';
+import { createAssignment, getAssignments, getAssignmentDetails } from '../../services/assignmentService';
 import { getRequisitionDetails } from '../../services/requisitionService';
 import { getErrorMessage } from '../../services/errorUtils';
 
@@ -65,6 +65,13 @@ function VendorSubmissions() {
     sowReference: '',
   });
   const [creatingAssignment, setCreatingAssignment] = useState(false);
+
+  // Maps submissionId -> assignmentId for SELECTED submissions that already have
+  // an Assignment created, so we can show "View Assignment" instead of the create flow.
+  const [assignmentLookup, setAssignmentLookup] = useState({});
+  const [showViewAssignmentModal, setShowViewAssignmentModal] = useState(false);
+  const [viewAssignmentData, setViewAssignmentData] = useState(null);
+  const [loadingViewAssignment, setLoadingViewAssignment] = useState(false);
 
   // Today's date formatted as YYYY-MM-DD
   const todayStr = useMemo(() => {
@@ -168,6 +175,47 @@ function VendorSubmissions() {
   useEffect(() => {
     loadSubmissions();
   }, [currentPage, pageSize, statusFilter, searchQuery]);
+
+  // For SELECTED submissions on this page, check whether an Assignment already
+  // exists for them (contractor+requisition uniquely identifies at most one),
+  // so the row can show "View Assignment" instead of the create/finish-setup flow.
+  useEffect(() => {
+    const toCheck = submissions.filter(
+      (sub) => sub.status === 'SELECTED' && !(sub.id in assignmentLookup)
+    );
+    if (toCheck.length === 0) return;
+
+    let active = true;
+    Promise.all(
+      toCheck.map((sub) =>
+        getAssignments({ requisitionId: sub.requisitionId, contractorProfileId: sub.contractorProfileId, size: 1 })
+          .then((data) => ({ subId: sub.id, assignmentId: data?.content?.[0]?.id || null }))
+          .catch(() => ({ subId: sub.id, assignmentId: null }))
+      )
+    ).then((results) => {
+      if (!active) return;
+      setAssignmentLookup((prev) => {
+        const next = { ...prev };
+        results.forEach(({ subId, assignmentId }) => { next[subId] = assignmentId; });
+        return next;
+      });
+    });
+    return () => { active = false; };
+  }, [submissions, assignmentLookup]);
+
+  const openViewAssignmentModal = async (assignmentId) => {
+    setShowViewAssignmentModal(true);
+    setViewAssignmentData(null);
+    try {
+      setLoadingViewAssignment(true);
+      const data = await getAssignmentDetails(assignmentId);
+      setViewAssignmentData(data);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setLoadingViewAssignment(false);
+    }
+  };
 
   const loadCandidateDrawer = async (sub) => {
     try {
@@ -286,14 +334,51 @@ function VendorSubmissions() {
     }
   };
 
-  const openRemarksModal = (sub, type) => {
+  const openRemarksModal = async (sub, type) => {
     setSelectedSub(sub);
     setRemarksType(type);
     setRemarksText('');
+    setError('');
     setShowRemarksModal(true);
+
+    // Hiring a candidate creates the Assignment in the same step - preload the
+    // requisition (for its locked engagement type) and the assignment fields.
+    if (type === 'SELECT') {
+      setAssignForm({
+        startDate: '',
+        endDate: '',
+        agreedRatePerDay: sub.proposedRate || '',
+        sowReference: '',
+      });
+      setAssignRequisition(null);
+      try {
+        setLoadingAssignReq(true);
+        const req = await getRequisitionDetails(sub.requisitionId);
+        setAssignRequisition(req);
+      } catch (err) {
+        setError(getErrorMessage(err));
+      } finally {
+        setLoadingAssignReq(false);
+      }
+    }
   };
 
   const handleRemarksSubmit = async () => {
+    if (remarksType === 'SELECT') {
+      if (!assignForm.startDate || !assignForm.endDate) {
+        setError('Start date and end date are required to hire this candidate.');
+        return;
+      }
+      if (!assignForm.agreedRatePerDay || parseFloat(assignForm.agreedRatePerDay) <= 0) {
+        setError('Agreed daily rate must be a positive number.');
+        return;
+      }
+      if (!assignRequisition?.engagementType) {
+        setError('Requisition engagement type could not be loaded. Please retry.');
+        return;
+      }
+    }
+
     try {
       setSubmittingAction(true);
       setError('');
@@ -303,8 +388,18 @@ function VendorSubmissions() {
         await rejectSubmission(selectedSub.id, remarksText);
         setSuccess(`Candidate submission rejected.`);
       } else {
+        // 1. Mark the submission SELECTED, then 2. create the Assignment from it -
+        // hiring the candidate and placing them on the assignment in one action.
         await selectSubmission(selectedSub.id, remarksText);
-        setSuccess(`Candidate selected! Click "Create Assignment" to finalize the placement.`);
+        await createAssignment({
+          vendorSubmissionId: selectedSub.id,
+          startDate: assignForm.startDate,
+          endDate: assignForm.endDate,
+          agreedRatePerDay: parseFloat(assignForm.agreedRatePerDay),
+          engagementType: assignRequisition.engagementType,
+          sowReference: assignForm.sowReference || undefined,
+        });
+        setSuccess(`${selectedSub.contractorName} hired and placed on assignment.`);
       }
 
       setShowRemarksModal(false);
@@ -522,7 +617,7 @@ function VendorSubmissions() {
                           {sub.status === 'INTERVIEW_SCHEDULED' && (
                             <>
                               <Button size="sm" variant="outline-success" onClick={() => openRemarksModal(sub, 'SELECT')}>
-                                Select Candidate
+                                Hire Candidate
                               </Button>
                               <Button size="sm" variant="outline-danger" onClick={() => openRemarksModal(sub, 'REJECT')}>
                                 Reject
@@ -531,9 +626,15 @@ function VendorSubmissions() {
                           )}
 
                           {sub.status === 'SELECTED' && (
-                            <Button size="sm" className="btn-gf-primary" onClick={() => openCreateAssignmentModal(sub)}>
-                              Create Assignment
-                            </Button>
+                            assignmentLookup[sub.id] ? (
+                              <Button size="sm" variant="outline-primary" onClick={() => openViewAssignmentModal(assignmentLookup[sub.id])}>
+                                View Assignment
+                              </Button>
+                            ) : (
+                              <Button size="sm" className="btn-gf-primary" onClick={() => openCreateAssignmentModal(sub)}>
+                                Finish Assignment Setup
+                              </Button>
+                            )
                           )}
                         </div>
                       </td>
@@ -761,14 +862,86 @@ function VendorSubmissions() {
         </Modal.Footer>
       </Modal>
 
-      {/* Remarks Modal for SELECT or REJECT */}
+      {/* Remarks Modal for REJECT, or full hiring + assignment setup for SELECT */}
       <Modal show={showRemarksModal} onHide={() => setShowRemarksModal(false)} centered>
         <Modal.Header closeButton>
           <Modal.Title className="fw-bold text-slate-800">
-            {remarksType === 'REJECT' ? 'Reject Submission' : 'Select Candidate'}
+            {remarksType === 'REJECT' ? 'Reject Submission' : 'Hire Candidate'}
           </Modal.Title>
         </Modal.Header>
         <Modal.Body>
+          {error && <Alert variant="danger" className="mb-3">{error}</Alert>}
+
+          {remarksType === 'SELECT' && selectedSub && (
+            <div>
+              <div className="mb-3">
+                <span className="text-muted small">Contractor</span>
+                <h6 className="fw-bold text-slate-800 mt-1">{selectedSub.contractorName}</h6>
+                <span className="text-muted small">{selectedSub.requisitionTitle || 'Job Requisition'}</span>
+              </div>
+
+              {loadingAssignReq ? (
+                <div className="text-center py-3">
+                  <Spinner animation="border" size="sm" variant="primary" />
+                </div>
+              ) : (
+                <Row className="g-3 mb-3">
+                  <Col md={6}>
+                    <Form.Group controlId="hireStartDate">
+                      <Form.Label className="uppercase-label">Start Date</Form.Label>
+                      <Form.Control
+                        type="date"
+                        value={assignForm.startDate}
+                        onChange={(e) => setAssignForm(prev => ({ ...prev, startDate: e.target.value }))}
+                        required
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group controlId="hireEndDate">
+                      <Form.Label className="uppercase-label">End Date</Form.Label>
+                      <Form.Control
+                        type="date"
+                        value={assignForm.endDate}
+                        onChange={(e) => setAssignForm(prev => ({ ...prev, endDate: e.target.value }))}
+                        required
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={12}>
+                    <Form.Group controlId="hireRate">
+                      <Form.Label className="uppercase-label">Agreed Daily Rate (₹)</Form.Label>
+                      <Form.Control
+                        type="number"
+                        value={assignForm.agreedRatePerDay}
+                        onChange={(e) => setAssignForm(prev => ({ ...prev, agreedRatePerDay: e.target.value }))}
+                        required
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={12}>
+                    <Form.Group controlId="hireEngagementType">
+                      <Form.Label className="uppercase-label">Engagement Type</Form.Label>
+                      <Form.Control type="text" value={assignRequisition?.engagementType || ''} disabled readOnly className="bg-light" />
+                      <Form.Text className="text-muted">Fixed by the requisition&apos;s engagement type.</Form.Text>
+                    </Form.Group>
+                  </Col>
+                  <Col md={12}>
+                    <Form.Group controlId="hireSow">
+                      <Form.Label className="uppercase-label">SOW Reference (Optional)</Form.Label>
+                      <Form.Control
+                        type="text"
+                        placeholder="e.g. SOW-2026-0451"
+                        value={assignForm.sowReference}
+                        onChange={(e) => setAssignForm(prev => ({ ...prev, sowReference: e.target.value }))}
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
+              )}
+            </div>
+          )}
+
           <Form.Group controlId="actionRemarks">
             <Form.Label className="uppercase-label">Provide Review Remarks / Feedback</Form.Label>
             <Form.Control
@@ -785,17 +958,18 @@ function VendorSubmissions() {
           <Button
             variant={remarksType === 'REJECT' ? 'danger' : 'success'}
             onClick={handleRemarksSubmit}
-            disabled={submittingAction}
+            disabled={submittingAction || (remarksType === 'SELECT' && loadingAssignReq)}
           >
-            {submittingAction ? <Spinner animation="border" size="sm" /> : remarksType === 'REJECT' ? 'Reject Candidate' : 'Select Candidate'}
+            {submittingAction ? <Spinner animation="border" size="sm" /> : remarksType === 'REJECT' ? 'Reject Candidate' : 'Hire & Create Assignment'}
           </Button>
         </Modal.Footer>
       </Modal>
 
-      {/* Create Assignment Modal - finalizes a SELECTED submission into an active placement */}
+      {/* Fallback: finishes assignment setup for a SELECTED submission whose Assignment wasn't created yet
+          (e.g. the hire step's automatic assignment creation failed and needs a retry) */}
       <Modal show={showCreateAssignmentModal} onHide={() => setShowCreateAssignmentModal(false)} centered>
         <Modal.Header closeButton>
-          <Modal.Title className="fw-bold text-slate-800">Create Assignment</Modal.Title>
+          <Modal.Title className="fw-bold text-slate-800">Finish Assignment Setup</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           {error && <Alert variant="danger" className="mb-3">{error}</Alert>}
@@ -876,6 +1050,68 @@ function VendorSubmissions() {
           <Button className="btn-gf-primary" onClick={handleCreateAssignmentSubmit} disabled={creatingAssignment || loadingAssignReq}>
             {creatingAssignment ? <Spinner animation="border" size="sm" /> : 'Create Assignment'}
           </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* View Assignment Modal - read-only, for a SELECTED submission that already has an Assignment */}
+      <Modal show={showViewAssignmentModal} onHide={() => setShowViewAssignmentModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title className="fw-bold text-slate-800">Assignment Details</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {loadingViewAssignment ? (
+            <div className="text-center py-4">
+              <Spinner animation="border" size="sm" variant="primary" />
+            </div>
+          ) : viewAssignmentData ? (
+            <Row className="g-3 small">
+              <Col xs={6}>
+                <span className="text-muted d-block text-uppercase" style={{ fontSize: '10px', fontWeight: 'bold' }}>Assignment ID</span>
+                <span className="fw-semibold text-dark">{viewAssignmentData.id}</span>
+              </Col>
+              <Col xs={6}>
+                <span className="text-muted d-block text-uppercase" style={{ fontSize: '10px', fontWeight: 'bold' }}>Status</span>
+                <span className={`status-pill ${viewAssignmentData.status === 'ACTIVE' || viewAssignmentData.status === 'EXTENDED' ? 'success' : 'secondary'}`}>
+                  {viewAssignmentData.status}
+                </span>
+              </Col>
+              <Col xs={6}>
+                <span className="text-muted d-block text-uppercase" style={{ fontSize: '10px', fontWeight: 'bold' }}>Contractor</span>
+                <span className="fw-semibold text-dark">{viewAssignmentData.contractorName}</span>
+              </Col>
+              <Col xs={6}>
+                <span className="text-muted d-block text-uppercase" style={{ fontSize: '10px', fontWeight: 'bold' }}>Job Title</span>
+                <span className="fw-semibold text-dark">{viewAssignmentData.requisitionTitle || 'Specialist'}</span>
+              </Col>
+              <Col xs={6}>
+                <span className="text-muted d-block text-uppercase" style={{ fontSize: '10px', fontWeight: 'bold' }}>Start Date</span>
+                <span className="fw-semibold text-dark">{viewAssignmentData.startDate}</span>
+              </Col>
+              <Col xs={6}>
+                <span className="text-muted d-block text-uppercase" style={{ fontSize: '10px', fontWeight: 'bold' }}>End Date</span>
+                <span className="fw-semibold text-dark">{viewAssignmentData.endDate}</span>
+              </Col>
+              <Col xs={6}>
+                <span className="text-muted d-block text-uppercase" style={{ fontSize: '10px', fontWeight: 'bold' }}>Agreed Daily Rate</span>
+                <span className="fw-bold text-success">₹{viewAssignmentData.agreedRatePerDay}/day</span>
+              </Col>
+              <Col xs={6}>
+                <span className="text-muted d-block text-uppercase" style={{ fontSize: '10px', fontWeight: 'bold' }}>Engagement Type</span>
+                <span className="fw-semibold text-dark">{viewAssignmentData.engagementType}</span>
+              </Col>
+              {viewAssignmentData.sowReference && (
+                <Col xs={12}>
+                  <span className="text-muted d-block text-uppercase" style={{ fontSize: '10px', fontWeight: 'bold' }}>SOW Reference</span>
+                  <span className="fw-semibold text-dark">{viewAssignmentData.sowReference}</span>
+                </Col>
+              )}
+            </Row>
+          ) : (
+            <p className="text-muted text-center py-4 mb-0">Assignment details could not be retrieved.</p>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowViewAssignmentModal(false)}>Close</Button>
         </Modal.Footer>
       </Modal>
     </div>
