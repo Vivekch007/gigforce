@@ -5,7 +5,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { getRequisitions } from '../../services/requisitionService';
 import { searchSubmissions } from '../../services/vendorSubmissionService';
 import { getAssignments } from '../../services/assignmentService';
-import { getTimesheetsToApprove, getLeavesToApprove } from '../../services/approvalService';
+import { getTimesheetsToApprove, getLeavesToApprove, getPayrollReadyTimesheets } from '../../services/approvalService';
 import { getInterviews } from '../../services/interviewService';
 import { getMyNotifications } from '../../services/notificationService';
 import { getInvoices } from '../../services/invoiceCreationService';
@@ -54,27 +54,29 @@ function Dashboard() {
       setLoading(true);
       setError('');
 
-       const [
-         reqsData,
-         subsData,
-         asnData,
-         tsData,
-         leavesData,
-         interviewsData,
-         notificationsData,
-         buDashboard,
-         invoicesData,
-       ] = await Promise.all([
-         getRequisitions({ size: 100 }).catch(() => ({ content: [] })),
-         searchSubmissions({ size: 100 }).catch(() => ({ content: [] })),
-         getAssignments({ size: 100 }).catch(() => ({ content: [] })),
-         getTimesheetsToApprove().catch(() => []),
-         getLeavesToApprove().catch(() => []),
-         getInterviews().catch(() => []),
-         getMyNotifications().catch(() => []),
-         getBusinessUnitDashboard(user?.orgUnitId || 'all').catch(() => null),
-         getInvoices().catch(() => []),
-       ]);
+        const [
+          reqsData,
+          subsData,
+          asnData,
+          tsData,
+          payrollReadyTsData,
+          leavesData,
+          interviewsData,
+          notificationsData,
+          buDashboard,
+          invoicesData,
+        ] = await Promise.all([
+          getRequisitions({ size: 100 }).catch(() => ({ content: [] })),
+          searchSubmissions({ size: 100 }).catch(() => ({ content: [] })),
+          getAssignments({ size: 100 }).catch(() => ({ content: [] })),
+          getTimesheetsToApprove().catch(() => []),
+          getPayrollReadyTimesheets().catch(() => []),
+          getLeavesToApprove().catch(() => []),
+          getInterviews().catch(() => []),
+          getMyNotifications().catch(() => []),
+          getBusinessUnitDashboard(user?.orgUnitId || 'all').catch(() => null),
+          getInvoices().catch(() => []),
+        ]);
 
       const reqs = reqsData?.content || [];
       const subs = subsData?.content || [];
@@ -86,24 +88,25 @@ function Dashboard() {
        const pendingTimesheetsCount = tsData.filter(t => t.status === 'SUBMITTED').length;
        const pendingLeavesCount = leavesData.filter(l => l.status === 'PENDING').length;
 
-       // Build set of timesheet IDs that are already invoiced
-       const billedIds = new Set();
-       (invoicesData || []).forEach(inv => {
-         const tsIds = inv.timesheetIds || inv.timesheet_ids;
-         if (tsIds && Array.isArray(tsIds)) {
-           tsIds.forEach(id => billedIds.add(id));
-         }
-       });
+        // Build set of timesheet IDs that are already invoiced
+        const billedIds = new Set();
+        (invoicesData || []).forEach(inv => {
+          const tsIds = inv.timesheetIds || inv.timesheet_ids;
+          if (tsIds && Array.isArray(tsIds)) {
+            tsIds.forEach(id => billedIds.add(id));
+          }
+        });
 
-       // Count unbilled timesheets: not in any invoice, APPROVED status, NOT_PROCESSED payroll status, and no invoice_id
-       const approvedUnbilledTimesheetsCount = tsData.filter(t => {
-         const isUnbilled = !billedIds.has(t.id);
-         const isApproved = t.status?.toUpperCase() === 'APPROVED';
-         const isNotProcessed = (t.payroll_status || t.payrollStatus) === 'NOT_PROCESSED';
-         const isNotCreated = !t.invoice_id;
+        // Count unbilled timesheets using exact logic from InvoiceCreation
+        const unbilled = (payrollReadyTsData || []).filter(t => {
+          const isUnbilled = !billedIds.has(t.id);
+          const isApproved = t.status?.toUpperCase() === 'APPROVED';
+          const isNotProcessed = (t.payroll_status || t.payrollStatus) === 'NOT_PROCESSED';
+          const isNotCreated = !t.invoice_id;
 
-         return isUnbilled && isApproved && isNotProcessed && isNotCreated;
-       }).length;
+          return isUnbilled && isApproved && isNotProcessed && isNotCreated;
+        });
+        const approvedUnbilledTimesheetsCount = unbilled.length;
 
       const openRequisitionsCount = buDashboard ? buDashboard.openRequisitions : openJobsCount;
       const filledRequisitionsCount = buDashboard ? buDashboard.filledRequisitions : reqs.filter(r => r.status === 'FILLED').length;
