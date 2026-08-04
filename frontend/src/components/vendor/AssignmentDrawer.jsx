@@ -32,12 +32,12 @@ function AssignmentDrawer({ show, onHide, assignment }) {
           <Col xs={12}><hr className="my-1" /></Col>
 
           <Col xs={6}>
-            <span className="small text-muted font-bold text-uppercase" style={{ fontSize: '0.65rem' }}>Client Partner</span>
-            <div className="fw-semibold text-slate-800">{assignment.clientName || 'Partner Client'}</div>
+            <span className="small text-muted font-bold text-uppercase" style={{ fontSize: '0.65rem' }}>HR Organization</span>
+            <div className="fw-semibold text-slate-800">{assignment.orgUnitId || 'Partner Client'}</div>
           </Col>
           <Col xs={6}>
             <span className="small text-muted font-bold text-uppercase" style={{ fontSize: '0.65rem' }}>Vendor Org</span>
-            <div className="fw-semibold text-slate-800">{assignment.vendorName || 'Staffing Partner'}</div>
+            <div className="fw-semibold text-slate-800">{assignment.vendorOrgUnitId || 'Staffing Partner'}</div>
           </Col>
 
           <Col xs={6}>

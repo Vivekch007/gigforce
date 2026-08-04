@@ -223,18 +223,18 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         }
 
         Long totalSubmissions = entityManager.createQuery(
-                "SELECT COUNT(s.id) FROM VendorSubmission s WHERE s.vendor.id = :vendorId", Long.class)
+                "SELECT COUNT(s.id) FROM VendorSubmission s WHERE s.submittedBy.id = :vendorId", Long.class)
                 .setParameter("vendorId", vendorId)
                 .getSingleResult();
 
         Long selectedSubmissions = entityManager.createQuery(
-                "SELECT COUNT(s.id) FROM VendorSubmission s WHERE s.vendor.id = :vendorId AND s.status = :status", Long.class)
+                "SELECT COUNT(s.id) FROM VendorSubmission s WHERE s.submittedBy.id = :vendorId AND s.status = :status", Long.class)
                 .setParameter("vendorId", vendorId)
                 .setParameter("status", SubmissionStatus.SELECTED)
                 .getSingleResult();
 
         Long rejectedSubmissions = entityManager.createQuery(
-                "SELECT COUNT(s.id) FROM VendorSubmission s WHERE s.vendor.id = :vendorId AND s.status = :status", Long.class)
+                "SELECT COUNT(s.id) FROM VendorSubmission s WHERE s.submittedBy.id = :vendorId AND s.status = :status", Long.class)
                 .setParameter("vendorId", vendorId)
                 .setParameter("status", SubmissionStatus.REJECTED)
                 .getSingleResult();
@@ -248,7 +248,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         Double fillRateVal = entityManager.createQuery(
                 "SELECT (COUNT(a.id) * 100.0) / COALESCE(SUM(r.quantity), 1) " +
                 "FROM ResourceRequisition r LEFT JOIN Assignment a ON a.requisition = r AND a.vendor.id = :vendorId " +
-                "WHERE r.id IN (SELECT DISTINCT vs.requisition.id FROM VendorSubmission vs WHERE vs.vendor.id = :vendorId)", Double.class)
+                "WHERE r.id IN (SELECT DISTINCT vs.requisition.id FROM VendorSubmission vs WHERE vs.submittedBy.id = :vendorId)", Double.class)
                 .setParameter("vendorId", vendorId)
                 .getSingleResult();
         BigDecimal fillRate = fillRateVal != null ? BigDecimal.valueOf(fillRateVal).setScale(2, RoundingMode.HALF_UP) : BigDecimal.ZERO;

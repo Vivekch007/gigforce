@@ -148,7 +148,7 @@ function Assignments() {
             <tr key={a.id}>
               <td className="fw-bold">{a.id}</td>
               <td className="fw-semibold text-dark">{a.contractorName}</td>
-              <td>{a.clientName || 'Partner Client'}</td>
+              <td>{a.orgUnitId || 'Partner Client'}</td>
               <td>{a.requisitionTitle || 'Specialist'}</td>
               <td>{a.startDate}</td>
               <td>{a.endDate || 'Ongoing'}</td>

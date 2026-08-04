@@ -211,10 +211,10 @@ function Dashboard() {
 
             <div className="col-md-3">
               <KpiCard
-                label="Total Revenue"
-                value={`₹ ${metrics?.scorecard ? Math.round(metrics.scorecard.totalRevenueGenerated).toLocaleString('en-IN') : '0'}`}
-                icon="bi-wallet2"
-                trend={{ value: 'Settled', direction: 'up' }}
+                label="Requisition Fill Rate"
+                value={metrics?.scorecard ? `${metrics.scorecard.fillRate}%` : '0%'}
+                icon="bi-graph-up"
+                trend={{ value: 'Filled vs. Demand', direction: 'up' }}
               />
             </div>
           </div>

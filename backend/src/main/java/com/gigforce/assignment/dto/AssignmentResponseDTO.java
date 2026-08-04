@@ -23,9 +23,11 @@ public class AssignmentResponseDTO {
     private String hiringManagerId;
     private String hiringManagerName;
     private String hiringManagerEmail;
+    private String orgUnitId;
     private String vendorId;
     private String vendorName;
     private String vendorEmail;
+    private String vendorOrgUnitId;
     private String poId;
     private LocalDate startDate;
     private LocalDate endDate;
