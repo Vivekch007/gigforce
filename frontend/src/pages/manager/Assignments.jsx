@@ -182,20 +182,18 @@ function Assignments() {
     }
   };
 
+  // New Value's input type follows the amendment type, but the field is always just "New Value".
+  const getNewValueInputType = (type) => {
+    if (type === 'RATE_REVISION') return 'number';
+    if (type === 'SCOPE_CHANGE') return 'text';
+    return 'date'; // EXTENSION, EARLY_TERMINATION
+  };
+
   const handleAmendmentTypeChange = (type) => {
-    let defaultReason = '';
-    if (type === 'EXTENSION') {
-      defaultReason = 'Project Extension';
-    } else if (type === 'RATE_REVISION') {
-      defaultReason = 'Annual Rate Revision';
-    } else if (type === 'EARLY_TERMINATION') {
-      defaultReason = 'Project Completed';
-    }
     setAmendForm(prev => ({
       ...prev,
       amendmentType: type,
       newValue: '',
-      reason: defaultReason
     }));
   };
 
@@ -205,7 +203,7 @@ function Assignments() {
       amendmentType: 'EXTENSION',
       effectiveDate: new Date().toISOString().split('T')[0],
       newValue: '',
-      reason: 'Project Extension',
+      reason: '',
       remarks: '',
     });
     setAmendmentsHistory([]);
@@ -218,15 +216,11 @@ function Assignments() {
       setError('Effective Date is required.');
       return;
     }
-    if (amendForm.amendmentType === 'EXTENSION' && !amendForm.newValue) {
-      setError('New End Date is required.');
+    if (!amendForm.newValue) {
+      setError('New Value is required.');
       return;
     }
-    if (amendForm.amendmentType === 'RATE_REVISION' && !amendForm.newValue) {
-      setError('New Agreed Rate is required.');
-      return;
-    }
-    if (!amendForm.reason) {
+    if (!amendForm.reason.trim()) {
       setError('Reason is required.');
       return;
     }
@@ -239,7 +233,7 @@ function Assignments() {
       const payload = {
         amendmentType: amendForm.amendmentType,
         effectiveDate: amendForm.effectiveDate,
-        newValue: amendForm.amendmentType === 'EARLY_TERMINATION' ? amendForm.effectiveDate : amendForm.newValue.toString(),
+        newValue: amendForm.newValue.toString(),
         reason: amendForm.reason,
         remarks: amendForm.remarks,
       };
@@ -659,6 +653,7 @@ function Assignments() {
               >
                 <option value="EXTENSION">Extension</option>
                 <option value="RATE_REVISION">Rate Revision</option>
+                <option value="SCOPE_CHANGE">Scope Change</option>
                 <option value="EARLY_TERMINATION">Early Termination</option>
               </Form.Select>
             </Form.Group>
@@ -670,146 +665,47 @@ function Assignments() {
               </Alert>
             )}
 
-            {/* Dynamic Fields */}
-            {amendForm.amendmentType === 'EXTENSION' && (
-              <Row className="g-3 mb-3">
-                <Col md={12}>
-                  <Form.Group controlId="extEffDate">
-                    <Form.Label className="enterprise-form-label">Effective Date <span className="text-danger">*</span></Form.Label>
-                    <Form.Control
-                      type="date"
-                      value={amendForm.effectiveDate}
-                      onChange={(e) => setAmendForm(prev => ({ ...prev, effectiveDate: e.target.value }))}
-                      className="enterprise-form-control"
-                      required
-                    />
-                  </Form.Group>
-                </Col>
-                <Col md={12}>
-                  <Form.Group controlId="extNewEnd">
-                    <Form.Label className="enterprise-form-label">New End Date <span className="text-danger">*</span></Form.Label>
-                    <Form.Control
-                      type="date"
-                      value={amendForm.newValue}
-                      onChange={(e) => setAmendForm(prev => ({ ...prev, newValue: e.target.value }))}
-                      className="enterprise-form-control"
-                      required
-                    />
-                  </Form.Group>
-                </Col>
-                <Col md={12}>
-                  <Form.Group controlId="extReason">
-                    <Form.Label className="enterprise-form-label">Reason <span className="text-danger">*</span></Form.Label>
-                    <Form.Select
-                      value={amendForm.reason}
-                      onChange={(e) => setAmendForm(prev => ({ ...prev, reason: e.target.value }))}
-                      className="enterprise-form-select"
-                      required
-                    >
-                      <option value="Project Extension">Project Extension</option>
-                      <option value="Client Request">Client Request</option>
-                      <option value="Business Requirement">Business Requirement</option>
-                      <option value="Performance Retention">Performance Retention</option>
-                      <option value="Other">Other</option>
-                    </Form.Select>
-                  </Form.Group>
-                </Col>
-              </Row>
-            )}
-
-            {amendForm.amendmentType === 'RATE_REVISION' && (
-              <Row className="g-3 mb-3">
-                <Col md={12}>
-                  <Form.Group controlId="revEffDate">
-                    <Form.Label className="enterprise-form-label">Effective Date <span className="text-danger">*</span></Form.Label>
-                    <Form.Control
-                      type="date"
-                      value={amendForm.effectiveDate}
-                      onChange={(e) => setAmendForm(prev => ({ ...prev, effectiveDate: e.target.value }))}
-                      className="enterprise-form-control"
-                      required
-                    />
-                  </Form.Group>
-                </Col>
-                <Col md={12}>
-                  <Form.Group controlId="revCurrRate">
-                    <Form.Label className="enterprise-form-label">Current Agreed Rate (Read Only)</Form.Label>
-                    <Form.Control
-                      type="text"
-                      value={`₹${Number(selectedAsn?.agreedRatePerDay || 0).toLocaleString('en-IN')}/day`}
-                      className="enterprise-form-control bg-light"
-                      readOnly
-                    />
-                  </Form.Group>
-                </Col>
-                <Col md={12}>
-                  <Form.Group controlId="revNewRate">
-                    <Form.Label className="enterprise-form-label">New Agreed Rate <span className="text-danger">*</span></Form.Label>
-                    <Form.Control
-                      type="number"
-                      placeholder="Enter new daily rate"
-                      value={amendForm.newValue}
-                      onChange={(e) => setAmendForm(prev => ({ ...prev, newValue: e.target.value }))}
-                      className="enterprise-form-control"
-                      required
-                    />
-                  </Form.Group>
-                </Col>
-                <Col md={12}>
-                  <Form.Group controlId="revReason">
-                    <Form.Label className="enterprise-form-label">Reason <span className="text-danger">*</span></Form.Label>
-                    <Form.Select
-                      value={amendForm.reason}
-                      onChange={(e) => setAmendForm(prev => ({ ...prev, reason: e.target.value }))}
-                      className="enterprise-form-select"
-                      required
-                    >
-                      <option value="Annual Rate Revision">Annual Rate Revision</option>
-                      <option value="Budget Approval">Budget Approval</option>
-                      <option value="Performance Increment">Performance Increment</option>
-                      <option value="Client Negotiation">Client Negotiation</option>
-                      <option value="Other">Other</option>
-                    </Form.Select>
-                  </Form.Group>
-                </Col>
-              </Row>
-            )}
-
-            {amendForm.amendmentType === 'EARLY_TERMINATION' && (
-              <Row className="g-3 mb-3">
-                <Col md={12}>
-                  <Form.Group controlId="termEffDate">
-                    <Form.Label className="enterprise-form-label">Effective Date <span className="text-danger">*</span></Form.Label>
-                    <Form.Control
-                      type="date"
-                      value={amendForm.effectiveDate}
-                      onChange={(e) => setAmendForm(prev => ({ ...prev, effectiveDate: e.target.value }))}
-                      className="enterprise-form-control"
-                      required
-                    />
-                  </Form.Group>
-                </Col>
-                <Col md={12}>
-                  <Form.Group controlId="termReason">
-                    <Form.Label className="enterprise-form-label">Reason <span className="text-danger">*</span></Form.Label>
-                    <Form.Select
-                      value={amendForm.reason}
-                      onChange={(e) => setAmendForm(prev => ({ ...prev, reason: e.target.value }))}
-                      className="enterprise-form-select"
-                      required
-                    >
-                      <option value="Project Completed">Project Completed</option>
-                      <option value="Budget Constraints">Budget Constraints</option>
-                      <option value="Contractor Resigned">Contractor Resigned</option>
-                      <option value="Performance Issues">Performance Issues</option>
-                      <option value="Client Cancellation">Client Cancellation</option>
-                      <option value="Mutual Agreement">Mutual Agreement</option>
-                      <option value="Other">Other</option>
-                    </Form.Select>
-                  </Form.Group>
-                </Col>
-              </Row>
-            )}
+            <Row className="g-3 mb-3">
+              <Col md={6}>
+                <Form.Group controlId="amendEffDate">
+                  <Form.Label className="enterprise-form-label">Effective Date <span className="text-danger">*</span></Form.Label>
+                  <Form.Control
+                    type="date"
+                    value={amendForm.effectiveDate}
+                    onChange={(e) => setAmendForm(prev => ({ ...prev, effectiveDate: e.target.value }))}
+                    className="enterprise-form-control"
+                    required
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group controlId="amendNewValue">
+                  <Form.Label className="enterprise-form-label">New Value <span className="text-danger">*</span></Form.Label>
+                  <Form.Control
+                    type={getNewValueInputType(amendForm.amendmentType)}
+                    step={amendForm.amendmentType === 'RATE_REVISION' ? '0.01' : undefined}
+                    placeholder={amendForm.amendmentType === 'RATE_REVISION' ? 'Enter new daily rate' : amendForm.amendmentType === 'SCOPE_CHANGE' ? 'Describe the new scope...' : undefined}
+                    value={amendForm.newValue}
+                    onChange={(e) => setAmendForm(prev => ({ ...prev, newValue: e.target.value }))}
+                    className="enterprise-form-control"
+                    required
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={12}>
+                <Form.Group controlId="amendReason">
+                  <Form.Label className="enterprise-form-label">Reason <span className="text-danger">*</span></Form.Label>
+                  <Form.Control
+                    type="text"
+                    placeholder="e.g. Project Extension, Client Request..."
+                    value={amendForm.reason}
+                    onChange={(e) => setAmendForm(prev => ({ ...prev, reason: e.target.value }))}
+                    className="enterprise-form-control"
+                    required
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
 
             <Form.Group className="mb-3" controlId="amendRemarks">
               <Form.Label className="enterprise-form-label">Remarks (Optional)</Form.Label>

@@ -94,20 +94,18 @@ function Amendments() {
     }
   };
 
+  // New Value's input type follows the amendment type, but the field is always just "New Value".
+  const getNewValueInputType = (type) => {
+    if (type === 'RATE_REVISION') return 'number';
+    if (type === 'SCOPE_CHANGE') return 'text';
+    return 'date'; // EXTENSION, EARLY_TERMINATION
+  };
+
   const handleAmendmentTypeChange = (type) => {
-    let defaultReason = '';
-    if (type === 'EXTENSION') {
-      defaultReason = 'Project Extension';
-    } else if (type === 'RATE_REVISION') {
-      defaultReason = 'Annual Rate Revision';
-    } else if (type === 'EARLY_TERMINATION') {
-      defaultReason = 'Project Completed';
-    }
     setAmendForm(prev => ({
       ...prev,
       amendmentType: type,
       newValue: '',
-      reason: defaultReason
     }));
   };
 
@@ -117,7 +115,7 @@ function Amendments() {
       amendmentType: 'EXTENSION',
       effectiveDate: new Date().toISOString().split('T')[0],
       newValue: '',
-      reason: 'Project Extension',
+      reason: '',
       remarks: '',
     });
     setAmendmentsHistory([]);
@@ -130,18 +128,12 @@ function Amendments() {
       showToast('Effective Date is required.', 'warning');
       return;
     }
-    if (!amendForm.reason) {
-      showToast('Reason is required.', 'warning');
+    if (!amendForm.newValue) {
+      showToast('New Value is required.', 'warning');
       return;
     }
-
-    let payloadValue = amendForm.newValue;
-    if (amendForm.amendmentType === 'EARLY_TERMINATION') {
-      payloadValue = amendForm.effectiveDate; // early termination end date is the effective date
-    }
-
-    if (!payloadValue && amendForm.amendmentType !== 'EARLY_TERMINATION') {
-      showToast('New target value is required.', 'warning');
+    if (!amendForm.reason.trim()) {
+      showToast('Reason is required.', 'warning');
       return;
     }
 
@@ -153,7 +145,7 @@ function Amendments() {
       const payload = {
         amendmentType: amendForm.amendmentType,
         effectiveDate: amendForm.effectiveDate,
-        newValue: payloadValue,
+        newValue: amendForm.newValue,
         reason: amendForm.reason,
         remarks: amendForm.remarks,
       };
@@ -285,6 +277,7 @@ function Amendments() {
                 >
                   <option value="EXTENSION">Extension</option>
                   <option value="RATE_REVISION">Rate Revision</option>
+                  <option value="SCOPE_CHANGE">Scope Change</option>
                   <option value="EARLY_TERMINATION">Early Termination</option>
                 </Form.Select>
               </Form.Group>
@@ -310,94 +303,34 @@ function Amendments() {
                   </Form.Group>
                 </Col>
 
-                {amendForm.amendmentType === 'EXTENSION' && (
-                  <>
-                    <Col md={6}>
-                      <Form.Group className="mb-3" controlId="newValueExt">
-                        <Form.Label className="enterprise-form-label">New End Date *</Form.Label>
-                        <Form.Control
-                          type="date"
-                          required
-                          className="enterprise-form-control"
-                          value={amendForm.newValue}
-                          onChange={(e) => setAmendForm(prev => ({ ...prev, newValue: e.target.value }))}
-                        />
-                      </Form.Group>
-                    </Col>
-                    <Col md={12}>
-                      <Form.Group className="mb-3" controlId="reasonExt">
-                        <Form.Label className="enterprise-form-label">Reason *</Form.Label>
-                        <Form.Select
-                          className="enterprise-form-select"
-                          value={amendForm.reason}
-                          onChange={(e) => setAmendForm(prev => ({ ...prev, reason: e.target.value }))}
-                        >
-                          <option value="Project Extension">Project Extension</option>
-                          <option value="Client Request">Client Request</option>
-                          <option value="Business Requirement">Business Requirement</option>
-                          <option value="Performance Retention">Performance Retention</option>
-                          <option value="Other">Other</option>
-                        </Form.Select>
-                      </Form.Group>
-                    </Col>
-                  </>
-                )}
+                <Col md={6}>
+                  <Form.Group className="mb-3" controlId="newValue">
+                    <Form.Label className="enterprise-form-label">New Value *</Form.Label>
+                    <Form.Control
+                      type={getNewValueInputType(amendForm.amendmentType)}
+                      required
+                      step={amendForm.amendmentType === 'RATE_REVISION' ? '0.01' : undefined}
+                      placeholder={amendForm.amendmentType === 'RATE_REVISION' ? 'e.g. 6000' : amendForm.amendmentType === 'SCOPE_CHANGE' ? 'Describe the new scope...' : undefined}
+                      className="enterprise-form-control"
+                      value={amendForm.newValue}
+                      onChange={(e) => setAmendForm(prev => ({ ...prev, newValue: e.target.value }))}
+                    />
+                  </Form.Group>
+                </Col>
 
-                {amendForm.amendmentType === 'RATE_REVISION' && (
-                  <>
-                    <Col md={6}>
-                      <Form.Group className="mb-3" controlId="newValueRate">
-                        <Form.Label className="enterprise-form-label">New Daily Rate (₹) *</Form.Label>
-                        <Form.Control
-                          type="number"
-                          required
-                          step="0.01"
-                          placeholder="e.g. 6000"
-                          className="enterprise-form-control"
-                          value={amendForm.newValue}
-                          onChange={(e) => setAmendForm(prev => ({ ...prev, newValue: e.target.value }))}
-                        />
-                      </Form.Group>
-                    </Col>
-                    <Col md={12}>
-                      <Form.Group className="mb-3" controlId="reasonRate">
-                        <Form.Label className="enterprise-form-label">Reason *</Form.Label>
-                        <Form.Select
-                          className="enterprise-form-select"
-                          value={amendForm.reason}
-                          onChange={(e) => setAmendForm(prev => ({ ...prev, reason: e.target.value }))}
-                        >
-                          <option value="Annual Rate Revision">Annual Rate Revision</option>
-                          <option value="Budget Approval">Budget Approval</option>
-                          <option value="Performance Increment">Performance Increment</option>
-                          <option value="Client Negotiation">Client Negotiation</option>
-                          <option value="Other">Other</option>
-                        </Form.Select>
-                      </Form.Group>
-                    </Col>
-                  </>
-                )}
-
-                {amendForm.amendmentType === 'EARLY_TERMINATION' && (
-                  <Col md={12}>
-                    <Form.Group className="mb-3" controlId="reasonTerm">
-                      <Form.Label className="enterprise-form-label">Reason *</Form.Label>
-                      <Form.Select
-                        className="enterprise-form-select"
-                        value={amendForm.reason}
-                        onChange={(e) => setAmendForm(prev => ({ ...prev, reason: e.target.value }))}
-                      >
-                        <option value="Project Completed">Project Completed</option>
-                        <option value="Budget Constraints">Budget Constraints</option>
-                        <option value="Contractor Resigned">Contractor Resigned</option>
-                        <option value="Performance Issues">Performance Issues</option>
-                        <option value="Client Cancellation">Client Cancellation</option>
-                        <option value="Mutual Agreement">Mutual Agreement</option>
-                        <option value="Other">Other</option>
-                      </Form.Select>
-                    </Form.Group>
-                  </Col>
-                )}
+                <Col md={12}>
+                  <Form.Group className="mb-3" controlId="reason">
+                    <Form.Label className="enterprise-form-label">Reason *</Form.Label>
+                    <Form.Control
+                      type="text"
+                      required
+                      placeholder="e.g. Project Extension, Client Request..."
+                      className="enterprise-form-control"
+                      value={amendForm.reason}
+                      onChange={(e) => setAmendForm(prev => ({ ...prev, reason: e.target.value }))}
+                    />
+                  </Form.Group>
+                </Col>
               </Row>
 
               <Form.Group className="mb-4" controlId="remarks">
@@ -540,6 +473,13 @@ function Amendments() {
                   <Col xs={12}>
                     <span className="text-muted small d-block">Early Termination Date</span>
                     <strong className="text-danger">{selectedAmendment.newValue}</strong>
+                  </Col>
+                )}
+
+                {selectedAmendment.amendmentType === 'SCOPE_CHANGE' && (
+                  <Col xs={12}>
+                    <span className="text-muted small d-block">New Scope</span>
+                    <strong className="text-dark">{selectedAmendment.newValue}</strong>
                   </Col>
                 )}
 
