@@ -470,35 +470,36 @@ function InvoiceCreation() {
                       {currentInvoices.length > 0 ? (
                         currentInvoices.map(inv => {
                           const invoiceId = inv.invoiceid || inv.invoice_id || inv.id;
-                          const startDate = inv.billingStartDate || inv.billing_start_date || 'N/A';
-                          const endDate = inv.billingEndDate || inv.billing_end_date || 'N/A';
-                          const issued = inv.invoiceDate || inv.invoice_date || 'Pending';
-                          let due = 'Pending';
+                          const startDate = (inv.billingStartDate || inv.billing_start_date) ? new Date(inv.billingStartDate || inv.billing_start_date).toLocaleDateString() : '-';
+                          const endDate = (inv.billingEndDate || inv.billing_end_date) ? new Date(inv.billingEndDate || inv.billing_end_date).toLocaleDateString() : '-';
+                          const issued = (inv.invoiceDate || inv.invoice_date) ? new Date(inv.invoiceDate || inv.invoice_date).toLocaleDateString() : '-';
+                          let due = '-';
                           if (inv.paymentDate || inv.payment_date) {
-                            due = inv.paymentDate || inv.payment_date;
-                          } else if (issued !== 'Pending') {
-                            const d = new Date(issued);
+                            due = new Date(inv.paymentDate || inv.payment_date).toLocaleDateString();
+                          } else if (issued !== '-') {
+                            const d = new Date(inv.invoiceDate || inv.invoice_date);
                             if (!isNaN(d.getTime())) {
                               d.setDate(d.getDate() + 30);
-                              due = d.toISOString().split('T')[0];
+                              due = d.toLocaleDateString();
                             }
                           }
-                          const amount = parseFloat(inv.totalAmount || inv.total_amount || inv.invoiceAmount || inv.invoice_amount || '0');
+                          const amount = parseFloat(inv.totalAmount || inv.total_amount || inv.invoiceAmount || inv.invoice_amount || 0);
                           const currentStatus = (inv.status || 'DRAFT').toUpperCase();
+                          const formattedAmount = Number.isFinite(amount) && amount > 0 ? amount.toLocaleString('en-IN', { minimumFractionDigits: 2 }) : '-';
 
                           return (
                             <tr key={inv.id || invoiceId}>
                               <td>
-                                <div className="fw-bold text-slate-800">{invoiceId}</div>
+                                <div className="fw-bold text-slate-800">{invoiceId ?? '-'}</div>
                                 <div className="small text-muted mt-1">Issue: {issued}</div>
                                 <div className="small text-muted">Due: {due}</div>
                               </td>
                               <td className="small">{startDate} to {endDate}</td>
                               <td>
-                                <div className="fw-semibold text-slate-800">{inv.contractorName || inv.contractor_name || 'Contractor'}</div>
-                                <div className="small text-muted">{inv.vendorName || inv.vendor_name || 'Direct Hire'}</div>
+                                <div className="fw-semibold text-slate-800">{inv.contractorName ?? inv.contractor_name ?? '-'}</div>
+                                <div className="small text-muted">{inv.vendorName ?? inv.vendor_name ?? '-'}</div>
                               </td>
-                              <td className="text-green-600 fw-bold">₹{amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                              <td className="text-green-600 fw-bold">₹{formattedAmount}</td>
                               <td>
                                 <span className={`gf-badge badge-${formatInvoiceStatus(inv.status)}`}>
                                   {inv.status || 'DRAFT'}
