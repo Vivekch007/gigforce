@@ -275,6 +275,12 @@ function Assignments() {
     }
   };
 
+  // Only one PENDING amendment of a given type is allowed per assignment at a time -
+  // block resubmission client-side until the current one is approved/rejected.
+  const hasPendingOfSelectedType = amendmentsHistory.some(
+    (am) => am.status === 'PENDING' && am.amendmentType === amendForm.amendmentType
+  );
+
   // Sorting handler
   const handleSort = (key) => {
     setSortConfig((prev) => ({
@@ -657,6 +663,13 @@ function Assignments() {
               </Form.Select>
             </Form.Group>
 
+            {hasPendingOfSelectedType && (
+              <Alert variant="warning" className="py-2 small mb-3">
+                A {amendForm.amendmentType.replace('_', ' ').toLowerCase()} request is already pending for this assignment.
+                You can raise another once it&apos;s approved or rejected.
+              </Alert>
+            )}
+
             {/* Dynamic Fields */}
             {amendForm.amendmentType === 'EXTENSION' && (
               <Row className="g-3 mb-3">
@@ -863,7 +876,7 @@ function Assignments() {
         </Modal.Body>
         <Modal.Footer className="enterprise-modal-footer">
           <button className="btn-enterprise-secondary" onClick={() => setShowAmendModal(false)}>Cancel</button>
-          <button className="btn-enterprise-primary" onClick={handleAmendSubmit} disabled={submittingAction}>
+          <button className="btn-enterprise-primary" onClick={handleAmendSubmit} disabled={submittingAction || hasPendingOfSelectedType}>
             {submittingAction ? <Spinner animation="border" size="sm" /> : 'Submit'}
           </button>
         </Modal.Footer>

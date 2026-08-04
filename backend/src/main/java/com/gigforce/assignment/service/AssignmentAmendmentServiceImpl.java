@@ -78,6 +78,18 @@ public class AssignmentAmendmentServiceImpl implements AssignmentAmendmentServic
             throw new IllegalArgumentException("Cannot request amendments on completed or terminated assignments.");
         }
 
+        // Only one PENDING amendment of a given type is allowed per assignment at a time.
+        // Once the hiring manager resolves it (approve/reject), the vendor can raise another
+        // of the same type - e.g. a second extension request later in the assignment's life.
+        boolean hasPendingSameType = amendmentRepository.findByAssignmentIdAndStatus(assignmentId, AmendmentStatus.PENDING)
+                .stream()
+                .anyMatch(a -> a.getAmendmentType() == request.getAmendmentType());
+        if (hasPendingSameType) {
+            throw new BusinessValidationException(
+                    "A " + request.getAmendmentType() + " request is already pending for this assignment. "
+                            + "Please wait for it to be approved or rejected before submitting another.");
+        }
+
         // Validate values based on amendment type
         switch (request.getAmendmentType()) {
             case EXTENSION:

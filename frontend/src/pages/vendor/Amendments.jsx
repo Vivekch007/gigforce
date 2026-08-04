@@ -185,6 +185,12 @@ function Amendments() {
   const totalPages = Math.ceil(filteredAssignments.length / PAGE_SIZE) || 1;
   const paginatedAssignments = filteredAssignments.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
+  // Only one PENDING amendment of a given type is allowed per assignment at a time -
+  // block resubmission client-side until the current one is approved/rejected.
+  const hasPendingOfSelectedType = amendmentsHistory.some(
+    (item) => item.status === 'PENDING' && item.amendmentType === amendForm.amendmentType
+  );
+
   return (
     <div className="container-fluid">
       {/* Header */}
@@ -282,6 +288,13 @@ function Amendments() {
                   <option value="EARLY_TERMINATION">Early Termination</option>
                 </Form.Select>
               </Form.Group>
+
+              {hasPendingOfSelectedType && (
+                <Alert variant="warning" className="py-2 small mb-3">
+                  A {amendForm.amendmentType.replace('_', ' ').toLowerCase()} request is already pending for this assignment.
+                  You can raise another once it&apos;s approved or rejected by the hiring manager.
+                </Alert>
+              )}
 
               <Row className="g-3">
                 <Col md={6}>
@@ -457,7 +470,7 @@ function Amendments() {
           <button className="btn-enterprise-secondary" onClick={() => setShowAmendModal(false)}>
             Cancel
           </button>
-          <button className="btn-enterprise-primary" onClick={handleAmendSubmit} disabled={submittingAction}>
+          <button className="btn-enterprise-primary" onClick={handleAmendSubmit} disabled={submittingAction || hasPendingOfSelectedType}>
             {submittingAction ? 'Submitting...' : 'Request Amendment'}
           </button>
         </Modal.Footer>
