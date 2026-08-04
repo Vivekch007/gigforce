@@ -172,11 +172,11 @@ function Invoices() {
               <tbody>
                 {filteredInvoices.map(inv => (
                   <tr key={inv.id}>
-                    <td className="fw-bold">{inv.invoiceNumber}</td>
-                    <td>{inv.purchaseOrderId || 'PO-2026-081'}</td>
-                    <td>{inv.contractorName || 'Contractor'}</td>
-                    <td>{inv.billingEndDate || 'End Target'}</td>
-                    <td className="text-green-600 fw-bold">₹{parseFloat(inv.invoiceAmount || 0).toLocaleString()}</td>
+                    <td className="fw-bold">{inv.invoiceNumber ?? '-'}</td>
+                    <td>{inv.purchaseOrderId ?? '-'}</td>
+                    <td>{inv.contractorName ?? '-'}</td>
+                    <td>{inv.billingEndDate ? new Date(inv.billingEndDate).toLocaleDateString() : '-'}</td>
+                    <td className="text-green-600 fw-bold">{(inv.invoiceAmount || inv.invoiceAmount === 0) ? `₹${Number(inv.invoiceAmount).toLocaleString()}` : '-'}</td>
                     <td>
                       <span className={`gf-badge badge-${getStatusBadge(inv.status)}`}>
                         {inv.status}

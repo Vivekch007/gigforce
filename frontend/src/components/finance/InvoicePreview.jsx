@@ -3,6 +3,15 @@ import { Row, Col, Table } from 'react-bootstrap';
 
 function InvoicePreview({ invoice }) {
   if (!invoice) return null;
+  const invoiceDate = invoice.invoiceDate ? new Date(invoice.invoiceDate).toLocaleDateString() : '-';
+  const billingStart = invoice.billingStartDate ? new Date(invoice.billingStartDate).toLocaleDateString() : '-';
+  const billingEnd = invoice.billingEndDate ? new Date(invoice.billingEndDate).toLocaleDateString() : '-';
+  const totalRegularHours = invoice.totalRegularHours ?? '-';
+  const totalOvertimeHours = invoice.totalOvertimeHours ?? '-';
+  const taxAmount = (invoice.taxAmount === 0 || invoice.taxAmount) ? invoice.taxAmount : '-';
+  const amountNum = Number(invoice.invoiceAmount);
+  const formattedAmount = Number.isFinite(amountNum) ? `₹${amountNum.toLocaleString()}` : '-';
+
   return (
     <div className="border p-4 rounded bg-white">
       <div className="d-flex justify-content-between mb-4 flex-wrap gap-2">
@@ -11,21 +20,21 @@ function InvoicePreview({ invoice }) {
           <span className="text-muted small">GigForce Workforce Solutions</span>
         </div>
         <div className="text-end">
-          <h5 className="fw-bold text-slate-700">No: {invoice.invoiceNumber || 'INV-TEMP-PREVIEW'}</h5>
-          <span className="text-muted small">Date: {invoice.invoiceDate || new Date().toLocaleDateString()}</span>
+          <h5 className="fw-bold text-slate-700">No: {invoice.invoiceNumber ?? '-'}</h5>
+          <span className="text-muted small">Date: {invoiceDate}</span>
         </div>
       </div>
 
       <Row className="mb-4 small">
         <Col sm={6}>
           <div className="text-muted font-bold">CLIENT DEPT:</div>
-          <div className="fw-bold text-slate-800">{invoice.clientName || 'Internal Department'}</div>
-          <div className="text-muted">PO Ref: {invoice.purchaseOrderId || 'N/A'}</div>
+          <div className="fw-bold text-slate-800">{invoice.clientName ?? '-'}</div>
+          <div className="text-muted">PO Ref: {invoice.purchaseOrderId ?? '-'}</div>
         </Col>
         <Col sm={6} className="text-sm-end">
           <div className="text-muted font-bold">VENDOR DETAILS:</div>
-          <div className="fw-bold text-slate-800">{invoice.vendorName || 'Staffing Partner'}</div>
-          <div className="text-muted">{invoice.vendorEmail || 'billing@partner.com'}</div>
+          <div className="fw-bold text-slate-800">{invoice.vendorName ?? '-'}</div>
+          <div className="text-muted">{invoice.vendorEmail ?? '-'}</div>
         </Col>
       </Row>
 
@@ -42,14 +51,14 @@ function InvoicePreview({ invoice }) {
         </thead>
         <tbody>
           <tr>
-            <td className="text-start">
-              <strong>{invoice.contractorName || 'Contractor'}</strong> &mdash; Staffing Services
-            </td>
-            <td>{invoice.billingStartDate} to {invoice.billingEndDate}</td>
-            <td>{invoice.totalRegularHours || 40} hrs</td>
-            <td>{invoice.totalOvertimeHours || 0} hrs</td>
-            <td>₹{invoice.taxAmount || 0}</td>
-            <td className="text-green-600 fw-bold">₹{parseFloat(invoice.invoiceAmount || 0).toLocaleString()}</td>
+              <td className="text-start">
+                <strong>{invoice.contractorName ?? '-'}</strong> &mdash; Staffing Services
+              </td>
+              <td>{billingStart} to {billingEnd}</td>
+              <td>{totalRegularHours} {typeof totalRegularHours === 'number' ? 'hrs' : ''}</td>
+              <td>{totalOvertimeHours} {typeof totalOvertimeHours === 'number' ? 'hrs' : ''}</td>
+              <td>{taxAmount === '-' ? '-' : `₹${taxAmount}`}</td>
+              <td className="text-green-600 fw-bold">{formattedAmount}</td>
           </tr>
         </tbody>
       </Table>
