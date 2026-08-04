@@ -20,6 +20,7 @@ import com.gigforce.identity.enums.AvailabilityStatus;
 import com.gigforce.identity.repository.ContractorProfileRepository;
 import com.gigforce.identity.repository.EngagementHistoryRepository;
 import com.gigforce.identity.repository.UserRepository;
+import com.gigforce.exception.BusinessValidationException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;

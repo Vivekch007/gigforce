@@ -149,9 +149,10 @@ public class AssignmentServiceImpl implements AssignmentService {
         }
 
         // Prevent Duplicate Active/Created Assignment (scoped query instead of loading the whole table)
+        // Prevent duplicate active/extended assignment - CREATED status is no longer used for new assignments
         boolean hasDuplicateActive = assignmentRepository.existsByContractorProfileIdAndRequisitionIdAndStatusIn(
                 profile.getId(), requisition.getId(),
-                java.util.List.of(AssignmentStatus.ACTIVE, AssignmentStatus.EXTENDED, AssignmentStatus.CREATED));
+                java.util.List.of(AssignmentStatus.ACTIVE, AssignmentStatus.EXTENDED));
         if (hasDuplicateActive) {
             throw new BusinessValidationException("An active assignment already exists for this contractor and requisition.");
         }
@@ -193,11 +194,8 @@ public class AssignmentServiceImpl implements AssignmentService {
             }
         }
 
-        // Set status to ACTIVE if start date is reached, otherwise CREATED (documented for E2E timesheet creation tests)
-        AssignmentStatus initialStatus = AssignmentStatus.CREATED;
-        if (!LocalDate.now().isBefore(request.getStartDate())) {
-            initialStatus = AssignmentStatus.ACTIVE;
-        }
+        // Assignments are now set to ACTIVE immediately upon creation
+        AssignmentStatus initialStatus = AssignmentStatus.ACTIVE;
 
         // 6. Build and Save Assignment
         Assignment assignment = Assignment.builder()
@@ -230,9 +228,8 @@ public class AssignmentServiceImpl implements AssignmentService {
 
         // Auto-fill capacity transition check
         if (requisition != null) {
-            long activeAssignmentsCount = assignmentRepository.countByRequisitionIdAndStatus(requisition.getId(), AssignmentStatus.ACTIVE)
-                    + assignmentRepository.countByRequisitionIdAndStatus(requisition.getId(), AssignmentStatus.EXTENDED)
-                    + assignmentRepository.countByRequisitionIdAndStatus(requisition.getId(), AssignmentStatus.CREATED);
+                long activeAssignmentsCount = assignmentRepository.countByRequisitionIdAndStatus(requisition.getId(), AssignmentStatus.ACTIVE)
+                    + assignmentRepository.countByRequisitionIdAndStatus(requisition.getId(), AssignmentStatus.EXTENDED);
 
             if (activeAssignmentsCount >= requisition.getQuantity() && requisition.getStatus() != RequisitionStatus.FILLED) {
                 requisition.setStatus(RequisitionStatus.FILLED);
@@ -557,8 +554,7 @@ public class AssignmentServiceImpl implements AssignmentService {
         boolean hasOtherActive = assignmentRepository.findByContractorProfileId(profile.getId()).stream()
                 .anyMatch(a -> !a.getId().equals(excludedAssignmentId)
                         && (a.getStatus() == AssignmentStatus.ACTIVE
-                        || a.getStatus() == AssignmentStatus.EXTENDED
-                        || a.getStatus() == AssignmentStatus.CREATED));
+                        || a.getStatus() == AssignmentStatus.EXTENDED));
         if (!hasOtherActive) {
             profile.setAvailabilityStatus(AvailabilityStatus.AVAILABLE);
             contractorProfileRepository.save(profile);
