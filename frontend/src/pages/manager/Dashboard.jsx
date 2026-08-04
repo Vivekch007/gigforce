@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Alert, Row, Col } from 'react-bootstrap';
+import { Alert } from 'react-bootstrap';
 import { useAuth } from '../../hooks/useAuth';
 import { getRequisitions } from '../../services/requisitionService';
 import { searchSubmissions } from '../../services/vendorSubmissionService';
@@ -24,7 +24,7 @@ function Dashboard() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  
+
   const [stats, setStats] = useState({
     openJobs: 0,
     filledJobs: 0,
@@ -76,13 +76,13 @@ function Dashboard() {
       const reqs = reqsData?.content || [];
       const subs = subsData?.content || [];
       const asns = asnData?.content || [];
-      
+
       const openJobsCount = reqs.filter(r => r.status === 'OPEN').length;
       const pendingSubsCount = subs.filter(s => s.status === 'SUBMITTED').length;
       const activeContractorsCount = asns.filter(a => a.status === 'ACTIVE').length;
       const pendingTimesheetsCount = tsData.filter(t => t.status === 'SUBMITTED').length;
       const pendingLeavesCount = leavesData.filter(l => l.status === 'PENDING').length;
-      
+
       const approvedUnbilledTimesheetsCount = tsData.filter(t => t.status === 'APPROVED' && !t.billed).length;
 
       const openRequisitionsCount = buDashboard ? buDashboard.openRequisitions : openJobsCount;
@@ -104,17 +104,17 @@ function Dashboard() {
 
       setUpcomingInterviews(interviewsData.filter(i => i.status === 'SCHEDULED').slice(0, 3));
 
-      // Filter out 'Timesheet Submitted' activity log entries (User Request 2)
+      // Filter out 'Timesheet Submitted' activity log entries (Keep all for scrollable list)
       const filteredNotifs = notificationsData.filter(act => {
         const titleText = (act.Title || '').toLowerCase();
         const msgText = (act.Message || '').toLowerCase();
         return !titleText.includes('timesheet submitted') && !msgText.includes('timesheet submitted');
       });
-      setRecentActivities(filteredNotifs.slice(0, 5));
+      setRecentActivities(filteredNotifs);
 
-      // Assemble merged Quick Actions list (User Request 4 & 5)
+      // Assemble merged Quick Actions list
       const actions = [];
-      
+
       if (pendingTimesheetsCount > 0) {
         actions.push({
           title: 'Review Pending Timesheets',
@@ -139,7 +139,7 @@ function Dashboard() {
           priority: 'medium'
         });
       }
-      
+
       // Default actions
       actions.push({
         title: 'Create Job Requisition',
@@ -159,14 +159,14 @@ function Dashboard() {
       if (searchQuery.trim()) {
         const query = searchQuery.trim().toLowerCase();
 
-        const filteredReqs = reqs.filter(r => 
+        const filteredReqs = reqs.filter(r =>
           r.id.toLowerCase().includes(query) ||
           r.jobTitle.toLowerCase().includes(query) ||
           (r.clientName && r.clientName.toLowerCase().includes(query)) ||
           r.status.toLowerCase().includes(query)
         );
 
-        const filteredContractors = asns.filter(a => 
+        const filteredContractors = asns.filter(a =>
           (a.contractorName && a.contractorName.toLowerCase().includes(query)) ||
           a.id.toLowerCase().includes(query) ||
           (a.requisitionTitle && a.requisitionTitle.toLowerCase().includes(query))
@@ -184,13 +184,13 @@ function Dashboard() {
             });
           }
         });
-        const filteredVendors = Array.from(vendorMap.values()).filter(v => 
-          v.name.toLowerCase().includes(query) || 
+        const filteredVendors = Array.from(vendorMap.values()).filter(v =>
+          v.name.toLowerCase().includes(query) ||
           v.email.toLowerCase().includes(query) ||
           v.id.toLowerCase().includes(query)
         );
 
-        const filteredCandidates = subs.filter(s => 
+        const filteredCandidates = subs.filter(s =>
           (s.contractorName && s.contractorName.toLowerCase().includes(query)) ||
           s.id.toLowerCase().includes(query) ||
           (s.remarks && s.remarks.toLowerCase().includes(query))
@@ -354,7 +354,7 @@ function Dashboard() {
             </div>
           </div>
 
-          {/* Stats Summary Cards Row using KpiCard (Monetary values updated to ₹) */}
+          {/* Stats Summary Cards Row */}
           <div className="row g-4 mb-5">
             <div className="col-md-3">
               <KpiCard
@@ -393,12 +393,13 @@ function Dashboard() {
             </div>
           </div>
 
-          <div className="row g-4">
-            {/* Left Column (Merged Action Required into Quick Actions) */}
-            <div className="col-lg-8 d-flex flex-column gap-4">
+          {/* First Row: Requisition Overview & Quick Actions */}
+          <div className="row g-4 mb-4">
+            {/* Requisition Overview */}
+            <div className="col-lg-8">
               <div className="enterprise-table-container p-4">
                 <h5 className="small fw-semibold text-uppercase text-muted mb-4"><i className="bi bi-clipboard-data me-2"></i>Requisition Overview</h5>
-                <div className="d-flex flex-column gap-3">
+                <div className="d-flex flex-column gap-4">
                   <div>
                     <div className="d-flex justify-content-between text-muted small mb-1">
                       <span className="fw-semibold text-dark">Fill Rate</span>
@@ -409,31 +410,34 @@ function Dashboard() {
                     </div>
                   </div>
                   <div className="row g-3 pt-1">
-                    <div className="col-6">
+                    <div className="col-4">
                       <div className="text-muted small">Pending Timesheets</div>
                       <div className="fs-5 fw-bold text-dark">{stats.pendingTimesheets}</div>
                     </div>
-                    <div className="col-6">
+                    <div className="col-4">
                       <div className="text-muted small">Pending Leave Requests</div>
                       <div className="fs-5 fw-bold text-dark">{stats.pendingLeaves}</div>
+                    </div>
+                    <div className="col-4">
+                      <div className="text-muted small">Invoices Awaiting Billing</div>
+                      <div className="fs-5 fw-bold text-dark">{stats.invoicesAwaiting}</div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Right Column */}
-            <div className="col-lg-4 d-flex flex-column gap-4">
-              {/* Quick Actions (Merged and featuring Priority Indicators - User Requests 4 & 5) */}
+            {/* Quick Actions */}
+            <div className="col-lg-4">
               <div className="enterprise-table-container p-4">
                 <h5 className="small fw-semibold text-uppercase text-muted mb-3">Quick Actions</h5>
-                <div className="d-flex flex-column gap-3">
+                <div className="d-flex flex-column gap-3 pe-1" style={{ maxHeight: '190px', overflowY: 'auto' }}>
                   {quickActionsList.map((action, idx) => (
                     <button
                       key={idx}
                       onClick={() => navigate(action.path)}
-                      className="btn-enterprise-secondary text-start py-3 px-3 d-flex align-items-center"
-                      style={{ width: '100%' }}
+                      className="btn-enterprise-secondary text-start px-3 d-flex align-items-start"
+                      style={{ width: '100%', height: 'auto', minHeight: 'var(--gf-btn-height)', paddingTop: '10px', paddingBottom: '10px' }}
                     >
                       <span
                         className="flex-shrink-0"
@@ -443,56 +447,72 @@ function Dashboard() {
                           height: '10px',
                           borderRadius: '50%',
                           border: `2px solid ${getCircleColor(action.priority)}`,
-                          marginRight: '12px'
+                          marginRight: '12px',
+                          marginTop: '5px'
                         }}
                       />
                       <div style={{ minWidth: '0' }}>
                         <div className="small fw-semibold text-dark text-truncate">{action.title}</div>
-                        <div className="text-muted small text-truncate" style={{ fontSize: '11px' }}>{action.desc}</div>
+                        <div className="text-muted small" style={{ fontSize: '11px', whiteSpace: 'normal', lineHeight: '1.4' }}>{action.desc}</div>
                       </div>
                     </button>
                   ))}
                 </div>
               </div>
+            </div>
+          </div>
 
-              {/* Upcoming Interviews List */}
-              <div className="enterprise-table-container p-4">
-                <h5 className="small fw-semibold text-uppercase text-muted mb-3"><i className="bi bi-calendar-event me-2"></i>Upcoming Interviews</h5>
-                {upcomingInterviews.length > 0 ? (
-                  <div className="d-flex flex-column gap-3">
-                    {upcomingInterviews.map(i => (
-                      <div key={i.id} className="p-3 border rounded-3 bg-light d-flex align-items-center justify-content-between">
-                        <div>
-                          <div className="small fw-bold text-dark">{i.candidateName}</div>
-                          <div className="text-muted small">{i.date} &bull; {i.time}</div>
+          {/* Second Row: Upcoming Interviews & Recent Activity (Matched Height & Scrollable Activity) */}
+          <div className="row g-4 align-items-stretch">
+            {/* Left Side: Upcoming Interviews */}
+            <div className="col-lg-6">
+              <div className="enterprise-table-container p-3 p-md-4 h-100 d-flex flex-column justify-content-between">
+                <div>
+                  <h5 className="small fw-semibold text-uppercase text-muted mb-3">
+                    <i className="bi bi-calendar-event me-2"></i>Upcoming Interviews
+                  </h5>
+                  {upcomingInterviews.length > 0 ? (
+                    <div className="d-flex flex-column gap-2">
+                      {upcomingInterviews.map(i => (
+                        <div key={i.id} className="p-2 px-3 border rounded bg-light d-flex align-items-center justify-content-between">
+                          <div>
+                            <div className="small fw-bold text-dark">{i.candidateName}</div>
+                            <div className="text-muted" style={{ fontSize: '12px' }}>{i.date} &bull; {i.time}</div>
+                          </div>
+                          <button className="btn-enterprise-primary py-1 px-2" onClick={() => navigate('/manager/interviews')} style={{ fontSize: '11px' }}>Join</button>
                         </div>
-                        <button className="btn-enterprise-primary py-1 px-3 small" onClick={() => navigate('/manager/interviews')} style={{ fontSize: '12px' }}>Join</button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-muted small mb-0 py-2">No interviews scheduled today.</p>
-                )}
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-muted small mb-0 py-1">No interviews scheduled today.</p>
+                  )}
+                </div>
               </div>
+            </div>
 
-              {/* Recent Activity Timeline (Filtered out Timesheet Submissions) */}
-              <div className="enterprise-table-container p-4">
-                <h5 className="small fw-semibold text-uppercase text-muted mb-3">Recent Activity</h5>
-                {recentActivities.length > 0 ? (
-                  <div className="d-flex flex-column gap-3">
-                    {recentActivities.map(act => (
-                      <div className="border-start ps-3 py-1 position-relative" key={act.NotificationID} style={{ borderColor: 'var(--gf-border)' }}>
-                        <div className="text-muted small">{new Date(act.CreatedDate).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})}</div>
-                        <div className="small fw-semibold text-dark">{act.Title || act.Category}</div>
-                        <div className="text-muted small text-truncate" style={{ maxWidth: '100%' }}>
-                          {act.Message}
+            {/* Right Side: Recent Activity (Scrollable Container) */}
+            <div className="col-lg-6">
+              <div className="enterprise-table-container p-3 p-md-4 h-100 d-flex flex-column justify-content-between">
+                <div>
+                  <h5 className="small fw-semibold text-uppercase text-muted mb-3">
+                    <i className="bi bi-clock-history me-2"></i>Recent Activity
+                  </h5>
+                  {recentActivities.length > 0 ? (
+                    <div className="d-flex flex-column gap-2 pe-1" style={{ maxHeight: '260px', overflowY: 'auto' }}>
+                      {recentActivities.map(act => (
+                        <div className="border-start ps-3 py-1 position-relative" key={act.NotificationID || act.id} style={{ borderColor: 'var(--gf-border)' }}>
+                          <div className="text-muted" style={{ fontSize: '11px' }}>{new Date(act.CreatedDate).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})}</div>
+                          <div className="fw-semibold text-dark" style={{ fontSize: '13px' }}>{act.Title || act.Category}</div>
+                          <div className="text-muted text-truncate" style={{ fontSize: '12px', maxWidth: '100%' }}>
+                            {act.Message}
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-muted small mb-0 py-2">No recent system logs.</p>
-                )}
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-muted small mb-0 py-1">No recent system logs.</p>
+                  )}
+                </div>
               </div>
             </div>
           </div>

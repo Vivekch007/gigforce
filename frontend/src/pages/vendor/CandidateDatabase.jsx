@@ -4,6 +4,7 @@ import { Alert, Form, Modal, Row, Col } from 'react-bootstrap';
 import { getCandidates } from '../../services/candidateService';
 import { getRequisitions } from '../../services/vendorRequisitionService';
 import { submitCandidateToRequisition } from '../../services/submissionService';
+import { getSkills } from '../../services/skillCatalogService';
 import { getErrorMessage } from '../../services/errorUtils';
 import { useToast } from '../../context/ToastContext';
 
@@ -37,6 +38,9 @@ function CandidateDatabase() {
   // Requisitions (for submission dropdown)
   const [openReqs, setOpenReqs] = useState([]);
   const [globalSelectedReq, setGlobalSelectedReq] = useState(initialReqId);
+
+  // Master skill catalog (for the Skill filter)
+  const [masterSkills, setMasterSkills] = useState([]);
 
   // Submit Candidate to Req Modal
   const [showSubmitModal, setShowSubmitModal] = useState(false);
@@ -77,12 +81,22 @@ function CandidateDatabase() {
     }
   };
 
+  const loadMasterSkills = async () => {
+    try {
+      const res = await getSkills();
+      setMasterSkills(Array.isArray(res) ? res : (res?.content || []));
+    } catch (err) {
+      console.error("Failed to load skill catalog", err);
+    }
+  };
+
   useEffect(() => {
     loadCandidatesData();
   }, [page, searchVal, availFilter, skillFilter, expFilter, dateFilter, rateFilter]);
 
   useEffect(() => {
     loadRequisitions();
+    loadMasterSkills();
   }, []);
 
   const initiateSubmitCandidate = (cand) => {
@@ -109,7 +123,8 @@ function CandidateDatabase() {
       });
       if (showToast) showToast(`Candidate ${submitCand.name} submitted successfully!`, 'success');
       setShowSubmitModal(false);
-      setGlobalSelectedReq('');
+      // Keep the requisition selected so the vendor can submit more candidates
+      // to the same requisition without re-picking it every time.
     } catch (err) {
       setError(getErrorMessage(err));
       if (showToast) showToast(getErrorMessage(err), 'error');
@@ -141,7 +156,8 @@ function CandidateDatabase() {
               options={[
                 { value: '', label: 'All Statuses' },
                 { value: 'AVAILABLE', label: 'Available' },
-                { value: 'ENGAGED', label: 'Engaged / On Bench' },
+                { value: 'ON_ASSIGNMENT', label: 'On Assignment' },
+                { value: 'ON_NOTICE', label: 'On Notice' },
               ]}
             />
             <VendorFilters
@@ -150,7 +166,7 @@ function CandidateDatabase() {
               onChange={(e) => setSkillFilter(e.target.value)}
               options={[
                 { value: '', label: 'All Skills' },
-                { value: 'Java', label: 'React', label: 'AWS' },
+                ...masterSkills.map(s => ({ value: s.name, label: s.name })),
               ]}
             />
             <VendorFilters
@@ -219,8 +235,8 @@ function CandidateDatabase() {
       ) : (
         <div className="text-center py-5 gf-card bg-white border-0" style={{ borderRadius: 'var(--gf-radius)', boxShadow: 'var(--gf-shadow)' }}>
           <i className="bi bi-people fs-1 text-muted"></i>
-          <h5 className="fw-semibold mt-3 text-dark">No candidates registered in database</h5>
-          <p className="text-muted small mb-4">No candidates have been mapped to your organization yet. Please contact the administrator to onboard contractors.</p>
+          <h5 className="fw-semibold mt-3 text-dark">No candidates found</h5>
+          <p className="text-muted small mb-4">No contractors match your current filters. Try adjusting or clearing them.</p>
         </div>
       )}
 

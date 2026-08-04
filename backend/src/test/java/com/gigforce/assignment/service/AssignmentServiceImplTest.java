@@ -27,6 +27,7 @@ import com.gigforce.requisition.enums.SubmissionStatus;
 import com.gigforce.requisition.repository.ResourceRequisitionRepository;
 import com.gigforce.requisition.repository.VendorSubmissionRepository;
 import com.gigforce.assignment.repository.AssignmentRepository;
+import com.gigforce.assignment.repository.TimesheetRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -62,6 +63,7 @@ class AssignmentServiceImplTest {
     @Mock private ResourceRequisitionRepository requisitionRepository;
     @Mock private ContractorProfileRepository contractorProfileRepository;
     @Mock private EngagementHistoryRepository engagementHistoryRepository;
+    @Mock private TimesheetRepository timesheetRepository;
     @Mock private UserRepository userRepository;
     @Mock private AuditService auditService;
     @Mock private NotificationPublisher notificationPublisher;

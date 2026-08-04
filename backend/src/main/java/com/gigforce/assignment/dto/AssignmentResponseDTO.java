@@ -23,12 +23,17 @@ public class AssignmentResponseDTO {
     private String hiringManagerId;
     private String hiringManagerName;
     private String hiringManagerEmail;
+    private String vendorId;
+    private String vendorName;
+    private String vendorEmail;
+    private String poId;
     private LocalDate startDate;
     private LocalDate endDate;
     private BigDecimal agreedRatePerDay;
     private com.gigforce.requisition.enums.EngagementType engagementType;
     private String sowReference;
     private AssignmentStatus status;
+    private BigDecimal totalHoursApproved;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

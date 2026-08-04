@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { Form, Alert, Modal } from 'react-bootstrap';
 import { getRequisitions, getRequisitionDetails } from '../../services/vendorRequisitionService';
 import { getCandidates } from '../../services/candidateService';
@@ -15,7 +15,6 @@ import Table from '../../components/Table';
 
 function OpenRequisitions() {
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const searchVal = searchParams.get('search') || '';
 
   const [loading, setLoading] = useState(true);
@@ -35,7 +34,16 @@ function OpenRequisitions() {
   // Modals
   const [selectedReq, setSelectedReq] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
-  
+
+  // Submit Candidate modal (in-page, no redirect)
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [submitReq, setSubmitReq] = useState(null);
+  const [poolCandidates, setPoolCandidates] = useState([]);
+  const [loadingPool, setLoadingPool] = useState(false);
+  const [selectedCandidateId, setSelectedCandidateId] = useState('');
+  const [proposedRate, setProposedRate] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
 
 
   const loadRequisitions = async () => {
@@ -80,8 +88,50 @@ function OpenRequisitions() {
     }
   };
 
-  const openSubmitCandidateModal = (req) => {
-    navigate(`/vendor/candidates?reqId=${req.id}`);
+  const openSubmitCandidateModal = async (req) => {
+    setSubmitReq(req);
+    setSelectedCandidateId('');
+    setProposedRate('');
+    setShowSubmitModal(true);
+    try {
+      setLoadingPool(true);
+      const data = await getCandidates({ size: 100, availability: 'AVAILABLE' });
+      setPoolCandidates(data?.content || []);
+    } catch (err) {
+      showToast(getErrorMessage(err), 'error');
+    } finally {
+      setLoadingPool(false);
+    }
+  };
+
+  const handleCandidateSelect = (candidateId) => {
+    setSelectedCandidateId(candidateId);
+    const cand = poolCandidates.find(c => String(c.id) === String(candidateId));
+    setProposedRate(cand?.rate || '');
+  };
+
+  const handleSubmitCandidate = async () => {
+    if (!selectedCandidateId) {
+      showToast('Please select a candidate first.', 'warning');
+      return;
+    }
+    if (!proposedRate) {
+      showToast('Please provide a proposed rate.', 'warning');
+      return;
+    }
+    try {
+      setSubmitting(true);
+      await submitCandidateToRequisition(submitReq.id, {
+        contractorProfileId: selectedCandidateId,
+        proposedRate: parseFloat(proposedRate)
+      });
+      showToast('Candidate submitted successfully!', 'success');
+      setShowSubmitModal(false);
+    } catch (err) {
+      showToast(getErrorMessage(err), 'error');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const formatRupees = (amount) => {
@@ -215,6 +265,58 @@ function OpenRequisitions() {
         </Modal.Footer>
       </Modal>
 
+      {/* Submit Candidate Modal (stays on this page - no redirect) */}
+      <Modal show={showSubmitModal} onHide={() => setShowSubmitModal(false)} centered className="enterprise-modal-content">
+        <Modal.Header closeButton className="enterprise-modal-header">
+          <Modal.Title className="fw-bold text-dark">Submit Candidate</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="enterprise-modal-body">
+          {submitReq && (
+            <div>
+              <div className="mb-3">
+                <span className="text-muted small">Requisition</span>
+                <h6 className="fw-bold text-dark mt-1">{submitReq.title || submitReq.jobTitle}</h6>
+              </div>
+
+              <Form.Group className="mb-3" controlId="submitCandidateSelect">
+                <Form.Label className="enterprise-form-label">Select Candidate</Form.Label>
+                {loadingPool ? (
+                  <div className="text-muted small py-2">Loading candidate pool...</div>
+                ) : (
+                  <Form.Select
+                    value={selectedCandidateId}
+                    onChange={(e) => handleCandidateSelect(e.target.value)}
+                  >
+                    <option value="">-- Select Candidate --</option>
+                    {poolCandidates.map(c => (
+                      <option key={c.id} value={c.id}>{c.name} &middot; {c.skills || 'No skills listed'}</option>
+                    ))}
+                  </Form.Select>
+                )}
+                {!loadingPool && poolCandidates.length === 0 && (
+                  <div className="text-muted small mt-2">No available candidates found in your pool.</div>
+                )}
+              </Form.Group>
+
+              <Form.Group controlId="submitProposedRate">
+                <Form.Label className="enterprise-form-label">Proposed Rate (₹/day)</Form.Label>
+                <Form.Control
+                  type="number"
+                  className="enterprise-form-control"
+                  value={proposedRate}
+                  onChange={(e) => setProposedRate(e.target.value)}
+                />
+              </Form.Group>
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer className="enterprise-modal-footer">
+          <button className="btn-enterprise-secondary" onClick={() => setShowSubmitModal(false)}>Cancel</button>
+          <button className="btn-enterprise-primary" onClick={handleSubmitCandidate} disabled={submitting}>
+            {submitting ? 'Submitting...' : 'Confirm Submission'}
+          </button>
+        </Modal.Footer>
+      </Modal>
 
     </div>
   );

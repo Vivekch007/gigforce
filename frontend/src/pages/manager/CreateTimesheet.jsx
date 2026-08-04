@@ -159,7 +159,7 @@ function CreateTimesheet() {
       )}
 
       <div className="mb-4">
-        <h2 className="fw-black text-slate-800 mb-0">Create Timesheet (HR Proxy)</h2>
+        <h2 className="fw-black text-slate-800 mb-0">Create Timesheet </h2>
         <p className="text-muted small mt-1 mb-0">Generate blank weekly or monthly timesheet containers for contractors to log their hours.</p>
       </div>
 

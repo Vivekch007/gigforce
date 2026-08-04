@@ -10,6 +10,9 @@ import { getErrorMessage } from '../../services/errorUtils';
 // Reusable components
 import PurchaseOrderPreview from '../../components/vendor/PurchaseOrderPreview';
 import LoadingSpinner from '../../components/vendor/LoadingSpinner';
+import Pagination from '../../components/vendor/Pagination';
+
+const PAGE_SIZE = 10;
 
 function PurchaseOrders() {
   const [searchParams] = useSearchParams();
@@ -25,6 +28,10 @@ function PurchaseOrders() {
   const [approvedTimesheets, setApprovedTimesheets] = useState([]);
   const [assignments, setAssignments] = useState([]);
   const [statusFilter, setStatusFilter] = useState('');
+
+  // Pagination (separate for each list)
+  const [poPage, setPoPage] = useState(0);
+  const [tsPage, setTsPage] = useState(0);
 
   // Modal forms
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -69,6 +76,10 @@ function PurchaseOrders() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    setPoPage(0);
+  }, [searchVal, statusFilter]);
 
   useEffect(() => {
     loadData();
@@ -174,6 +185,12 @@ function PurchaseOrders() {
     );
   });
 
+  const poTotalPages = Math.ceil(filteredPOs.length / PAGE_SIZE) || 1;
+  const paginatedPOs = filteredPOs.slice(poPage * PAGE_SIZE, (poPage + 1) * PAGE_SIZE);
+
+  const tsTotalPages = Math.ceil(approvedTimesheets.length / PAGE_SIZE) || 1;
+  const paginatedTimesheets = approvedTimesheets.slice(tsPage * PAGE_SIZE, (tsPage + 1) * PAGE_SIZE);
+
   return (
     <div className="container-fluid">
       {/* Header */}
@@ -218,8 +235,8 @@ function PurchaseOrders() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredPOs.length > 0 ? (
-                      filteredPOs.map(po => (
+                    {paginatedPOs.length > 0 ? (
+                      paginatedPOs.map(po => (
                         <tr key={po.id}>
                           <td className="fw-bold">{po.id || 'PO-2026-092'}</td>
                           <td>{po.contractorName || 'Staff Member'}</td>
@@ -240,6 +257,7 @@ function PurchaseOrders() {
                   </tbody>
                 </Table>
               </div>
+              <Pagination currentPage={poPage} totalPages={poTotalPages} onPageChange={setPoPage} />
             </Card>
           </div>
 
@@ -257,8 +275,8 @@ function PurchaseOrders() {
                     </tr>
                   </thead>
                   <tbody>
-                    {approvedTimesheets.length > 0 ? (
-                      approvedTimesheets.map(ts => (
+                    {paginatedTimesheets.length > 0 ? (
+                      paginatedTimesheets.map(ts => (
                         <tr key={ts.id}>
                           <td className="fw-semibold text-slate-800">{ts.contractorName}</td>
                           <td>{ts.totalHoursLogged} hrs</td>
@@ -277,6 +295,7 @@ function PurchaseOrders() {
                   </tbody>
                 </Table>
               </div>
+              <Pagination currentPage={tsPage} totalPages={tsTotalPages} onPageChange={setTsPage} />
             </Card>
           </div>
         </div>

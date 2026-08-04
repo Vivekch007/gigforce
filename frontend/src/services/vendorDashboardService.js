@@ -53,6 +53,7 @@ export async function getVendorDashboardMetrics() {
     shortlistedCandidates: totalShortlisted,
     selectedCandidates: totalSelected,
     activeAssignments: scorecard ? scorecard.activeAssignments : activeAssignments,
+    totalPOs: posArray.length,
     pendingPOs,
     pendingTimesheets,
     recentActivities,

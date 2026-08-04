@@ -11,6 +11,9 @@ import apiClient from '../../services/apiClient';
 import AssignmentDrawer from '../../components/vendor/AssignmentDrawer';
 import Loader from '../../components/Loader';
 import Table from '../../components/Table';
+import Pagination from '../../components/vendor/Pagination';
+
+const PAGE_SIZE = 10;
 
 function Assignments() {
   const { user } = useAuth();
@@ -23,6 +26,7 @@ function Assignments() {
 
   // Assignments state
   const [assignments, setAssignments] = useState([]);
+  const [page, setPage] = useState(0);
 
   // Offcanvas details drawer
   const [showDrawer, setShowDrawer] = useState(false);
@@ -32,6 +36,7 @@ function Assignments() {
   const [showExtensionModal, setShowExtensionModal] = useState(false);
   const [extAsn, setExtAsn] = useState(null);
   const [newEndDate, setNewEndDate] = useState('');
+  const [extReason, setExtReason] = useState('Project Extension');
   const [extRemarks, setExtRemarks] = useState('');
   const [submittingExt, setSubmittingExt] = useState(false);
 
@@ -59,6 +64,10 @@ function Assignments() {
     loadAssignments();
   }, []);
 
+  useEffect(() => {
+    setPage(0);
+  }, [searchVal]);
+
   const openDrawer = async (asnId) => {
     try {
       setError('');
@@ -74,6 +83,7 @@ function Assignments() {
   const openExtensionModal = (asn) => {
     setExtAsn(asn);
     setNewEndDate('');
+    setExtReason('Project Extension');
     setExtRemarks('');
     setShowExtensionModal(true);
   };
@@ -84,6 +94,11 @@ function Assignments() {
       showToast('Please select a target extension end date.', 'warning');
       return;
     }
+    if (!extReason) {
+      setError('Please select a reason for the extension.');
+      showToast('Please select a reason for the extension.', 'warning');
+      return;
+    }
 
     try {
       setSubmittingExt(true);
@@ -92,6 +107,7 @@ function Assignments() {
       const payload = {
         effectiveDate: new Date().toISOString().split('T')[0],
         newValue: newEndDate,
+        reason: extReason,
         remarks: extRemarks,
       };
 
@@ -147,6 +163,9 @@ function Assignments() {
     );
   });
 
+  const totalPages = Math.ceil(filteredAssignments.length / PAGE_SIZE) || 1;
+  const paginatedAssignments = filteredAssignments.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
   return (
     <div className="container-fluid">
       {/* Header */}
@@ -160,8 +179,9 @@ function Assignments() {
       {loading ? (
         <Loader message="Retrieving placements..." />
       ) : filteredAssignments.length > 0 ? (
+        <>
         <Table headers={['Assignment ID', 'Contractor', 'Client', 'Job Title', 'Start Date', 'End Date', 'Status', 'Actions']}>
-          {filteredAssignments.map(a => (
+          {paginatedAssignments.map(a => (
             <tr key={a.id}>
               <td className="fw-bold">{a.id}</td>
               <td className="fw-semibold text-dark">{a.contractorName}</td>
@@ -194,6 +214,8 @@ function Assignments() {
             </tr>
           ))}
         </Table>
+        <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+        </>
       ) : (
         <div className="text-center py-5 gf-card bg-white border-0" style={{ borderRadius: 'var(--gf-radius)', boxShadow: 'var(--gf-shadow)' }}>
           <i className="bi bi-clipboard-check fs-1 text-muted"></i>
@@ -227,6 +249,22 @@ function Assignments() {
                   value={newEndDate}
                   onChange={(e) => setNewEndDate(e.target.value)}
                 />
+              </Form.Group>
+
+              <Form.Group className="mb-3" controlId="extReason">
+                <Form.Label className="enterprise-form-label">Reason <span className="text-danger">*</span></Form.Label>
+                <Form.Select
+                  value={extReason}
+                  onChange={(e) => setExtReason(e.target.value)}
+                  className="enterprise-form-select"
+                  required
+                >
+                  <option value="Project Extension">Project Extension</option>
+                  <option value="Client Request">Client Request</option>
+                  <option value="Business Requirement">Business Requirement</option>
+                  <option value="Performance Retention">Performance Retention</option>
+                  <option value="Other">Other</option>
+                </Form.Select>
               </Form.Group>
 
               <Form.Group className="mb-3" controlId="remarks">

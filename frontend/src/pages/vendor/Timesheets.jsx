@@ -6,6 +6,9 @@ import { getErrorMessage } from '../../services/errorUtils';
 
 // Reusable components
 import LoadingSpinner from '../../components/vendor/LoadingSpinner';
+import Pagination from '../../components/vendor/Pagination';
+
+const PAGE_SIZE = 10;
 
 function Timesheets() {
   const [searchParams] = useSearchParams();
@@ -13,10 +16,16 @@ function Timesheets() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  
+
   // Date range filters
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
+
+  // Status filter
+  const [statusFilter, setStatusFilter] = useState('');
+
+  // Pagination
+  const [page, setPage] = useState(0);
 
   // Timesheets state
   const [timesheets, setTimesheets] = useState([]);
@@ -29,7 +38,7 @@ function Timesheets() {
     try {
       setLoading(true);
       setError('');
-      const data = await getTimesheets();
+      const data = await getTimesheets({ status: statusFilter || undefined });
       setTimesheets(data || []);
     } catch (err) {
       setError(getErrorMessage(err));
@@ -40,7 +49,11 @@ function Timesheets() {
 
   useEffect(() => {
     loadTimesheets();
-  }, []);
+  }, [statusFilter]);
+
+  useEffect(() => {
+    setPage(0);
+  }, [searchVal, filterStartDate, filterEndDate, statusFilter]);
 
   const handleView = async (id) => {
     try {
@@ -81,6 +94,9 @@ function Timesheets() {
     return match;
   });
 
+  const totalPages = Math.ceil(filteredTimesheets.length / PAGE_SIZE) || 1;
+  const paginatedTimesheets = filteredTimesheets.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
   return (
     <div className="container-fluid">
       {/* Header */}
@@ -93,6 +109,17 @@ function Timesheets() {
 
       <div className="d-flex gap-3 mb-4 align-items-center">
         <div style={{ maxWidth: '200px' }}>
+          <label className="form-label small text-muted mb-1">Status</label>
+          <select className="form-control" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option value="">All Statuses</option>
+            <option value="DRAFT">Draft</option>
+            <option value="SUBMITTED">Submitted</option>
+            <option value="APPROVED">Approved</option>
+            <option value="REJECTED">Rejected</option>
+            <option value="REVISED">Revised</option>
+          </select>
+        </div>
+        <div style={{ maxWidth: '200px' }}>
           <label className="form-label small text-muted mb-1">Start Date</label>
           <input type="date" className="form-control" value={filterStartDate} onChange={(e) => setFilterStartDate(e.target.value)} />
         </div>
@@ -100,9 +127,9 @@ function Timesheets() {
           <label className="form-label small text-muted mb-1">End Date</label>
           <input type="date" className="form-control" value={filterEndDate} onChange={(e) => setFilterEndDate(e.target.value)} />
         </div>
-        {(filterStartDate || filterEndDate) && (
+        {(filterStartDate || filterEndDate || statusFilter) && (
           <div className="mt-4">
-            <Button variant="outline-secondary" size="sm" onClick={() => { setFilterStartDate(''); setFilterEndDate(''); }}>Clear Filters</Button>
+            <Button variant="outline-secondary" size="sm" onClick={() => { setFilterStartDate(''); setFilterEndDate(''); setStatusFilter(''); }}>Clear Filters</Button>
           </div>
         )}
       </div>
@@ -124,7 +151,7 @@ function Timesheets() {
                 </tr>
               </thead>
               <tbody>
-                {filteredTimesheets.map(t => (
+                {paginatedTimesheets.map(t => (
                   <tr key={t.id}>
                     <td className="fw-semibold text-slate-800">{t.contractorName}</td>
                     <td className="small">{t.startDate} to {t.endDate}</td>
@@ -145,6 +172,7 @@ function Timesheets() {
               </tbody>
             </Table>
           </div>
+          <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
         </Card>
       ) : (
         <div className="text-center py-5 gf-card bg-white border-0">
@@ -171,30 +199,42 @@ function Timesheets() {
                 <span className={`gf-badge badge-${getStatusBadge(selectedTs.status)}`}>{selectedTs.status}</span>
               </div>
 
-              <Table bordered size="sm" className="text-center small mb-3">
+              <Table bordered size="sm" className="small mb-3">
                 <thead className="table-light">
                   <tr>
-                    <th>Mon</th>
-                    <th>Tue</th>
-                    <th>Wed</th>
-                    <th>Thu</th>
-                    <th>Fri</th>
-                    <th>Sat</th>
-                    <th>Sun</th>
-                    <th className="table-primary">Total</th>
+                    <th>Date</th>
+                    <th className="text-center">Regular Hrs</th>
+                    <th className="text-center">Overtime Hrs</th>
+                    <th>Activity</th>
+                    <th className="text-center">Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr>
-                    <td>{parseFloat(selectedTs.mondayHours) || 0}</td>
-                    <td>{parseFloat(selectedTs.tuesdayHours) || 0}</td>
-                    <td>{parseFloat(selectedTs.wednesdayHours) || 0}</td>
-                    <td>{parseFloat(selectedTs.thursdayHours) || 0}</td>
-                    <td>{parseFloat(selectedTs.fridayHours) || 0}</td>
-                    <td>{parseFloat(selectedTs.saturdayHours) || 0}</td>
-                    <td>{parseFloat(selectedTs.sundayHours) || 0}</td>
-                    <td className="table-primary fw-bold">{selectedTs.totalHoursLogged || 0} hrs</td>
-                  </tr>
+                  {selectedTs.lines && selectedTs.lines.length > 0 ? (
+                    <>
+                      {selectedTs.lines.map(line => (
+                        <tr key={line.id || line.workDate}>
+                          <td>{line.workDate}</td>
+                          <td className="text-center">{parseFloat(line.hoursWorked) || 0}</td>
+                          <td className="text-center">{parseFloat(line.overtimeHours) || 0}</td>
+                          <td>{line.activityDesc || '-'}</td>
+                          <td className="text-center">
+                            <span className={`gf-badge badge-${getStatusBadge(line.status)}`} style={{ fontSize: '10px' }}>
+                              {line.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                      <tr className="table-primary fw-bold">
+                        <td colSpan={2}>Total</td>
+                        <td colSpan={3}>{selectedTs.totalHoursLogged || 0} hrs</td>
+                      </tr>
+                    </>
+                  ) : (
+                    <tr>
+                      <td colSpan={5} className="text-center text-muted py-3">No daily log lines recorded for this timesheet.</td>
+                    </tr>
+                  )}
                 </tbody>
               </Table>
 

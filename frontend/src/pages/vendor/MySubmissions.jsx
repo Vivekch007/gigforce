@@ -4,6 +4,7 @@ import { Card, Table, Button, Alert, Modal, Form } from 'react-bootstrap';
 import { getSubmissions, withdrawSubmission, getSubmissionDetails } from '../../services/submissionService';
 import { getErrorMessage } from '../../services/errorUtils';
 import { useConfirmation } from '../../context/ConfirmationContext';
+import { useToast } from '../../context/ToastContext';
 
 // Reusable components
 import LoadingSpinner from '../../components/vendor/LoadingSpinner';
@@ -11,12 +12,12 @@ import Pagination from '../../components/vendor/Pagination';
 
 function MySubmissions() {
   const { showConfirmation } = useConfirmation();
+  const { showToast } = useToast();
   const [searchParams] = useSearchParams();
   const searchVal = searchParams.get('search') || '';
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
 
   // Submissions list
   const [submissions, setSubmissions] = useState([]);
@@ -74,12 +75,12 @@ function MySubmissions() {
     if (!confirmed) return;
     try {
       setError('');
-      setSuccess('');
       await withdrawSubmission(submissionId);
-      setSuccess('Submission withdrawn successfully.');
+      showToast('Submission withdrawn successfully.', 'success');
       loadSubmissions();
     } catch (err) {
       setError(getErrorMessage(err));
+      showToast(getErrorMessage(err), 'error');
     }
   };
 
@@ -152,9 +153,8 @@ function MySubmissions() {
           >
             <option value="">All Statuses</option>
             <option value="SUBMITTED">Submitted</option>
-            <option value="UNDER_REVIEW">Under Review</option>
-            <option value="INTERVIEW_SCHEDULED">Interview Scheduled</option>
             <option value="SHORTLISTED">Shortlisted</option>
+            <option value="INTERVIEW_SCHEDULED">Interview Scheduled</option>
             <option value="SELECTED">Selected</option>
             <option value="REJECTED">Rejected</option>
             <option value="WITHDRAWN">Withdrawn</option>
@@ -182,7 +182,6 @@ function MySubmissions() {
       </div>
 
       {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
-      {success && <Alert variant="success" className="mb-4" onClose={() => setSuccess('')} dismissible>{success}</Alert>}
 
       {loading ? (
         <LoadingSpinner message="Querying submissions log..." />
@@ -219,7 +218,7 @@ function MySubmissions() {
                         <Button size="sm" variant="outline-primary" onClick={() => handleView(s.id)}>
                           View
                         </Button>
-                        {(s.status === 'SUBMITTED' || s.status === 'UNDER_REVIEW') && (
+                        {['SUBMITTED', 'SHORTLISTED', 'INTERVIEW_SCHEDULED'].includes(s.status) && (
                           <Button size="sm" variant="outline-danger" onClick={() => handleWithdraw(s.id)}>
                             Withdraw
                           </Button>

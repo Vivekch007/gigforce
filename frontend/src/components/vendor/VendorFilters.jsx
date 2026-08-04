@@ -3,9 +3,10 @@ import { Form } from 'react-bootstrap';
 
 function VendorFilters({ label, value, onChange, options = [] }) {
   return (
-    <div className="d-flex align-items-center gap-2">
-      {label && <span className="small text-muted font-bold text-uppercase">{label}:</span>}
+    <div>
+      {label && <Form.Label className="enterprise-form-label" style={{ fontSize: '12px' }}>{label}</Form.Label>}
       <Form.Select
+        size="sm"
         value={value}
         onChange={onChange}
         style={{ width: '180px', borderRadius: '0.5rem', fontSize: '0.875rem' }}

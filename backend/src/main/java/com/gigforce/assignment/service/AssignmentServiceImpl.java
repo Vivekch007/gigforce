@@ -3,8 +3,11 @@ package com.gigforce.assignment.service;
 import com.gigforce.assignment.dto.AssignmentRequestDTO;
 import com.gigforce.assignment.dto.AssignmentResponseDTO;
 import com.gigforce.assignment.entity.Assignment;
+import com.gigforce.assignment.entity.Timesheet;
 import com.gigforce.assignment.enums.AssignmentStatus;
+import com.gigforce.assignment.enums.TimesheetStatus;
 import com.gigforce.assignment.repository.AssignmentRepository;
+import com.gigforce.assignment.repository.TimesheetRepository;
 import com.gigforce.audit.service.AuditService;
 import com.gigforce.exception.AssignmentNotFoundException;
 import com.gigforce.exception.SubmissionNotFoundException;
@@ -36,6 +39,7 @@ import com.gigforce.exception.BusinessValidationException;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 import com.gigforce.notification.publisher.NotificationPublisher;
 
@@ -48,6 +52,7 @@ public class AssignmentServiceImpl implements AssignmentService {
     private final ResourceRequisitionRepository requisitionRepository;
     private final ContractorProfileRepository contractorProfileRepository;
     private final EngagementHistoryRepository engagementHistoryRepository;
+    private final TimesheetRepository timesheetRepository;
     private final UserRepository userRepository;
     private final AuditService auditService;
     private final NotificationPublisher notificationPublisher;
@@ -59,6 +64,7 @@ public class AssignmentServiceImpl implements AssignmentService {
             ResourceRequisitionRepository requisitionRepository,
             ContractorProfileRepository contractorProfileRepository,
             EngagementHistoryRepository engagementHistoryRepository,
+            TimesheetRepository timesheetRepository,
             UserRepository userRepository,
             AuditService auditService,
             NotificationPublisher notificationPublisher,
@@ -68,6 +74,7 @@ public class AssignmentServiceImpl implements AssignmentService {
         this.requisitionRepository = requisitionRepository;
         this.contractorProfileRepository = contractorProfileRepository;
         this.engagementHistoryRepository = engagementHistoryRepository;
+        this.timesheetRepository = timesheetRepository;
         this.userRepository = userRepository;
         this.auditService = auditService;
         this.notificationPublisher = notificationPublisher;
@@ -399,6 +406,12 @@ public class AssignmentServiceImpl implements AssignmentService {
     }
 
     private AssignmentResponseDTO toDto(Assignment assignment) {
+        List<Timesheet> approvedTimesheets = timesheetRepository.findByAssignmentIdAndStatus(
+                assignment.getId(), TimesheetStatus.APPROVED);
+        BigDecimal totalHoursApproved = approvedTimesheets.stream()
+                .map(t -> t.getHoursLogged().add(t.getOvertimeLogged()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
         return AssignmentResponseDTO.builder()
                 .id(assignment.getId())
                 .requisitionId(assignment.getRequisition() != null ? assignment.getRequisition().getId() : null)
@@ -409,12 +422,17 @@ public class AssignmentServiceImpl implements AssignmentService {
                 .hiringManagerId(assignment.getHiringManager().getId())
                 .hiringManagerName(assignment.getHiringManager().getName())
                 .hiringManagerEmail(assignment.getHiringManager().getEmail())
+                .vendorId(assignment.getVendor() != null ? assignment.getVendor().getId() : null)
+                .vendorName(assignment.getVendor() != null ? assignment.getVendor().getName() : null)
+                .vendorEmail(assignment.getVendor() != null ? assignment.getVendor().getEmail() : null)
+                .poId(assignment.getPurchaseOrderId())
                 .startDate(assignment.getStartDate())
                 .endDate(assignment.getEndDate())
                 .agreedRatePerDay(assignment.getAgreedRatePerDay())
                 .engagementType(assignment.getEngagementType())
                 .sowReference(assignment.getSowReference())
                 .status(assignment.getStatus())
+                .totalHoursApproved(totalHoursApproved)
                 .createdAt(assignment.getCreatedAt())
                 .updatedAt(assignment.getUpdatedAt())
                 .build();

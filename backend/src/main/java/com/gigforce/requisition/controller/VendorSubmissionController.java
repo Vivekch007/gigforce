@@ -97,6 +97,17 @@ public class VendorSubmissionController {
         return ResponseEntity.ok(response);
     }
 
+    @PutMapping("/{id}/withdraw")
+    @PreAuthorize("hasAnyRole('ADMIN', 'VENDOR_MANAGER', 'VENDOR')")
+    @Operation(summary = "Withdraw a submission (submitting Vendor or Admin only)")
+    public ResponseEntity<VendorSubmissionResponseDTO> transitionToWithdrawn(
+            @PathVariable String id,
+            @RequestParam(required = false) String remarks) {
+        VendorSubmissionResponseDTO response = submissionService.transitionStatus(id, SubmissionStatus.WITHDRAWN,
+                remarks);
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'HIRING_MANAGER', 'VENDOR_MANAGER', 'VENDOR')")
     @Operation(summary = "Search and filter submissions (Paginated)")

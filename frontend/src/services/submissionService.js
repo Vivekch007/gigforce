@@ -19,11 +19,6 @@ export function submitCandidateToRequisition(reqId, payload) {
   return apiClient.post(`/submissions/requisitions/${reqId}/submit`, payload).then((res) => res.data);
 }
 
-export function withdrawSubmission(id) {
-  // Simulated candidate withdraw action
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({ id, status: 'REJECTED', remarks: 'Withdrawn by Vendor Partner' });
-    }, 200);
-  });
+export function withdrawSubmission(id, remarks) {
+  return apiClient.put(`/submissions/${id}/withdraw`, null, { params: { remarks } }).then((res) => res.data);
 }
