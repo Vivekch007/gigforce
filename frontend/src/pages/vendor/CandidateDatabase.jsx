@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Alert, Form, Modal, Row, Col } from 'react-bootstrap';
 import { getCandidates } from '../../services/candidateService';
 import { getRequisitions } from '../../services/vendorRequisitionService';
-import { submitCandidateToRequisition } from '../../services/submissionService';
+import { submitCandidateToRequisition, getSubmissions } from '../../services/submissionService';
 import { getSkills } from '../../services/skillCatalogService';
 import { getErrorMessage } from '../../services/errorUtils';
 import { useToast } from '../../context/ToastContext';
@@ -38,6 +38,10 @@ function CandidateDatabase() {
   // Requisitions (for submission dropdown)
   const [openReqs, setOpenReqs] = useState([]);
   const [globalSelectedReq, setGlobalSelectedReq] = useState(initialReqId);
+
+  // Contractor IDs already submitted to the currently-selected requisition (any status) -
+  // hidden from the pool since resubmitting them is rejected by the backend anyway.
+  const [submittedCandidateIds, setSubmittedCandidateIds] = useState(new Set());
 
   // Master skill catalog (for the Skill filter)
   const [masterSkills, setMasterSkills] = useState([]);
@@ -98,6 +102,23 @@ function CandidateDatabase() {
     loadRequisitions();
     loadMasterSkills();
   }, []);
+
+  useEffect(() => {
+    if (!globalSelectedReq) {
+      setSubmittedCandidateIds(new Set());
+      return;
+    }
+    let active = true;
+    getSubmissions({ requisitionId: globalSelectedReq, size: 100 })
+      .then(data => {
+        if (!active) return;
+        setSubmittedCandidateIds(new Set((data?.content || []).map(s => String(s.contractorProfileId))));
+      })
+      .catch(() => { if (active) setSubmittedCandidateIds(new Set()); });
+    return () => { active = false; };
+  }, [globalSelectedReq]);
+
+  const visibleCandidates = candidates.filter(c => !submittedCandidateIds.has(String(c.id)));
 
   const initiateSubmitCandidate = (cand) => {
     setSubmitCand(cand);
@@ -218,10 +239,10 @@ function CandidateDatabase() {
 
       {loading ? (
         <Loader message="Accessing candidate records..." />
-      ) : candidates.length > 0 ? (
+      ) : visibleCandidates.length > 0 ? (
         <>
           <Row className="g-4 mb-4">
-            {candidates.map(c => (
+            {visibleCandidates.map(c => (
               <Col lg={4} md={6} key={c.id}>
                 <CandidateCard
                   candidate={c}
@@ -236,7 +257,11 @@ function CandidateDatabase() {
         <div className="text-center py-5 gf-card bg-white border-0" style={{ borderRadius: 'var(--gf-radius)', boxShadow: 'var(--gf-shadow)' }}>
           <i className="bi bi-people fs-1 text-muted"></i>
           <h5 className="fw-semibold mt-3 text-dark">No candidates found</h5>
-          <p className="text-muted small mb-4">No contractors match your current filters. Try adjusting or clearing them.</p>
+          <p className="text-muted small mb-4">
+            {globalSelectedReq
+              ? 'No contractors match your current filters, or everyone eligible has already been submitted to this requisition.'
+              : 'No contractors match your current filters. Try adjusting or clearing them.'}
+          </p>
         </div>
       )}
 

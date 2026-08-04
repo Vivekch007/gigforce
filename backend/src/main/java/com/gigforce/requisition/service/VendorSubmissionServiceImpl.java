@@ -143,7 +143,9 @@ public class VendorSubmissionServiceImpl implements VendorSubmissionService {
         ResourceRequisition requisition = submission.getRequisition();
 
         // Submissions can only be evaluated while the requisition is still active.
-        if (requisition.getStatus() != RequisitionStatus.OPEN) {
+        // Withdrawal is exempt: a vendor must always be able to pull back their own
+        // candidate, even after the requisition has been filled/closed.
+        if (targetStatus != SubmissionStatus.WITHDRAWN && requisition.getStatus() != RequisitionStatus.OPEN) {
             throw new BusinessValidationException(
                     "Submissions can only be evaluated while the requisition is OPEN (current: "
                             + requisition.getStatus() + ").");

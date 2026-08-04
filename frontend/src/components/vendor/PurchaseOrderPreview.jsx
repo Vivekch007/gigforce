@@ -32,7 +32,7 @@ function PurchaseOrderPreview({ poData }) {
         <thead className="table-light">
           <tr>
             <th>Item Scope</th>
-            <th>Billing Hours</th>
+            <th>Assignment Duration</th>
             <th>Agreed Rate</th>
             <th>Amount Due</th>
           </tr>
@@ -42,9 +42,9 @@ function PurchaseOrderPreview({ poData }) {
             <td className="text-start">
               <strong>{poData.contractorName}</strong> &mdash; Staffing Services
             </td>
-            <td>{poData.hours} hrs</td>
-            <td>${poData.rate}/hr</td>
-            <td className="text-green-600 fw-bold">${parseFloat(poData.amount).toLocaleString()}</td>
+            <td>{poData.startDate} to {poData.endDate}</td>
+            <td>₹{poData.rate}/day</td>
+            <td className="text-green-600 fw-bold">₹{parseFloat(poData.amount).toLocaleString()}</td>
           </tr>
         </tbody>
       </Table>
@@ -52,7 +52,7 @@ function PurchaseOrderPreview({ poData }) {
       <div className="d-flex justify-content-end mb-2">
         <div className="text-end">
           <span className="text-muted font-bold small text-uppercase">Total Amount:</span>
-          <h4 className="fw-black text-green-600 mt-1 mb-0">${parseFloat(poData.amount).toLocaleString()} ({poData.currency || 'USD'})</h4>
+          <h4 className="fw-black text-green-600 mt-1 mb-0">₹{parseFloat(poData.amount).toLocaleString()} ({poData.currency || 'INR'})</h4>
         </div>
       </div>
     </div>

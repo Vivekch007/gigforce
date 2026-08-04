@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Alert } from 'react-bootstrap';
+import { Alert } from 'react-bootstrap';
 import { getVendorDashboardMetrics } from '../../services/vendorDashboardService';
 import { getErrorMessage } from '../../services/errorUtils';
 
@@ -31,33 +31,12 @@ function Reports() {
     loadReportsData();
   }, []);
 
-  const handleExportCSV = (reportType) => {
-    const csvContent = "data:text/csv;charset=utf-8,KPI,Value\n" + 
-      `Open Requisitions,${summary?.openReqs || 0}\n` +
-      `Candidates Submitted,${summary?.submittedCandidates || 0}\n` +
-      `Shortlisted Candidates,${summary?.shortlistedCandidates || 0}\n` +
-      `Selected Candidates,${summary?.selectedCandidates || 0}\n` +
-      `Active Placements,${summary?.activeAssignments || 0}\n` +
-      `Pending Purchase Orders,${summary?.pendingPOs || 0}\n`;
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `${reportType}_summary_report.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   return (
     <div className="container-fluid">
       {/* Header */}
-      <div className="mb-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
-        <div>
-          <h2 className="fw-black text-slate-800 mb-0">Vendor Reporting</h2>
-          <p className="text-muted small mt-1 mb-0">Review submission metrics, placement trends, and export analytical summary sheets.</p>
-        </div>
-        <Button className="btn-gf-primary" onClick={() => handleExportCSV('vendor')}>Export Metrics CSV</Button>
+      <div className="mb-4">
+        <h2 className="fw-black text-slate-800 mb-0">Vendor Analytics</h2>
+        <p className="text-muted small mt-1 mb-0">Real-time submission and placement metrics.</p>
       </div>
 
       {error && <Alert variant="danger" className="mb-4">{error}</Alert>}

@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Form, Alert, Modal } from 'react-bootstrap';
 import { getRequisitions, getRequisitionDetails } from '../../services/vendorRequisitionService';
 import { getCandidates } from '../../services/candidateService';
-import { submitCandidateToRequisition } from '../../services/submissionService';
+import { submitCandidateToRequisition, getSubmissions } from '../../services/submissionService';
 import { getErrorMessage } from '../../services/errorUtils';
 import { useToast } from '../../context/ToastContext';
 
@@ -95,8 +95,19 @@ function OpenRequisitions() {
     setShowSubmitModal(true);
     try {
       setLoadingPool(true);
-      const data = await getCandidates({ size: 100, availability: 'AVAILABLE' });
-      setPoolCandidates(data?.content || []);
+      const [candidatesData, submissionsData] = await Promise.all([
+        getCandidates({ size: 100, availability: 'AVAILABLE' }),
+        getSubmissions({ requisitionId: req.id, size: 100 }),
+      ]);
+      // Exclude candidates who already have a submission (of any status) for this requisition -
+      // resubmitting the same contractor to the same job is rejected by the backend anyway.
+      const alreadySubmittedIds = new Set(
+        (submissionsData?.content || []).map(s => String(s.contractorProfileId))
+      );
+      const available = (candidatesData?.content || []).filter(
+        c => !alreadySubmittedIds.has(String(c.id))
+      );
+      setPoolCandidates(available);
     } catch (err) {
       showToast(getErrorMessage(err), 'error');
     } finally {
@@ -239,7 +250,7 @@ function OpenRequisitions() {
               <hr />
               <div className="row g-3 small text-dark">
                 <div className="col-sm-6">
-                  <strong>Client Partner:</strong> {selectedReq.clientName || 'Partner Client'}
+                  <strong>HR Organization:</strong> {selectedReq.businessUnitId || selectedReq.creatorEmail || 'Partner Client'}
                 </div>
                 <div className="col-sm-6">
                   <strong>Core Required Skill:</strong> {selectedReq.requiredSkillName || 'Technical'}
@@ -294,7 +305,7 @@ function OpenRequisitions() {
                   </Form.Select>
                 )}
                 {!loadingPool && poolCandidates.length === 0 && (
-                  <div className="text-muted small mt-2">No available candidates found in your pool.</div>
+                  <div className="text-muted small mt-2">No available candidates left to submit &mdash; everyone eligible has already been submitted to this requisition.</div>
                 )}
               </Form.Group>
 
