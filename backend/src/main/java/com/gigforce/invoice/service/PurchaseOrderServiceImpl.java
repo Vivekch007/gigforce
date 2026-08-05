@@ -243,17 +243,24 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
     }
 
     private PurchaseOrderResponseDTO mapToDto(PurchaseOrder po) {
+        Assignment assignment = po.getAssignment();
         return PurchaseOrderResponseDTO.builder()
                 .id(po.getId())
-                .assignmentId(po.getAssignment().getId())
+                .assignmentId(assignment.getId())
                 .vendorId(po.getVendor().getId())
                 .vendorName(po.getVendor().getName())
-                .contractorName(po.getAssignment().getContractorProfile().getUser().getName())
+                .contractorName(assignment.getContractorProfile().getUser().getName())
                 .poAmount(po.getPoAmount())
                 .currency(po.getCurrency())
                 .issuedDate(po.getIssuedDate())
                 .expiryDate(po.getExpiryDate())
                 .status(po.getStatus().name())
+                // Assignment-related fields
+                .startDate(assignment.getStartDate())
+                .endDate(assignment.getEndDate())
+                .orgUnitId(assignment.getOrgUnitId())
+                .hiringManagerId(assignment.getHiringManager() != null ? assignment.getHiringManager().getId() : null)
+                .hiringManagerName(assignment.getHiringManager() != null ? assignment.getHiringManager().getName() : null)
                 .build();
     }
 }

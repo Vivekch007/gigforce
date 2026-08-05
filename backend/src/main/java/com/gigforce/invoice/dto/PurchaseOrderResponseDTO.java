@@ -48,4 +48,20 @@ public class PurchaseOrderResponseDTO {
     @JsonProperty("Status")
     @JsonAlias({"status"})
     private String status;
+
+    // Assignment-related fields
+    private LocalDate startDate;
+    private LocalDate endDate;
+    
+    @JsonProperty("OrganizationID")
+    @JsonAlias({"orgUnitId", "organizationId", "businessUnitId", "clientName"})
+    private String orgUnitId;
+
+    @JsonProperty("ApprovedByHRUserID")
+    @JsonAlias({"hiringManagerId", "approvedByHRUserId", "hrUserId"})
+    private String hiringManagerId;
+
+    @JsonProperty("ApprovedByHRUserName")
+    @JsonAlias({"hiringManagerName", "approvedByHRUserName"})
+    private String hiringManagerName;
 }

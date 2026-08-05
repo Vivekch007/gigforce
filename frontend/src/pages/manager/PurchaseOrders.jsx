@@ -166,20 +166,24 @@ function PurchaseOrders() {
                 </tr>
               </thead>
               <tbody>
-                {filteredPOs.map(po => {
-                  const poId = po.POID || po.id;
-                  const assignmentId = po.AssignmentID || po.assignmentId || 'N/A';
-                  const contractor = po.contractorName || 'N/A';
-                  const vendor = po.vendorName || 'N/A';
-                  const amount = po.POAmount ?? po.poAmount ?? 0;
-                  const currency = po.Currency || po.currency || 'INR';
-                  const issued = po.IssuedDate || po.issuedDate || 'N/A';
-                  const expiry = po.ExpiryDate || po.expiryDate || 'N/A';
-                  const status = po.Status || po.status || 'N/A';
+                 {filteredPOs.map(po => {
+                   const poId = po.POID || po.id;
+                   const organization = po.OrganizationID || po.orgUnitId || 'Organization';
+                   const assignmentId = po.AssignmentID || po.assignmentId || 'N/A';
+                   const contractor = po.contractorName || 'N/A';
+                   const vendor = po.vendorName || 'N/A';
+                   const amount = po.POAmount ?? po.poAmount ?? 0;
+                   const currency = po.Currency || po.currency || 'INR';
+                   const issued = po.IssuedDate || po.issuedDate || 'N/A';
+                   const expiry = po.ExpiryDate || po.expiryDate || 'N/A';
+                   const status = po.Status || po.status || 'N/A';
 
-                  return (
-                    <tr key={poId}>
-                      <td className="fw-bold">{poId}</td>
+                   return (
+                     <tr key={poId}>
+                       <td className="fw-bold">
+                         <div>{poId}</div>
+                         <div className="small text-muted">{organization}</div>
+                       </td>
                       <td className="fw-semibold text-dark">{assignmentId}</td>
                       <td>{contractor}</td>
                       <td>{vendor}</td>

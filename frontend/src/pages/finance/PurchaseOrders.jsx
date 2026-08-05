@@ -135,8 +135,8 @@ function PurchaseOrders() {
                 <tr>
                   <th>PO Number</th>
                   <th>Contractor</th>
-                  <th>Organization</th>
                   <th>Amount</th>
+                  <th>Approved By</th>
                   <th>Status</th>
                   <th className="text-end">Actions</th>
                 </tr>
@@ -147,12 +147,8 @@ function PurchaseOrders() {
                   <tr key={po.POID || po.id}>
                     <td className="fw-bold">{po.POID || po.id}</td>
                     <td>{po.contractorName || 'Contractor'}</td>
-                    <td>
-                      <span className="badge bg-light text-dark">
-                        {po.businessUnitId || po.clientName || 'Organization'}
-                      </span>
-                    </td>
                     <td className="text-green-600 fw-bold">₹{parseFloat(po.POAmount || po.poAmount || 0).toLocaleString()}</td>
+                    <td>{po.ApprovedByHRUserID || po.hiringManagerId || 'Pending'}</td>
                     <td>
                       <span 
                         className="badge"
@@ -209,84 +205,98 @@ function PurchaseOrders() {
             </div>
           ) : selectedPo ? (
             <div>
-              {/* PO Reference */}
-              
-              <div className="mb-4 p-3 bg-light rounded">
-                <div className="small text-muted text-uppercase fw-bold mb-1">PO Number</div>
-                <div className="fw-black text-primary mb-3">{selectedPo.id || selectedPo.POID}</div>
-                <div className="small text-muted text-uppercase fw-bold mb-1">Status</div>
-                <div>
-                  <span 
-                    className="badge"
-                    style={{
-                      backgroundColor: getStatusBgColor(selectedPo.status || selectedPo.Status),
-                      color: getStatusColor(selectedPo.status || selectedPo.Status),
-                      fontWeight: 'bold'
-                    }}
-                  >
-                    {selectedPo.status || selectedPo.Status}
-                  </span>
-                </div>
-              </div>
+               {/* PO Reference */}
 
-              {/* Assignment Details */}
-              <div className="mb-4">
-                <h6 className="fw-bold text-slate-800 mb-3">Assignment Information</h6>
-                <div className="card border-light">
-                  <div className="card-body">
-                    <div className="mb-3">
-                      <span className="text-muted small d-block">Contractor Name</span>
-                      <span className="fw-bold">{selectedPo.contractorName || 'N/A'}</span>
-                    </div>
-                    <div className="mb-3">
-                      <span className="text-muted small d-block">Organization</span>
-                      <span className="fw-bold">{selectedPo.businessUnitId || selectedPo.clientName || 'N/A'}</span>
-                    </div>
-                    <div className="mb-3">
-                      <span className="text-muted small d-block">Assignment ID</span>
-                      <span className="fw-bold font-monospace">{selectedPo.assignmentId || 'N/A'}</span>
-                    </div>
+                <div className="mb-4 p-3 bg-light rounded">
+                  <div className="small text-muted text-uppercase fw-bold mb-1">PO Number</div>
+                  <div className="fw-black text-primary mb-3">{selectedPo.id || selectedPo.POID}</div>
+                  <div className="small text-muted text-uppercase fw-bold mb-1">Organization</div>
+                  <div className="mb-3">
+                    <span className="badge bg-info text-white">
+                      {selectedPo.OrganizationID || selectedPo.orgUnitId || 'Organization'}
+                    </span>
+                  </div>
+                  <div className="small text-muted text-uppercase fw-bold mb-1">Status</div>
+                  <div>
+                    <span
+                      className="badge"
+                      style={{
+                        backgroundColor: getStatusBgColor(selectedPo.status || selectedPo.Status),
+                        color: getStatusColor(selectedPo.status || selectedPo.Status),
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      {selectedPo.status || selectedPo.Status}
+                    </span>
                   </div>
                 </div>
-              </div>
 
-              {/* Financial Details */}
-              <div className="mb-4">
-                <h6 className="fw-bold text-slate-800 mb-3">Financial Details</h6>
-                <div className="card border-light">
-                  <div className="card-body">
-                    <div className="mb-3 d-flex justify-content-between">
-                      <span className="text-muted small">PO Amount</span>
-                      <span className="fw-bold text-green-600">₹{parseFloat(selectedPo.poAmount || selectedPo.POAmount || 0).toLocaleString()}</span>
-                    </div>
-                    <div className="mb-3 d-flex justify-content-between">
-                      <span className="text-muted small">Currency</span>
-                      <span className="fw-bold">{selectedPo.currency || 'INR'}</span>
-                    </div>
-                    <div className="d-flex justify-content-between">
-                      <span className="text-muted small">Balance Amount</span>
-                      <span className="fw-bold">₹{parseFloat(selectedPo.balanceAmount || 0).toLocaleString()}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+               {/* Assignment Details */}
+               <div className="mb-4">
+                 <h6 className="fw-bold text-slate-800 mb-3">Assignment Information</h6>
+                 <div className="card border-light">
+                   <div className="card-body">
+                     <div className="mb-3">
+                       <span className="text-muted small d-block">Contractor Name</span>
+                       <span className="fw-bold">{selectedPo.contractorName || 'N/A'}</span>
+                     </div>
+                     <div className="mb-3">
+                       <span className="text-muted small d-block">Assignment ID</span>
+                       <span className="fw-bold font-monospace">{selectedPo.AssignmentID || selectedPo.assignmentId || 'N/A'}</span>
+                     </div>
+                     <div className="mb-3">
+                       <span className="text-muted small d-block">Start Date</span>
+                       <span className="fw-bold">{selectedPo.startDate || 'N/A'}</span>
+                     </div>
+                     <div className="mb-3">
+                       <span className="text-muted small d-block">End Date</span>
+                       <span className="fw-bold">{selectedPo.endDate || 'N/A'}</span>
+                     </div>
+                   </div>
+                 </div>
+               </div>
 
-              {/* Vendor Information */}
-              <div className="mb-4">
-                <h6 className="fw-bold text-slate-800 mb-3">Vendor Details</h6>
-                <div className="card border-light">
-                  <div className="card-body">
-                    <div className="mb-3">
-                      <span className="text-muted small d-block">Vendor ID</span>
-                      <span className="fw-bold font-monospace">{selectedPo.vendorId || 'N/A'}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted small d-block">Vendor Name</span>
-                      <span className="fw-bold">{selectedPo.vendorName || 'N/A'}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+               {/* Financial Details */}
+               <div className="mb-4">
+                 <h6 className="fw-bold text-slate-800 mb-3">Financial Details</h6>
+                 <div className="card border-light">
+                   <div className="card-body">
+                     <div className="mb-3">
+                       <span className="text-muted small d-block">Assignment ID</span>
+                       <span className="fw-bold font-monospace">{selectedPo.AssignmentID || selectedPo.assignmentId || 'N/A'}</span>
+                     </div>
+                     <div className="mb-3 d-flex justify-content-between">
+                       <span className="text-muted small">PO Amount</span>
+                       <span className="fw-bold text-green-600">₹{parseFloat(selectedPo.POAmount || selectedPo.poAmount || 0).toLocaleString()}</span>
+                     </div>
+                     <div className="mb-3 d-flex justify-content-between">
+                       <span className="text-muted small">Currency</span>
+                       <span className="fw-bold">{selectedPo.Currency || selectedPo.currency || 'INR'}</span>
+                     </div>
+                   </div>
+                 </div>
+               </div>
+
+               {/* Vendor Information */}
+               <div className="mb-4">
+                 <h6 className="fw-bold text-slate-800 mb-3">Vendor Details</h6>
+                 <div className="card border-light">
+                   <div className="card-body">
+                     <div className="mb-3">
+                       <span className="text-muted small d-block">Vendor ID</span>
+                       <span className="fw-bold font-monospace">{selectedPo.VendorID || selectedPo.vendorId || 'N/A'}</span>
+                     </div>
+                     <div className="mb-3">
+                       <span className="text-muted small d-block">Vendor Name</span>
+                       <span className="fw-bold">{selectedPo.vendorName || 'N/A'}</span>
+                     </div>
+                     <div>
+                       <span className="text-muted small d-block">HR Details (Hiring Manager)</span>
+                       <span className="fw-bold">{selectedPo.ApprovedByHRUserName || selectedPo.hiringManagerName || 'N/A'}</span>
+                     </div>
+                   </div>
+                 </div>
+               </div>
 
               {/* Dates */}
               <div className="mb-4">
