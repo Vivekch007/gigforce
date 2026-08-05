@@ -33,6 +33,10 @@ public class PurchaseOrderResponseDTO {
     @JsonAlias({"poAmount", "po_amount"})
     private BigDecimal poAmount;
 
+    @JsonProperty("BalanceAmount")
+    @JsonAlias({"balanceAmount", "balance_amount"})
+    private BigDecimal balanceAmount;
+
     @JsonProperty("Currency")
     @JsonAlias({"currency"})
     private String currency;
