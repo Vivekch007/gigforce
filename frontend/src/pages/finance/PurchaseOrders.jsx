@@ -143,7 +143,6 @@ function PurchaseOrders() {
               </thead>
               <tbody>
                 {filteredPOs.map(po => (
-                    console.log(po),
                   <tr key={po.POID || po.id}>
                     <td className="fw-bold">{po.POID || po.id}</td>
                     <td>{po.contractorName || 'Contractor'}</td>

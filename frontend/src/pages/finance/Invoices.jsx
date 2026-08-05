@@ -126,7 +126,7 @@ function Invoices() {
     // 1. Search Query filter
     if (searchVal.trim()) {
       const q = searchVal.trim().toLowerCase();
-      if (!inv.invoiceNumber?.toLowerCase().includes(q) && !inv.contractorName?.toLowerCase().includes(q)) {
+      if (!inv.id?.toLowerCase().includes(q) && !inv.contractorName?.toLowerCase().includes(q)) {
         return false;
       }
     }
@@ -155,6 +155,7 @@ function Invoices() {
       {loading ? (
         <LoadingSpinner message="Searching invoices ledger..." />
       ) : filteredInvoices.length > 0 ? (
+
         <Card className="gf-card p-4 border-0 bg-white">
           <div className="table-responsive">
             <Table className="table table-hover align-middle mb-0">
@@ -171,9 +172,10 @@ function Invoices() {
               </thead>
               <tbody>
                 {filteredInvoices.map(inv => (
+
                   <tr key={inv.id}>
-                    <td className="fw-bold">{inv.invoiceNumber ?? '-'}</td>
-                    <td>{inv.purchaseOrderId ?? '-'}</td>
+                    <td className="fw-bold">{inv.id ?? '-'}</td>
+                    <td>{inv.poId ?? '-'}</td>
                     <td>{inv.contractorName ?? '-'}</td>
                     <td>{inv.billingEndDate ? new Date(inv.billingEndDate).toLocaleDateString() : '-'}</td>
                     <td className="text-green-600 fw-bold">{(inv.invoiceAmount || inv.invoiceAmount === 0) ? `₹${Number(inv.invoiceAmount).toLocaleString()}` : '-'}</td>

@@ -20,7 +20,7 @@ function InvoicePreview({ invoice }) {
           <span className="text-muted small">GigForce Workforce Solutions</span>
         </div>
         <div className="text-end">
-          <h5 className="fw-bold text-slate-700">No: {invoice.invoiceNumber ?? '-'}</h5>
+          <h5 className="fw-bold text-slate-700">No: {invoice.id ?? '-'}</h5>
           <span className="text-muted small">Date: {invoiceDate}</span>
         </div>
       </div>
@@ -28,13 +28,13 @@ function InvoicePreview({ invoice }) {
       <Row className="mb-4 small">
         <Col sm={6}>
           <div className="text-muted font-bold">CLIENT DEPT:</div>
-          <div className="fw-bold text-slate-800">{invoice.clientName ?? '-'}</div>
-          <div className="text-muted">PO Ref: {invoice.purchaseOrderId ?? '-'}</div>
+{/*           <div className="fw-bold text-slate-800">{invoice.clientName ?? '-'}</div> */}
+          <div className="text-muted">PO Ref: {invoice.poId ?? '-'}</div>
         </Col>
         <Col sm={6} className="text-sm-end">
           <div className="text-muted font-bold">VENDOR DETAILS:</div>
           <div className="fw-bold text-slate-800">{invoice.vendorName ?? '-'}</div>
-          <div className="text-muted">{invoice.vendorEmail ?? '-'}</div>
+          <div className="text-muted">{invoice.vendorId ?? '-'}</div>
         </Col>
       </Row>
 

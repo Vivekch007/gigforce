@@ -115,9 +115,8 @@ function Payments() {
 
   const getStatusBadge = (status) => {
     switch (status?.toUpperCase()) {
-      case 'PAID': return 'approved';
-      case 'PROCESSING': return 'pending';
-      case 'PENDING': return 'info';
+      case 'PROCESSED': return 'approved';
+      case 'PENDING': return 'pending';
       default: return 'rejected';
     }
   };
@@ -176,20 +175,20 @@ function Payments() {
                   <tbody>
                     {filteredPayments.length > 0 ? (
                       filteredPayments.map(p => (
-                        <tr key={p.id}>
-                          <td className="fw-bold">{p.id}</td>
-                          <td className="text-green-600 fw-bold">₹{parseFloat(p.paidAmount || 0).toLocaleString()}</td>
-                          <td>{p.paymentMode}</td>
-                          <td>{p.paymentDate}</td>
+                        <tr key={p.PaymentID}>
+                          <td className="fw-bold">{p.PaymentID}</td>
+                          <td className="text-green-600 fw-bold">₹{parseFloat(p.PaidAmount || 0).toLocaleString()}</td>
+                          <td>{p.PaymentMode}</td>
+                          <td>{p.PaymentDate}</td>
                           <td>
-                            <span className={`gf-badge badge-${getStatusBadge(p.status)}`}>
-                              {p.status}
+                            <span className={`gf-badge badge-${getStatusBadge(p.Status)}`}>
+                              {p.Status}
                             </span>
                           </td>
                           {isFinanceManager && (
                             <td className="text-end">
-                              {p.status === 'PENDING' && (
-                                <Button size="sm" variant="outline-danger" onClick={() => handleFailPayment(p.id)}>
+                              {p.Status === 'PENDING' && (
+                                <Button size="sm" variant="outline-danger" onClick={() => handleFailPayment(p.PaymentID)}>
                                   Mark Fail
                                 </Button>
                               )}
@@ -224,8 +223,9 @@ function Payments() {
                   <tbody>
                     {readyInvoices.length > 0 ? (
                       readyInvoices.map(inv => (
+                          console.log(inv),
                         <tr key={inv.id}>
-                          <td className="fw-bold">{inv.invoiceNumber}</td>
+                          <td className="fw-bold">{inv.id}</td>
                           <td className="text-green-600 fw-bold">₹{parseFloat(inv.invoiceAmount).toLocaleString()}</td>
                           <td>
                             <Button size="sm" className="btn-gf-primary py-0 px-2" style={{ fontSize: '0.75rem' }} onClick={() => openProcessPaymentModal(inv)}>
