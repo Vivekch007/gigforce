@@ -143,7 +143,7 @@ function PurchaseOrders() {
               </thead>
               <tbody>
                 {filteredPOs.map(po => (
-
+                    console.log(po),
                   <tr key={po.POID || po.id}>
                     <td className="fw-bold">{po.POID || po.id}</td>
                     <td>{po.contractorName || 'Contractor'}</td>
@@ -245,6 +245,7 @@ function PurchaseOrders() {
                </div>
 
                {/* Financial Details */}
+
                <div className="mb-4">
                  <h6 className="fw-bold text-slate-800 mb-3">Financial Details</h6>
                  <div className="row g-2 small">
@@ -254,7 +255,7 @@ function PurchaseOrders() {
                    </div>
                    <div className="col-6">
                      <span className="text-muted d-block text-uppercase" style={{ fontSize: '10px', fontWeight: 'bold' }}>Balance Amount</span>
-                     <span className="fw-bold text-success">₹{parseFloat(selectedPo.balanceAmount || 0).toLocaleString()}</span>
+                     <span className="fw-bold text-success">₹{parseFloat(selectedPo.BalanceAmount || 0).toLocaleString()}</span>
                    </div>
                  </div>
                </div>
