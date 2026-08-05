@@ -18,7 +18,11 @@ export async function getFinanceDashboardMetrics() {
   const paymentsPending = payments.filter((p) => p.Status === 'PENDING').length;
   const paymentsCompleted = payments.filter((p) => p.Status === 'PROCESSED').length;
 
-  const totalInvoiceValue = invoices.reduce((acc, curr) => acc + parseFloat(curr.totalAmount || 0), 0);
+  // Total Invoiced should reflect money that's still live in the pipeline or already
+  // collected - exclude DRAFT (not yet finalized), REJECTED, and CANCELLED invoices.
+  const totalInvoiceValue = invoices
+    .filter((inv) => ['SUBMITTED', 'APPROVED', 'PAID'].includes(inv.status))
+    .reduce((acc, curr) => acc + parseFloat(curr.totalAmount || 0), 0);
   const totalPayments = payments
     .filter((p) => p.Status === 'PROCESSED')
     .reduce((acc, curr) => acc + parseFloat(curr.PaidAmount || 0), 0);
