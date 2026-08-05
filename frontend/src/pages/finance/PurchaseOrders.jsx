@@ -143,6 +143,7 @@ function PurchaseOrders() {
               </thead>
               <tbody>
                 {filteredPOs.map(po => (
+
                   <tr key={po.POID || po.id}>
                     <td className="fw-bold">{po.POID || po.id}</td>
                     <td>{po.contractorName || 'Contractor'}</td>
@@ -209,6 +210,7 @@ function PurchaseOrders() {
           ) : selectedPo ? (
             <div>
               {/* PO Reference */}
+              
               <div className="mb-4 p-3 bg-light rounded">
                 <div className="small text-muted text-uppercase fw-bold mb-1">PO Number</div>
                 <div className="fw-black text-primary mb-3">{selectedPo.id || selectedPo.POID}</div>
