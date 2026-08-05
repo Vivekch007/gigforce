@@ -167,8 +167,9 @@ public class InvoiceServiceImpl implements InvoiceService {
         }
 
         // 3. Prevent duplicate invoices for the same assignment and billing period
-        boolean duplicateExists = contractorInvoiceRepository.existsByAssignmentIdAndBillingStartDateAndBillingEndDateAndStatusNot(
-                assignment.getId(), billingStartDate, billingEndDate, InvoiceStatus.CANCELLED);
+        // Allows recreation if the existing invoice is REJECTED or CANCELLED
+        boolean duplicateExists = contractorInvoiceRepository.existsActiveInvoiceForAssignmentAndBillingPeriod(
+                assignment.getId(), billingStartDate, billingEndDate);
         if (duplicateExists) {
             throw new BusinessValidationException("An invoice already exists for this assignment and billing period.");
         }
@@ -574,8 +575,8 @@ public class InvoiceServiceImpl implements InvoiceService {
         }
 
         if (!billingStartDate.equals(invoice.getBillingStartDate()) || !billingEndDate.equals(invoice.getBillingEndDate())) {
-            boolean duplicateExists = contractorInvoiceRepository.existsByAssignmentIdAndBillingStartDateAndBillingEndDateAndStatusNot(
-                    assignment.getId(), billingStartDate, billingEndDate, InvoiceStatus.CANCELLED);
+            boolean duplicateExists = contractorInvoiceRepository.existsActiveInvoiceForAssignmentAndBillingPeriod(
+                    assignment.getId(), billingStartDate, billingEndDate);
             if (duplicateExists) {
                 throw new BusinessValidationException("An invoice already exists for this assignment and billing period.");
             }

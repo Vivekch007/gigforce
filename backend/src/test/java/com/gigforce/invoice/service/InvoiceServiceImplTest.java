@@ -151,8 +151,8 @@ class InvoiceServiceImplTest {
 
     private void stubCreateBasics() {
         when(assignmentRepository.findById("a1")).thenReturn(Optional.of(assignment));
-        when(contractorInvoiceRepository.existsByAssignmentIdAndBillingStartDateAndBillingEndDateAndStatusNot(
-                eq("a1"), any(), any(), eq(InvoiceStatus.CANCELLED))).thenReturn(false);
+        when(contractorInvoiceRepository.existsActiveInvoiceForAssignmentAndBillingPeriod(
+                eq("a1"), any(), any())).thenReturn(false);
         when(idSequenceRepository.findById(anyString())).thenReturn(Optional.empty());
         when(idSequenceRepository.save(any())).thenAnswer(i -> i.getArgument(0));
         when(contractorInvoiceRepository.save(any(ContractorInvoice.class))).thenAnswer(i -> {
@@ -293,8 +293,8 @@ class InvoiceServiceImplTest {
         when(currentUserContext.getCurrentUser()).thenReturn(riya);
         when(assignmentRepository.findById("a1")).thenReturn(Optional.of(assignment));
         when(timesheetRepository.findById("ts1")).thenReturn(Optional.of(ts));
-        when(contractorInvoiceRepository.existsByAssignmentIdAndBillingStartDateAndBillingEndDateAndStatusNot(
-                eq("a1"), any(), any(), eq(InvoiceStatus.CANCELLED))).thenReturn(true);
+        when(contractorInvoiceRepository.existsActiveInvoiceForAssignmentAndBillingPeriod(
+                eq("a1"), any(), any())).thenReturn(true);
         assertThrows(BusinessValidationException.class, () -> service.createInvoice(createReq(List.of("ts1"), null, null)));
     }
 

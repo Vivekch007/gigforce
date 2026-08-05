@@ -28,4 +28,12 @@ public interface ContractorInvoiceRepository extends JpaRepository<ContractorInv
             java.time.LocalDate billingStartDate,
             java.time.LocalDate billingEndDate,
             InvoiceStatus status);
+
+    @Query("SELECT COUNT(ci) > 0 FROM ContractorInvoice ci WHERE ci.assignment.id = :assignmentId " +
+            "AND ci.billingStartDate = :billingStartDate AND ci.billingEndDate = :billingEndDate " +
+            "AND ci.status <> 'REJECTED' AND ci.status <> 'CANCELLED'")
+    boolean existsActiveInvoiceForAssignmentAndBillingPeriod(
+            @Param("assignmentId") String assignmentId,
+            @Param("billingStartDate") java.time.LocalDate billingStartDate,
+            @Param("billingEndDate") java.time.LocalDate billingEndDate);
 }
