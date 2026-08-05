@@ -101,13 +101,14 @@ function ProcessedPayments() {
         <Card className="gf-card p-4 border-0 bg-white">
           <FinanceTable headers={['Contractor', 'Assignment ID', 'Invoice Ref', 'PO Ref', 'Amount', 'Reference', 'Status', 'Date']}>
             {paged.map(p => {
+                console.log(p);
               const invoice = invoicesById[p.InvoiceID];
               const po = invoice?.poId ? posByPOID[invoice.poId] : null;
               return (
                 <tr key={p.PaymentID}>
                   <td>{invoice?.contractorName ?? '-'}</td>
                   <td>{invoice?.assignmentId ?? '-'}</td>
-                  <td className="fw-bold">{invoice?.invoiceNumber ?? p.InvoiceID}</td>
+                  <td className="fw-bold">{invoice?.InvoiceID ?? p.InvoiceID}</td>
                   <td>{po?.POID ?? '-'}</td>
                   <td className="text-green-600 fw-bold">{formatINR(p.PaidAmount)}</td>
                   <td>{p.PaymentReference || p.TransactionID || '-'}</td>

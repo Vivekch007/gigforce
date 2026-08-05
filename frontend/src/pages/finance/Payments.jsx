@@ -150,11 +150,12 @@ function Payments() {
               <tbody>
                 {filteredPendingPayments.length > 0 ? (
                   filteredPendingPayments.map(p => {
+
                     const invoice = invoicesById[p.InvoiceID];
                     return (
                       <tr key={p.PaymentID}>
                         <td className="fw-bold">{invoice?.assignmentId ?? '-'}</td>
-                        <td>{invoice?.invoiceNumber ?? p.InvoiceID}</td>
+                        <td>{invoice?.InvoiceID ?? p.InvoiceID}</td>
                         <td>{invoice?.contractorName ?? '-'}</td>
                         <td className="text-green-600 fw-bold">{formatINR(p.PaidAmount)}</td>
                         <td>{p.PaymentDate}</td>
