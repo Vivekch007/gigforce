@@ -1,16 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card, Table, Button, Alert, Modal } from 'react-bootstrap';
-import { useAuth } from '../../hooks/useAuth';
 import { getInvoices, approveInvoice, rejectInvoice } from '../../services/invoiceService';
+import { getPayments, createPayment } from '../../services/paymentService';
 import { getErrorMessage } from '../../services/errorUtils';
+import { formatINR } from '../../utils/currency';
 
 // Reusable components
 import InvoicePreview from '../../components/finance/InvoicePreview';
 import LoadingSpinner from '../../components/finance/LoadingSpinner';
 
 function Invoices() {
-  const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const searchVal = searchParams.get('search') || '';
 
@@ -20,21 +20,23 @@ function Invoices() {
 
   // Invoices list
   const [invoices, setInvoices] = useState([]);
+  const [payments, setPayments] = useState([]);
 
   // Preview Modal
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [selectedInv, setSelectedInv] = useState(null);
   const [submittingAction, setSubmittingAction] = useState(false);
 
-  // Role check
-  const isFinanceManager = user?.role === 'FINANCE';
-
   const loadInvoices = async () => {
     try {
       setLoading(true);
       setError('');
-      const data = await getInvoices();
-      setInvoices(data || []);
+      const [invoicesData, paymentsData] = await Promise.all([
+        getInvoices(),
+        getPayments().catch(() => []),
+      ]);
+      setInvoices(invoicesData || []);
+      setPayments(paymentsData || []);
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -45,6 +47,11 @@ function Invoices() {
   useEffect(() => {
     loadInvoices();
   }, []);
+
+  // Invoices that already have a pending payment shouldn't offer "Ready for Payment" again.
+  const pendingInvoiceIds = new Set(
+    payments.filter(p => p.Status === 'PENDING').map(p => p.InvoiceID)
+  );
 
   const handleReview = (invId) => {
     // Simulated Review transition
@@ -91,16 +98,31 @@ function Invoices() {
     }
   };
 
-  const handleMarkReady = (invId) => {
-    // Simulated transition to READY_FOR_PAYMENT
-    setInvoices(prev => prev.map(inv => {
-      if (inv.id === invId) {
-        return { ...inv, status: 'READY_FOR_PAYMENT' };
-      }
-      return inv;
-    }));
-    setSuccess(`Invoice ${invId} marked as Ready for Payment.`);
-    setShowPreviewModal(false);
+  const handleMarkReady = async (invId) => {
+    const inv = invoices.find(i => i.id === invId);
+    if (!inv) return;
+    try {
+      setSubmittingAction(true);
+      setError('');
+      setSuccess('');
+
+      // Creates a real PENDING payment for this invoice; the actual payment type is
+      // chosen later on the Payment Gate page before the payment is processed.
+      await createPayment({
+        invoiceId: inv.id,
+        paidAmount: inv.totalAmount,
+        paymentDate: new Date().toISOString().split('T')[0],
+        paymentMode: 'BANK_TRANSFER',
+      });
+
+      setSuccess(`Invoice ${invId} is now pending settlement on the Payment Gate.`);
+      setShowPreviewModal(false);
+      loadInvoices();
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setSubmittingAction(false);
+    }
   };
 
   const openPreview = (inv) => {
@@ -121,22 +143,13 @@ function Invoices() {
     }
   };
 
-  // Local Search & Role Filtering
+  // Local Search filtering
   const filteredInvoices = invoices.filter(inv => {
-    // 1. Search Query filter
     if (searchVal.trim()) {
       const q = searchVal.trim().toLowerCase();
       if (!inv.id?.toLowerCase().includes(q) && !inv.contractorName?.toLowerCase().includes(q)) {
         return false;
       }
-    }
-    // 2. Role-based view limits (standard FINANCE role sees only assigned invoices)
-    if (!isFinanceManager) {
-      // Simulate assignment: standard FINANCE user sees only items assigned to their email
-      const assignedEmail = (inv.id && inv.id.charCodeAt(inv.id.length - 1) % 2 === 0) 
-        ? 'finance@gigforce.com' 
-        : 'other_finance@gigforce.com';
-      return assignedEmail === (user?.email || 'finance@gigforce.com');
     }
     return true;
   });
@@ -178,7 +191,7 @@ function Invoices() {
                     <td>{inv.poId ?? '-'}</td>
                     <td>{inv.contractorName ?? '-'}</td>
                     <td>{inv.billingEndDate ? new Date(inv.billingEndDate).toLocaleDateString() : '-'}</td>
-                    <td className="text-green-600 fw-bold">{(inv.invoiceAmount || inv.invoiceAmount === 0) ? `₹${Number(inv.invoiceAmount).toLocaleString()}` : '-'}</td>
+                    <td className="text-green-600 fw-bold">{(inv.invoiceAmount || inv.invoiceAmount === 0) ? formatINR(inv.invoiceAmount) : '-'}</td>
                     <td>
                       <span className={`gf-badge badge-${getStatusBadge(inv.status)}`}>
                         {inv.status}
@@ -204,8 +217,11 @@ function Invoices() {
                             </Button>
                           </>
                         )}
-                        {inv.status === 'APPROVED' && (
-                          <Button size="sm" className="btn-gf-primary" onClick={() => handleMarkReady(inv.id)}>
+                        {inv.status === 'APPROVED' && pendingInvoiceIds.has(inv.id) && (
+                          <span className="gf-badge badge-pending">Payment Pending</span>
+                        )}
+                        {inv.status === 'APPROVED' && !pendingInvoiceIds.has(inv.id) && (
+                          <Button size="sm" className="btn-gf-primary" disabled={submittingAction} onClick={() => handleMarkReady(inv.id)}>
                             Ready for Payment
                           </Button>
                         )}
@@ -242,8 +258,11 @@ function Invoices() {
               <Button variant="success" onClick={() => handleApprove(selectedInv.id)} disabled={submittingAction}>Approve Invoice</Button>
             </>
           )}
-          {selectedInv && selectedInv.status === 'APPROVED' && (
-            <Button className="btn-gf-primary" onClick={() => handleMarkReady(selectedInv.id)}>Mark Ready for Payment</Button>
+          {selectedInv && selectedInv.status === 'APPROVED' && pendingInvoiceIds.has(selectedInv.id) && (
+            <span className="gf-badge badge-pending">Payment Pending</span>
+          )}
+          {selectedInv && selectedInv.status === 'APPROVED' && !pendingInvoiceIds.has(selectedInv.id) && (
+            <Button className="btn-gf-primary" disabled={submittingAction} onClick={() => handleMarkReady(selectedInv.id)}>Mark Ready for Payment</Button>
           )}
         </Modal.Footer>
       </Modal>

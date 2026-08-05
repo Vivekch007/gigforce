@@ -10,11 +10,13 @@ import com.gigforce.invoice.dto.PaymentUpdateRequestDTO;
 import com.gigforce.invoice.dto.PaymentResponseDTO;
 import com.gigforce.invoice.entity.ContractorInvoice;
 import com.gigforce.invoice.entity.Payment;
+import com.gigforce.invoice.entity.PurchaseOrder;
 import com.gigforce.invoice.enums.InvoiceStatus;
 import com.gigforce.invoice.enums.PaymentMode;
 import com.gigforce.invoice.enums.PaymentStatus;
 import com.gigforce.invoice.repository.ContractorInvoiceRepository;
 import com.gigforce.invoice.repository.PaymentRepository;
+import com.gigforce.invoice.repository.PurchaseOrderRepository;
 import com.gigforce.security.CurrentUserContext;
 import com.gigforce.exception.BusinessValidationException;
 import com.gigforce.audit.service.AuditService;
@@ -38,6 +40,7 @@ public class PaymentServiceImpl implements PaymentService {
 
     private final PaymentRepository paymentRepository;
     private final ContractorInvoiceRepository contractorInvoiceRepository;
+    private final PurchaseOrderRepository purchaseOrderRepository;
     private final CurrentUserContext currentUserContext;
     private final AuditService auditService;
     private final NotificationPublisher notificationPublisher;
@@ -48,6 +51,7 @@ public class PaymentServiceImpl implements PaymentService {
             PaymentRepository paymentRepository,
             TimesheetRepository timesheetRepository,
             ContractorInvoiceRepository contractorInvoiceRepository,
+            PurchaseOrderRepository purchaseOrderRepository,
             CurrentUserContext currentUserContext,
             AuditService auditService,
             NotificationPublisher notificationPublisher,
@@ -55,6 +59,7 @@ public class PaymentServiceImpl implements PaymentService {
         this.paymentRepository = paymentRepository;
         this.timesheetRepository = timesheetRepository;
         this.contractorInvoiceRepository = contractorInvoiceRepository;
+        this.purchaseOrderRepository = purchaseOrderRepository;
         this.currentUserContext = currentUserContext;
         this.auditService = auditService;
         this.notificationPublisher = notificationPublisher;
@@ -81,6 +86,13 @@ public class PaymentServiceImpl implements PaymentService {
         // Check if invoice is in APPROVED state
         if (invoice.getStatus() != InvoiceStatus.APPROVED) {
             throw new BusinessValidationException("Cannot process payment against invoice in status " + invoice.getStatus() + ". Invoice must be APPROVED first.");
+        }
+
+        // Prevent creating a second pending payment for an invoice that already has one.
+        boolean hasPendingPayment = paymentRepository.findByInvoiceId(request.getInvoiceId()).stream()
+                .anyMatch(p -> p.getStatus() == PaymentStatus.PENDING);
+        if (hasPendingPayment) {
+            throw new BusinessValidationException("A payment is already pending for this invoice.");
         }
 
         if (request.getPaymentDate() == null) {
@@ -282,6 +294,11 @@ public class PaymentServiceImpl implements PaymentService {
             throw new BusinessValidationException("Bank Transaction Reference is required before processing payment.");
         }
 
+        // Defensive re-check: the invoice could have been cancelled after this payment
+        // was created while still PENDING.
+        if (payment.getInvoice().getStatus() != InvoiceStatus.APPROVED) {
+            throw new BusinessValidationException("Cannot process payment: invoice is no longer APPROVED (current status: " + payment.getInvoice().getStatus() + ").");
+        }
 
         payment.setStatus(PaymentStatus.PROCESSED);
         payment = paymentRepository.save(payment);
@@ -315,6 +332,28 @@ public class PaymentServiceImpl implements PaymentService {
                 "Invoice marked as PAID."
         );
 
+        // Deduct the disbursed amount from the linked Purchase Order's balance, if any.
+        // This tracks amount actually disbursed and is intentionally independent of
+        // PurchaseOrderStatus (ACTIVE/EXHAUSTED), which InvoiceServiceImpl already
+        // drives off committed invoice amounts, not disbursed payments.
+        PurchaseOrder po = invoice.getPurchaseOrder();
+        if (po != null) {
+            BigDecimal newBalance = po.getBalanceAmount().subtract(payment.getPaidAmount());
+            if (newBalance.compareTo(BigDecimal.ZERO) < 0) {
+                newBalance = BigDecimal.ZERO;
+            }
+            po.setBalanceAmount(newBalance);
+            purchaseOrderRepository.save(po);
+
+            auditService.logAction(
+                    currentUser.getId(),
+                    "PO_BALANCE_UPDATED",
+                    "PurchaseOrder",
+                    po.getId(),
+                    "Purchase Order balance reduced by " + payment.getPaidAmount() + " following payment " + payment.getId() + ". New balance: " + newBalance
+            );
+        }
+
         notificationPublisher.publishPaymentCompletion(payment);
 
         return mapToDto(payment);
@@ -343,6 +382,15 @@ public class PaymentServiceImpl implements PaymentService {
 
         payment.setStatus(PaymentStatus.FAILED);
         payment = paymentRepository.save(payment);
+
+        // Release the linked timesheets so a fresh payment can be created for this invoice.
+        List<Timesheet> timesheets = timesheetRepository.findByInvoiceId(payment.getInvoice().getId());
+        for (Timesheet timesheet : timesheets) {
+            if (timesheet.getPayrollStatus() == PayrollStatus.PROCESSING) {
+                timesheet.setPayrollStatus(PayrollStatus.NOT_PROCESSED);
+            }
+        }
+        timesheetRepository.saveAll(timesheets);
 
         auditService.logAction(
                 currentUser.getId(),
@@ -405,6 +453,7 @@ public class PaymentServiceImpl implements PaymentService {
                 .paymentDate(payment.getPaymentDate())
                 .paymentMode(payment.getPaymentMode().name())
                 .transactionId(payment.getTransactionId())
+                .paymentReference(payment.getTransactionId())
                 .status(payment.getStatus().name())
                 .build();
     }

@@ -9,6 +9,7 @@ const SEARCH_PLACEHOLDERS = {
   '/finance/purchase-orders': 'Search purchase orders...',
   '/finance/invoices': 'Search invoices...',
   '/finance/payments': 'Search payments...',
+  '/finance/processed-payments': 'Search processed payments...',
   '/finance/reports': 'Search financial reports...',
   '/finance/notifications': 'Search alerts...',
 };
@@ -18,6 +19,7 @@ const SIDEBAR_LINKS = [
   { to: '/finance/purchase-orders', label: 'Purchase Orders', icon: 'bi bi-receipt' },
   { to: '/finance/invoices', label: 'Invoices Audit', icon: 'bi bi-shield-check' },
   { to: '/finance/payments', label: 'Payments Gate', icon: 'bi bi-credit-card' },
+  { to: '/finance/processed-payments', label: 'Processed Payments', icon: 'bi bi-journal-check' },
   { to: '/finance/reports', label: 'Financial Reports', icon: 'bi bi-bar-chart' },
 ];
 

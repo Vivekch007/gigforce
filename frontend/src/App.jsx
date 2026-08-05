@@ -58,6 +58,7 @@ import FinanceDashboardPage from './pages/finance/Dashboard';
 import FinancePurchaseOrders from './pages/finance/PurchaseOrders';
 import FinanceInvoices from './pages/finance/Invoices';
 import FinancePayments from './pages/finance/Payments';
+import FinanceProcessedPayments from './pages/finance/ProcessedPayments';
 import FinanceReports from './pages/finance/Reports';
 import FinanceNotifications from './pages/finance/Notifications';
 import FinanceProfile from './pages/finance/Profile';
@@ -146,6 +147,7 @@ function App() {
               <Route path="/finance/purchase-orders" element={<FinancePurchaseOrders />} />
               <Route path="/finance/invoices" element={<FinanceInvoices />} />
               <Route path="/finance/payments" element={<FinancePayments />} />
+              <Route path="/finance/processed-payments" element={<FinanceProcessedPayments />} />
               <Route path="/finance/reports" element={<FinanceReports />} />
               <Route path="/finance/notifications" element={<FinanceNotifications />} />
               <Route path="/finance/profile" element={<FinanceProfile />} />

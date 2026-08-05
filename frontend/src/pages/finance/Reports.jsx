@@ -1,11 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { Card, Row, Col, Alert, Button } from 'react-bootstrap';
 import { getFinanceDashboardMetrics } from '../../services/financeDashboardService';
+import { getPayments } from '../../services/paymentService';
 import { getErrorMessage } from '../../services/errorUtils';
+import { formatINR } from '../../utils/currency';
 
 // Reusable components
 import FinanceMetricCard from '../../components/finance/FinanceMetricCard';
 import LoadingSpinner from '../../components/finance/LoadingSpinner';
+import PaymentStatusDonutChart from '../../components/finance/charts/PaymentStatusDonutChart';
+import InvoiceSummaryBarChart from '../../components/finance/charts/InvoiceSummaryBarChart';
+import MonthlyDisbursementChart from '../../components/finance/charts/MonthlyDisbursementChart';
+
+function monthLabel(key) {
+  const [year, month] = key.split('-');
+  return new Date(Number(year), Number(month) - 1, 1).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
+}
 
 function Reports() {
   const [loading, setLoading] = useState(true);
@@ -13,13 +23,29 @@ function Reports() {
 
   // Scorecard data
   const [scorecard, setScorecard] = useState(null);
+  const [monthlyDisbursement, setMonthlyDisbursement] = useState([]);
 
   const loadReportData = async () => {
     try {
       setLoading(true);
       setError('');
-      const data = await getFinanceDashboardMetrics();
+      const [data, payments] = await Promise.all([
+        getFinanceDashboardMetrics(),
+        getPayments().catch(() => []),
+      ]);
       setScorecard(data);
+
+      const byMonth = {};
+      payments
+        .filter((p) => p.Status === 'PROCESSED' && p.PaymentDate)
+        .forEach((p) => {
+          const key = p.PaymentDate.slice(0, 7); // YYYY-MM
+          byMonth[key] = (byMonth[key] || 0) + parseFloat(p.PaidAmount || 0);
+        });
+      const monthly = Object.keys(byMonth)
+        .sort()
+        .map((key) => ({ month: monthLabel(key), amount: byMonth[key] }));
+      setMonthlyDisbursement(monthly);
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -81,13 +107,13 @@ function Reports() {
               <FinanceMetricCard title="Completed Payments" value={scorecard?.paymentsCompleted || 0} desc="Paid transactions reconciled" />
             </div>
             <div className="col">
-              <FinanceMetricCard title="Total Invoice Value" value={`$${Math.round(scorecard?.totalInvoiceValue || 0).toLocaleString()}`} desc="Total invoiced value" />
+              <FinanceMetricCard title="Total Invoice Value" value={formatINR(scorecard?.totalInvoiceValue)} desc="Total invoiced value" />
             </div>
             <div className="col">
-              <FinanceMetricCard title="Total Payments Disbursed" value={`$${Math.round(scorecard?.totalPayments || 0).toLocaleString()}`} desc="Total payouts value" />
+              <FinanceMetricCard title="Total Payments Disbursed" value={formatINR(scorecard?.totalPayments)} desc="Total payouts value" />
             </div>
             <div className="col">
-              <FinanceMetricCard title="Outstanding Payments" value={`$${Math.round(scorecard?.outstandingAmount || 0).toLocaleString()}`} desc="Unsettled approved billings" />
+              <FinanceMetricCard title="Outstanding Payments" value={formatINR(scorecard?.outstandingAmount)} desc="Unsettled approved billings" />
             </div>
             <div className="col">
               <FinanceMetricCard
@@ -103,29 +129,33 @@ function Reports() {
             </div>
           </div>
 
-          {/* Payment Status Breakdown */}
-          <Card className="gf-card p-4 border-0 bg-white">
-            <h5 className="fw-bold mb-3 text-slate-800">Payment Status Breakdown</h5>
-            <Row className="g-3">
-              <Col md={4}>
-                <div className="p-3 rounded border">
-                  <div className="text-muted small">Pending</div>
-                  <div className="fs-4 fw-bold text-dark">{scorecard?.paymentSummary?.pending || 0}</div>
-                </div>
-              </Col>
-              <Col md={4}>
-                <div className="p-3 rounded border">
-                  <div className="text-muted small">Paid</div>
-                  <div className="fs-4 fw-bold text-success">{scorecard?.paymentSummary?.paid || 0}</div>
-                </div>
-              </Col>
-              <Col md={4}>
-                <div className="p-3 rounded border">
-                  <div className="text-muted small">Failed</div>
-                  <div className="fs-4 fw-bold text-danger">{scorecard?.paymentSummary?.failed || 0}</div>
-                </div>
-              </Col>
-            </Row>
+          {/* Charts */}
+          <Row className="g-4">
+            <Col lg={5}>
+              <Card className="gf-card p-4 border-0 bg-white h-100">
+                <h5 className="fw-bold mb-3 text-slate-800">Payment Status Breakdown</h5>
+                <PaymentStatusDonutChart
+                  pending={scorecard?.paymentSummary?.pending || 0}
+                  paid={scorecard?.paymentSummary?.paid || 0}
+                  failed={scorecard?.paymentSummary?.failed || 0}
+                />
+              </Card>
+            </Col>
+            <Col lg={7}>
+              <Card className="gf-card p-4 border-0 bg-white h-100">
+                <h5 className="fw-bold mb-3 text-slate-800">Invoiced vs. Paid vs. Outstanding</h5>
+                <InvoiceSummaryBarChart
+                  invoiced={scorecard?.totalInvoiceValue || 0}
+                  paid={scorecard?.totalPayments || 0}
+                  outstanding={scorecard?.outstandingAmount || 0}
+                />
+              </Card>
+            </Col>
+          </Row>
+
+          <Card className="gf-card p-4 border-0 bg-white mt-4">
+            <h5 className="fw-bold mb-3 text-slate-800">Monthly Disbursement Trend</h5>
+            <MonthlyDisbursementChart data={monthlyDisbursement} />
           </Card>
         </div>
       )}

@@ -1,25 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal, Form, Button } from 'react-bootstrap';
+import { formatINR } from '../../utils/currency';
 
-function PaymentDialog({ show, onHide, onSubmit, invoice }) {
-  const [paymentMode, setPaymentMode] = useState('BANK_TRANSFER');
-  const [bankReference, setBankReference] = useState('');
+function PaymentDialog({ show, onHide, onSubmit, payment, invoice, po, assignment, submitting }) {
+  const [paymentMode, setPaymentMode] = useState('');
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
-  const [remarks, setRemarks] = useState('');
+
+  useEffect(() => {
+    if (show) {
+      setPaymentMode('');
+      setPaymentDate(payment?.PaymentDate || new Date().toISOString().split('T')[0]);
+    }
+  }, [show, payment]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!bankReference.trim()) return;
-
-    onSubmit({
-      invoiceId: invoice.id,
-      paidAmount: parseFloat(invoice.invoiceAmount),
-      paymentDate: paymentDate,
-      paymentMode: paymentMode,
-      bankReference: bankReference,
-      remarks: remarks,
-    });
+    if (!paymentMode) return;
+    onSubmit({ id: payment.PaymentID, paymentMode, paymentDate });
   };
+
+  const hrName = assignment?.hiringManagerName ?? po?.ApprovedByHRUserName ?? '—';
+  const reference = payment?.PaymentReference || payment?.TransactionID || 'Pending';
 
   return (
     <Modal show={show} onHide={onHide} centered>
@@ -27,39 +28,59 @@ function PaymentDialog({ show, onHide, onSubmit, invoice }) {
         <Modal.Title className="fw-bold text-slate-800">Process Invoice Payment</Modal.Title>
       </Modal.Header>
       <Modal.Body className="p-4">
-        {invoice && (
+        {payment && (
           <Form onSubmit={handleSubmit}>
             <div className="mb-3 p-3 bg-light rounded">
               <div className="d-flex justify-content-between align-items-center">
-                <span className="small text-muted font-bold text-uppercase">Total Amount Due</span>
-                <span className="fw-black text-green-600 fs-5">₹{parseFloat(invoice.invoiceAmount).toLocaleString()}</span>
+                <span className="small text-muted font-bold text-uppercase">Amount Due</span>
+                <span className="fw-black text-green-600 fs-5">{formatINR(payment.PaidAmount)}</span>
               </div>
-              <span className="text-muted text-xs d-block mt-1">Invoice: {invoice.invoiceNumber} &bull; Vendor: {invoice.vendorName}</span>
+              <span className="text-muted text-xs d-block mt-1">Invoice: {invoice?.invoiceNumber ?? payment.InvoiceID}</span>
+            </div>
+
+            <div className="mb-3 small">
+              <div className="d-flex justify-content-between border-bottom py-1">
+                <span className="text-muted">Contractor ID</span>
+                <span className="fw-semibold">{invoice?.contractorId ?? '—'}</span>
+              </div>
+              <div className="d-flex justify-content-between border-bottom py-1">
+                <span className="text-muted">Contractor Name</span>
+                <span className="fw-semibold">{invoice?.contractorName ?? '—'}</span>
+              </div>
+              <div className="d-flex justify-content-between border-bottom py-1">
+                <span className="text-muted">HR / Hiring Manager</span>
+                <span className="fw-semibold">{hrName}</span>
+              </div>
+              <div className="d-flex justify-content-between border-bottom py-1">
+                <span className="text-muted">Assignment ID</span>
+                <span className="fw-semibold">{invoice?.assignmentId ?? '—'}</span>
+              </div>
+              {po && (
+                <div className="d-flex justify-content-between py-1">
+                  <span className="text-muted">PO Ref / Remaining Balance</span>
+                  <span className="fw-semibold">{po.POID} &bull; {formatINR(po.BalanceAmount)}</span>
+                </div>
+              )}
             </div>
 
             <Form.Group className="mb-3" controlId="paymentMode">
-              <Form.Label className="uppercase-label">Payment Method</Form.Label>
-              <Form.Select value={paymentMode} onChange={(e) => setPaymentMode(e.target.value)}>
+              <Form.Label className="uppercase-label">Payment Type</Form.Label>
+              <Form.Select value={paymentMode} onChange={(e) => setPaymentMode(e.target.value)} required>
+                <option value="" disabled>Select payment type…</option>
                 <option value="BANK_TRANSFER">Bank Transfer (ACH/Wire)</option>
                 <option value="CHEQUE">Cheque Disbursement</option>
               </Form.Select>
             </Form.Group>
 
-            <Form.Group className="mb-3" controlId="bankReference">
-              <Form.Label className="uppercase-label">Bank Transaction Reference ID / Txn ID</Form.Label>
-              <Form.Control 
-                type="text"
-                required
-                placeholder="e.g. TXN-94829-RECONCIL"
-                value={bankReference}
-                onChange={(e) => setBankReference(e.target.value)}
-              />
-              <Form.Text className="text-muted" style={{ fontSize: '0.65rem' }}>Enter transaction hash for banking reconciliation audits.</Form.Text>
+            <Form.Group className="mb-3" controlId="paymentReference">
+              <Form.Label className="uppercase-label">Payment Reference</Form.Label>
+              <Form.Control type="text" readOnly disabled value={reference} />
+              <Form.Text className="text-muted" style={{ fontSize: '0.65rem' }}>Auto-generated by the system for banking reconciliation.</Form.Text>
             </Form.Group>
 
             <Form.Group className="mb-3" controlId="paymentDate">
               <Form.Label className="uppercase-label">Payment Processing Date</Form.Label>
-              <Form.Control 
+              <Form.Control
                 type="date"
                 required
                 value={paymentDate}
@@ -67,20 +88,11 @@ function PaymentDialog({ show, onHide, onSubmit, invoice }) {
               />
             </Form.Group>
 
-            <Form.Group className="mb-3" controlId="remarks">
-              <Form.Label className="uppercase-label">Remarks / Ledger Notes</Form.Label>
-              <Form.Control 
-                as="textarea"
-                rows={2}
-                placeholder="e.g. Cleared via corporate Chase ledger."
-                value={remarks}
-                onChange={(e) => setRemarks(e.target.value)}
-              />
-            </Form.Group>
-
             <div className="d-flex justify-content-end gap-2 mt-4">
-              <Button variant="secondary" onClick={onHide}>Cancel</Button>
-              <Button className="btn-gf-primary" type="submit">Submit Settlement</Button>
+              <Button variant="secondary" onClick={onHide} disabled={submitting}>Cancel</Button>
+              <Button className="btn-gf-primary" type="submit" disabled={!paymentMode || submitting}>
+                {submitting ? 'Processing…' : 'Submit Settlement'}
+              </Button>
             </div>
           </Form>
         )}

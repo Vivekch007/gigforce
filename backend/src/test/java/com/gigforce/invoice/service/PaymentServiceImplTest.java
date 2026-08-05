@@ -1,7 +1,11 @@
 package com.gigforce.invoice.service;
 
 import com.gigforce.assignment.entity.Assignment;
+import com.gigforce.assignment.entity.Timesheet;
 import com.gigforce.assignment.enums.AssignmentStatus;
+import com.gigforce.assignment.enums.PayrollStatus;
+import com.gigforce.assignment.enums.TimesheetStatus;
+import com.gigforce.assignment.repository.TimesheetRepository;
 import com.gigforce.audit.service.AuditService;
 import com.gigforce.exception.BusinessValidationException;
 import com.gigforce.identity.entity.ContractorProfile;
@@ -14,11 +18,14 @@ import com.gigforce.invoice.dto.PaymentCreateRequestDTO;
 import com.gigforce.invoice.dto.PaymentResponseDTO;
 import com.gigforce.invoice.entity.ContractorInvoice;
 import com.gigforce.invoice.entity.Payment;
+import com.gigforce.invoice.entity.PurchaseOrder;
 import com.gigforce.invoice.enums.InvoiceStatus;
 import com.gigforce.invoice.enums.PaymentMode;
 import com.gigforce.invoice.enums.PaymentStatus;
+import com.gigforce.invoice.enums.PurchaseOrderStatus;
 import com.gigforce.invoice.repository.ContractorInvoiceRepository;
 import com.gigforce.invoice.repository.PaymentRepository;
+import com.gigforce.invoice.repository.PurchaseOrderRepository;
 import com.gigforce.notification.publisher.NotificationPublisher;
 import com.gigforce.requisition.enums.EngagementType;
 import com.gigforce.security.CurrentUserContext;
@@ -34,6 +41,7 @@ import org.springframework.security.access.AccessDeniedException;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -51,10 +59,12 @@ class PaymentServiceImplTest {
 
     @Mock private PaymentRepository paymentRepository;
     @Mock private ContractorInvoiceRepository contractorInvoiceRepository;
+    @Mock private PurchaseOrderRepository purchaseOrderRepository;
     @Mock private CurrentUserContext currentUserContext;
     @Mock private AuditService auditService;
     @Mock private NotificationPublisher notificationPublisher;
     @Mock private com.gigforce.common.id.IdSequenceRepository idSequenceRepository;
+    @Mock private TimesheetRepository timesheetRepository;
 
     @InjectMocks private PaymentServiceImpl service;
 
@@ -122,6 +132,25 @@ class PaymentServiceImplTest {
                 .status(status).transactionId("TXN-1").build();
         p.setId(id);
         return p;
+    }
+
+    private PurchaseOrder po(String id, BigDecimal balance) {
+        PurchaseOrder po = PurchaseOrder.builder()
+                .assignment(assignment).vendor(sam)
+                .poAmount(new BigDecimal("50000.00")).balanceAmount(balance)
+                .currency("INR").issuedDate(LocalDate.of(2026, 8, 1)).expiryDate(LocalDate.of(2027, 2, 1))
+                .status(PurchaseOrderStatus.ACTIVE).build();
+        po.setId(id);
+        return po;
+    }
+
+    private Timesheet timesheet(String id, PayrollStatus payrollStatus) {
+        Timesheet ts = Timesheet.builder()
+                .assignment(assignment).contractor(p1)
+                .weekStartDate(LocalDate.of(2026, 8, 3)).weekEndDate(LocalDate.of(2026, 8, 9))
+                .status(TimesheetStatus.APPROVED).payrollStatus(payrollStatus).build();
+        ts.setId(id);
+        return ts;
     }
 
     private PaymentCreateRequestDTO req(BigDecimal amount, LocalDate date, String ref, String txn, String mode) {
@@ -205,6 +234,18 @@ class PaymentServiceImplTest {
                 () -> service.createPayment(req(TOTAL, LocalDate.now(), "UTR-9", "TXN-9", "CRYPTO")));
     }
 
+    @Test
+    void createPayment_existingPendingPayment_throws() {
+        ContractorInvoice inv = invoice("inv1", InvoiceStatus.APPROVED);
+        Payment existingPending = payment("pay0", inv, PaymentStatus.PENDING);
+        when(currentUserContext.getCurrentUser()).thenReturn(finance);
+        when(contractorInvoiceRepository.findById("inv1")).thenReturn(Optional.of(inv));
+        when(paymentRepository.findByInvoiceId("inv1")).thenReturn(List.of(existingPending));
+
+        assertThrows(BusinessValidationException.class,
+                () -> service.createPayment(req(TOTAL, LocalDate.now(), "UTR-9", "TXN-9", "BANK_TRANSFER")));
+    }
+
     // ===================================================================
     // processPayment
     // ===================================================================
@@ -253,6 +294,66 @@ class PaymentServiceImplTest {
         assertThrows(BusinessValidationException.class, () -> service.processPayment("pay1"));
     }
 
+    @Test
+    void processPayment_invoiceNoLongerApproved_throws() {
+        // Simulates the invoice having been cancelled after this payment was created while PENDING.
+        ContractorInvoice inv = invoice("inv1", InvoiceStatus.CANCELLED);
+        Payment pay = payment("pay1", inv, PaymentStatus.PENDING);
+        when(currentUserContext.getCurrentUser()).thenReturn(finance);
+        when(paymentRepository.findById("pay1")).thenReturn(Optional.of(pay));
+        assertThrows(BusinessValidationException.class, () -> service.processPayment("pay1"));
+    }
+
+    @Test
+    void processPayment_withLinkedPO_deductsBalance() {
+        PurchaseOrder po = po("po1", new BigDecimal("10000.00"));
+        ContractorInvoice inv = invoice("inv1", InvoiceStatus.APPROVED);
+        inv.setPurchaseOrder(po);
+        Payment pay = payment("pay1", inv, PaymentStatus.PENDING);
+        when(currentUserContext.getCurrentUser()).thenReturn(finance);
+        when(paymentRepository.findById("pay1")).thenReturn(Optional.of(pay));
+        when(paymentRepository.save(any(Payment.class))).thenAnswer(i -> i.getArgument(0));
+        when(contractorInvoiceRepository.save(any(ContractorInvoice.class))).thenAnswer(i -> i.getArgument(0));
+        when(purchaseOrderRepository.save(any(PurchaseOrder.class))).thenAnswer(i -> i.getArgument(0));
+
+        service.processPayment("pay1");
+
+        assertEquals(new BigDecimal("4625.00"), po.getBalanceAmount());
+        verify(purchaseOrderRepository).save(po);
+        verify(auditService).logAction(eq("f1"), eq("PO_BALANCE_UPDATED"), eq("PurchaseOrder"), eq("po1"), anyString());
+    }
+
+    @Test
+    void processPayment_noLinkedPO_leavesPurchaseOrderRepositoryUntouched() {
+        ContractorInvoice inv = invoice("inv1", InvoiceStatus.APPROVED); // no PO set
+        Payment pay = payment("pay1", inv, PaymentStatus.PENDING);
+        when(currentUserContext.getCurrentUser()).thenReturn(finance);
+        when(paymentRepository.findById("pay1")).thenReturn(Optional.of(pay));
+        when(paymentRepository.save(any(Payment.class))).thenAnswer(i -> i.getArgument(0));
+        when(contractorInvoiceRepository.save(any(ContractorInvoice.class))).thenAnswer(i -> i.getArgument(0));
+
+        service.processPayment("pay1");
+
+        verifyNoInteractions(purchaseOrderRepository);
+    }
+
+    @Test
+    void processPayment_paymentExceedsPOBalance_clampsAtZero() {
+        PurchaseOrder po = po("po1", new BigDecimal("1000.00")); // less than TOTAL (5375.00)
+        ContractorInvoice inv = invoice("inv1", InvoiceStatus.APPROVED);
+        inv.setPurchaseOrder(po);
+        Payment pay = payment("pay1", inv, PaymentStatus.PENDING);
+        when(currentUserContext.getCurrentUser()).thenReturn(finance);
+        when(paymentRepository.findById("pay1")).thenReturn(Optional.of(pay));
+        when(paymentRepository.save(any(Payment.class))).thenAnswer(i -> i.getArgument(0));
+        when(contractorInvoiceRepository.save(any(ContractorInvoice.class))).thenAnswer(i -> i.getArgument(0));
+        when(purchaseOrderRepository.save(any(PurchaseOrder.class))).thenAnswer(i -> i.getArgument(0));
+
+        service.processPayment("pay1");
+
+        assertEquals(BigDecimal.ZERO, po.getBalanceAmount());
+    }
+
     // ===================================================================
     // failPayment
     // ===================================================================
@@ -278,6 +379,22 @@ class PaymentServiceImplTest {
         when(currentUserContext.getCurrentUser()).thenReturn(finance);
         when(paymentRepository.findById("pay1")).thenReturn(Optional.of(pay));
         assertThrows(BusinessValidationException.class, () -> service.failPayment("pay1"));
+    }
+
+    @Test
+    void failPayment_releasesProcessingTimesheets() {
+        ContractorInvoice inv = invoice("inv1", InvoiceStatus.APPROVED);
+        Payment pay = payment("pay1", inv, PaymentStatus.PENDING);
+        Timesheet ts = timesheet("ts1", PayrollStatus.PROCESSING);
+        when(currentUserContext.getCurrentUser()).thenReturn(finance);
+        when(paymentRepository.findById("pay1")).thenReturn(Optional.of(pay));
+        when(paymentRepository.save(any(Payment.class))).thenAnswer(i -> i.getArgument(0));
+        when(timesheetRepository.findByInvoiceId("inv1")).thenReturn(List.of(ts));
+
+        service.failPayment("pay1");
+
+        assertEquals(PayrollStatus.NOT_PROCESSED, ts.getPayrollStatus());
+        verify(timesheetRepository).saveAll(List.of(ts));
     }
 
     // ===================================================================

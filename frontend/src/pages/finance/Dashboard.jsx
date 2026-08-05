@@ -6,9 +6,9 @@ import { getPurchaseOrders } from '../../services/financePurchaseOrderService';
 import { getInvoices } from '../../services/invoiceService';
 import { getPayments } from '../../services/paymentService';
 import { getErrorMessage } from '../../services/errorUtils';
+import { formatINR } from '../../utils/currency';
 import ActivityTimeline from '../../components/finance/ActivityTimeline';
 import KpiCard from '../../components/KpiCard';
-import Table from '../../components/Table';
 import Loader from '../../components/Loader';
 
 function Dashboard() {
@@ -104,7 +104,7 @@ function Dashboard() {
                     {searchResults.purchaseOrders.map(po => (
                       <div key={po.id} className="p-3 border rounded-3 bg-light">
                         <div className="small fw-bold text-dark">{po.id}</div>
-                        <div className="text-muted small mt-1">Amount: ${parseFloat(po.poAmount || po.amount).toLocaleString()} &bull; {po.status}</div>
+                        <div className="text-muted small mt-1">Amount: {formatINR(po.poAmount || po.amount)} &bull; {po.status}</div>
                       </div>
                     ))}
                   </div>
@@ -123,7 +123,7 @@ function Dashboard() {
                     {searchResults.invoices.map(inv => (
                       <div key={inv.id} className="p-3 border rounded-3 bg-light">
                         <div className="small fw-bold text-dark">{inv.invoiceNumber}</div>
-                        <div className="text-muted small mt-1">Amount: ${parseFloat(inv.invoiceAmount).toLocaleString()} &bull; {inv.status}</div>
+                        <div className="text-muted small mt-1">Amount: {formatINR(inv.invoiceAmount)} &bull; {inv.status}</div>
                       </div>
                     ))}
                   </div>
@@ -142,7 +142,7 @@ function Dashboard() {
                     {searchResults.payments.map(p => (
                       <div key={p.id} className="p-3 border rounded-3 bg-light">
                         <div className="small fw-bold text-dark">{p.id}</div>
-                        <div className="text-muted small mt-1">Amount: ${parseFloat(p.paidAmount).toLocaleString()} &bull; {p.status}</div>
+                        <div className="text-muted small mt-1">Amount: {formatINR(p.paidAmount)} &bull; {p.status}</div>
                       </div>
                     ))}
                   </div>
@@ -183,7 +183,7 @@ function Dashboard() {
             <div className="col-md-3">
               <KpiCard
                 label="Total Invoiced"
-                value={`$${Math.round(metrics?.totalInvoiceValue || 0).toLocaleString()}`}
+                value={formatINR(metrics?.totalInvoiceValue)}
                 icon="bi-receipt"
                 trend={{ value: 'Cumulative', direction: 'up' }}
               />
@@ -192,7 +192,7 @@ function Dashboard() {
             <div className="col-md-3">
               <KpiCard
                 label="Total Paid Settlements"
-                value={`$${Math.round(metrics?.totalPayments || 0).toLocaleString()}`}
+                value={formatINR(metrics?.totalPayments)}
                 icon="bi-check-circle"
                 trend={{ value: 'Paid', direction: 'up' }}
               />
@@ -201,7 +201,7 @@ function Dashboard() {
             <div className="col-md-3">
               <KpiCard
                 label="Outstanding Balance"
-                value={`$${Math.round(metrics?.outstandingAmount || 0).toLocaleString()}`}
+                value={formatINR(metrics?.outstandingAmount)}
                 icon="bi-cash"
                 trend={{ value: 'Due', direction: 'down' }}
               />
@@ -250,7 +250,9 @@ function Dashboard() {
             <Col lg={4}>
               <div className="enterprise-table-container p-4 h-100">
                 <h5 className="small fw-semibold text-uppercase text-muted mb-3"><i className="bi bi-bell me-2"></i>Recent Financial Activity</h5>
-                <ActivityTimeline activities={metrics?.recentActivities} />
+                <div className="recent-activity-scroll">
+                  <ActivityTimeline activities={metrics?.recentActivities} />
+                </div>
               </div>
             </Col>
           </Row>
