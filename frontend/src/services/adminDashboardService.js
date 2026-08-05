@@ -5,11 +5,13 @@ import { getAssignments } from './assignmentService';
 import { getRequisitions } from './requisitionService';
 
 export async function getAdminDashboardMetrics() {
-  const [usersPage, skills, auditLogs, activeAssignments, openRequisitions] = await Promise.all([
+  const [usersPage, skills, auditLogs, activeAssignments, extendedAssignments, openRequisitions] = await Promise.all([
     getUsers({ size: 1000 }),
     getSkills().catch(() => []),
     getAllAuditLogs().catch(() => []),
     getAssignments({ status: 'ACTIVE', size: 1 }).catch(() => ({ totalElements: 0 })),
+    // An extended assignment is still an ongoing engagement - fold it into the same health metric.
+    getAssignments({ status: 'EXTENDED', size: 1 }).catch(() => ({ totalElements: 0 })),
     getRequisitions({ status: 'OPEN', size: 1 }).catch(() => ({ totalElements: 0 })),
   ]);
 
@@ -50,7 +52,7 @@ export async function getAdminDashboardMetrics() {
     totalSkills,
     recentLogs,
     healthMetrics: {
-      activeAssignments: activeAssignments.totalElements ?? 0,
+      activeAssignments: (activeAssignments.totalElements ?? 0) + (extendedAssignments.totalElements ?? 0),
       openRequisitions: openRequisitions.totalElements ?? 0,
     },
   };

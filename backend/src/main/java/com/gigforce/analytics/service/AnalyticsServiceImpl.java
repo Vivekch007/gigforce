@@ -168,8 +168,8 @@ public class AnalyticsServiceImpl implements AnalyticsService {
                 .getSingleResult();
 
         Long activeAssignments = entityManager.createQuery(
-                        "SELECT COUNT(a.id) FROM Assignment a WHERE a.status = :status", Long.class)
-                .setParameter("status", AssignmentStatus.ACTIVE)
+                        "SELECT COUNT(a.id) FROM Assignment a WHERE a.status IN (:statuses)", Long.class)
+                .setParameter("statuses", java.util.List.of(AssignmentStatus.ACTIVE, AssignmentStatus.EXTENDED))
                 .getSingleResult();
 
         Long approvedTimesheets = entityManager.createQuery(
@@ -254,9 +254,9 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         BigDecimal fillRate = fillRateVal != null ? BigDecimal.valueOf(fillRateVal).setScale(2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
 
         Long activeAssignments = entityManager.createQuery(
-                        "SELECT COUNT(a.id) FROM Assignment a WHERE a.vendor.id = :vendorId AND a.status = :status", Long.class)
+                        "SELECT COUNT(a.id) FROM Assignment a WHERE a.vendor.id = :vendorId AND a.status IN (:statuses)", Long.class)
                 .setParameter("vendorId", vendorId)
-                .setParameter("status", AssignmentStatus.ACTIVE)
+                .setParameter("statuses", java.util.List.of(AssignmentStatus.ACTIVE, AssignmentStatus.EXTENDED))
                 .getSingleResult();
 
         BigDecimal totalRevenueGenerated = entityManager.createQuery(
@@ -310,9 +310,9 @@ public class AnalyticsServiceImpl implements AnalyticsService {
                 .getSingleResult();
 
         Long activeContractors = entityManager.createQuery(
-                        "SELECT COUNT(DISTINCT a.contractorProfile.user.id) FROM Assignment a WHERE a.orgUnitId = :bu AND a.status = :status", Long.class)
+                        "SELECT COUNT(DISTINCT a.contractorProfile.user.id) FROM Assignment a WHERE a.orgUnitId = :bu AND a.status IN (:statuses)", Long.class)
                 .setParameter("bu", businessUnit)
-                .setParameter("status", AssignmentStatus.ACTIVE)
+                .setParameter("statuses", java.util.List.of(AssignmentStatus.ACTIVE, AssignmentStatus.EXTENDED))
                 .getSingleResult();
 
         BigDecimal totalSpend = entityManager.createQuery(
@@ -477,9 +477,9 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         String contractorUserId = currentUser.getId();
 
         Long activeAssignmentsCount = entityManager.createQuery(
-                        "SELECT COUNT(a.id) FROM Assignment a WHERE a.contractorProfile.user.id = :userId AND a.status = :status", Long.class)
+                        "SELECT COUNT(a.id) FROM Assignment a WHERE a.contractorProfile.user.id = :userId AND a.status IN (:statuses)", Long.class)
                 .setParameter("userId", contractorUserId)
-                .setParameter("status", AssignmentStatus.ACTIVE)
+                .setParameter("statuses", java.util.List.of(AssignmentStatus.ACTIVE, AssignmentStatus.EXTENDED))
                 .getSingleResult();
 
         BigDecimal totalHoursVal = entityManager.createQuery(
@@ -726,7 +726,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         Long filledRequisitions = q3f.getSingleResult();
 
         // Active Assignments
-        StringBuilder activeAssignQuery = new StringBuilder("SELECT COUNT(a.id) FROM Assignment a WHERE a.status = :assignStatus");
+        StringBuilder activeAssignQuery = new StringBuilder("SELECT COUNT(a.id) FROM Assignment a WHERE a.status IN (:assignStatuses)");
         if (orgUnitId != null && !orgUnitId.isEmpty()) {
             activeAssignQuery.append(" AND a.orgUnitId = :orgUnitId");
         }
@@ -744,7 +744,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         }
 
         var q4 = entityManager.createQuery(activeAssignQuery.toString(), Long.class);
-        q4.setParameter("assignStatus", AssignmentStatus.ACTIVE);
+        q4.setParameter("assignStatuses", java.util.List.of(AssignmentStatus.ACTIVE, AssignmentStatus.EXTENDED));
         if (orgUnitId != null && !orgUnitId.isEmpty()) q4.setParameter("orgUnitId", orgUnitId);
         if (vendorId != null && !vendorId.isEmpty()) q4.setParameter("vendorId", vendorId);
         if (contractorId != null && !contractorId.isEmpty()) q4.setParameter("contractorId", contractorId);
@@ -1149,8 +1149,8 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     private Integer getActiveContractorsCount() {
         return entityManager.createQuery(
                         "SELECT COUNT(DISTINCT a.contractorProfile.user.id) FROM Assignment a " +
-                                "WHERE a.status = :status", Long.class)
-                .setParameter("status", AssignmentStatus.ACTIVE)
+                                "WHERE a.status IN (:statuses)", Long.class)
+                .setParameter("statuses", java.util.List.of(AssignmentStatus.ACTIVE, AssignmentStatus.EXTENDED))
                 .getSingleResult()
                 .intValue();
     }

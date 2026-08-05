@@ -84,7 +84,7 @@ function Dashboard() {
 
        const openJobsCount = reqs.filter(r => r.status === 'OPEN').length;
        const pendingSubsCount = subs.filter(s => s.status === 'SUBMITTED').length;
-       const activeContractorsCount = asns.filter(a => a.status === 'ACTIVE').length;
+       const activeContractorsCount = asns.filter(a => a.status === 'ACTIVE' || a.status === 'EXTENDED').length;
        const pendingTimesheetsCount = tsData.filter(t => t.status === 'SUBMITTED').length;
        const pendingLeavesCount = leavesData.filter(l => l.status === 'PENDING').length;
 
@@ -307,7 +307,7 @@ function Dashboard() {
                       <td className="fw-semibold text-dark">{a.contractorName}</td>
                       <td>{a.requisitionTitle || 'Contractor'}</td>
                       <td>
-                        <span className={`status-pill ${a.status === 'ACTIVE' ? 'success' : 'secondary'}`}>{a.status}</span>
+                        <span className={`status-pill ${(a.status === 'ACTIVE' || a.status === 'EXTENDED') ? 'success' : 'secondary'}`}>{a.status}</span>
                       </td>
                       <td>
                         <button className="btn-enterprise-secondary py-1 px-3" onClick={() => navigate('/manager/assignments')}>View</button>

@@ -14,7 +14,7 @@ function AssignmentDrawer({ show, onHide, assignment }) {
             <h5 className="fw-black text-slate-900 mb-0">{assignment.contractorName}</h5>
             <span className="text-muted small">{assignment.requisitionTitle || 'Specialist'}</span>
           </div>
-          <span className={`gf-badge badge-${assignment.status === 'ACTIVE' ? 'approved' : 'rejected'}`}>
+          <span className={`gf-badge badge-${(assignment.status === 'ACTIVE' || assignment.status === 'EXTENDED') ? 'approved' : 'rejected'}`}>
             {assignment.status}
           </span>
         </div>

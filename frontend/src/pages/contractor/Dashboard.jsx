@@ -361,7 +361,7 @@ function Dashboard() {
                       {displayEarnings ? `${formatRupees(asn.agreedRatePerDay)}/day` : '₹********'}
                     </td>
                     <td>
-                      <span className={`status-pill ${asn.status === 'ACTIVE' ? 'success' : 'secondary'}`}>
+                      <span className={`status-pill ${(asn.status === 'ACTIVE' || asn.status === 'EXTENDED') ? 'success' : 'secondary'}`}>
                         {asn.status}
                       </span>
                     </td>

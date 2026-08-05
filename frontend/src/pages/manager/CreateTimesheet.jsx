@@ -32,8 +32,10 @@ function CreateTimesheet() {
     const loadData = async () => {
       try {
         setLoadingInitial(true);
-        const data = await getAssignments({ status: 'ACTIVE' });
-        const list = data.content || data || [];
+        // An assignment that has been extended moves to EXTENDED, not ACTIVE - it's
+        // still an ongoing engagement and needs to stay selectable for timesheets.
+        const data = await getAssignments({ size: 200 });
+        const list = (data.content || data || []).filter(a => ['ACTIVE', 'EXTENDED'].includes(a.status));
         setAssignments(list);
         if (list.length > 0) {
           setAssignmentId(list[0].id);
@@ -61,12 +63,23 @@ function CreateTimesheet() {
     }
   };
 
+  const selectedAssignment = assignments.find(a => a.id === assignmentId);
+
   const validateSingleForm = () => {
     if (!assignmentId) return 'Please select an assignment.';
     if (!weekStartDate) return 'Please select a Week Start Date.';
 
     const start = new Date(weekStartDate);
     if (start.getDay() !== 1) return 'Week Start Date must be a Monday.';
+
+    if (selectedAssignment) {
+      if (selectedAssignment.startDate && weekStartDate < selectedAssignment.startDate) {
+        return `Week Start Date cannot be before the assignment start date (${selectedAssignment.startDate}).`;
+      }
+      if (selectedAssignment.endDate && weekStartDate > selectedAssignment.endDate) {
+        return `Week Start Date cannot be after the assignment end date (${selectedAssignment.endDate}).`;
+      }
+    }
 
     return '';
   };
@@ -176,7 +189,7 @@ function CreateTimesheet() {
                     ) : (
                       <Form.Select
                         value={assignmentId}
-                        onChange={e => setAssignmentId(e.target.value)}
+                        onChange={e => { setAssignmentId(e.target.value); setWeekStartDate(''); }}
                         disabled={submitting}
                       >
                         <option value="">Select Assignment</option>
@@ -187,6 +200,11 @@ function CreateTimesheet() {
                         ))}
                       </Form.Select>
                     )}
+                    {selectedAssignment && (
+                      <Form.Text className="text-muted">
+                        Runs {selectedAssignment.startDate} to {selectedAssignment.endDate}
+                      </Form.Text>
+                    )}
                   </Form.Group>
                 </Col>
 
@@ -196,6 +214,8 @@ function CreateTimesheet() {
                     <Form.Control
                       type="date"
                       value={weekStartDate}
+                      min={selectedAssignment?.startDate || undefined}
+                      max={selectedAssignment?.endDate || undefined}
                       onChange={handleWeekStartDateChange}
                       disabled={submitting}
                       required

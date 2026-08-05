@@ -54,7 +54,7 @@ function Reports() {
 
       const pendingIntsCount = interviewsData.filter(i => i.status === 'SCHEDULED').length;
       const pendingApprovalsCount = tsData.filter(t => t.status === 'SUBMITTED').length + leavesData.filter(l => l.status === 'PENDING').length;
-      const activeContractorsCount = asns.filter(a => a.status === 'ACTIVE').length;
+      const activeContractorsCount = asns.filter(a => a.status === 'ACTIVE' || a.status === 'EXTENDED').length;
       const filledAssignmentsCount = asns.filter(a => a.status === 'COMPLETED').length;
 
       const openRequisitionsCount = reqs.filter(r => r.status === 'OPEN').length;
@@ -69,7 +69,7 @@ function Reports() {
       });
 
       setOpenJobsList(reqs.filter(r => r.status === 'OPEN'));
-      setActivePlacements(asns.filter(a => a.status === 'ACTIVE'));
+      setActivePlacements(asns.filter(a => a.status === 'ACTIVE' || a.status === 'EXTENDED'));
 
     } catch (err) {
       const msg = getErrorMessage(err);

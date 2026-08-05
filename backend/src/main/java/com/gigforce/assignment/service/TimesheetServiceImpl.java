@@ -116,6 +116,12 @@ public class TimesheetServiceImpl implements TimesheetService {
                             + assignment.getStatus());
         }
 
+        if (request.getWeekStartDate().isBefore(assignment.getStartDate())) {
+            throw new BusinessValidationException(
+                    "Cannot create timesheet for week starting " + request.getWeekStartDate()
+                            + " because it is before the assignment start date (" + assignment.getStartDate() + ").");
+        }
+
         if (request.getWeekStartDate().isAfter(assignment.getEndDate())) {
             throw new BusinessValidationException(
                     "Cannot create timesheet for week starting " + request.getWeekStartDate()
@@ -228,7 +234,13 @@ public class TimesheetServiceImpl implements TimesheetService {
         LocalDate finalEffectiveEndDate = null;
 
         while (!currentWeekStart.isAfter(endOfMonth) && !currentWeekStart.isAfter(assignment.getEndDate())) {
-            
+
+            // Skip weeks that start before the assignment itself started.
+            if (currentWeekStart.isBefore(assignment.getStartDate())) {
+                currentWeekStart = currentWeekStart.plusWeeks(1);
+                continue;
+            }
+
             // Check boundary
             LocalDate weekSunday = currentWeekStart.plusDays(6);
             LocalDate effectiveEndDate = weekSunday;

@@ -30,7 +30,7 @@ export async function getVendorDashboardMetrics() {
   const totalSubmitted = subsArray.filter(s => s.status === 'SUBMITTED' || s.status === 'UNDER_REVIEW').length;
   const totalShortlisted = subsArray.filter(s => s.status === 'SHORTLISTED' || s.status === 'INTERVIEW_SCHEDULED').length;
   const totalSelected = subsArray.filter(s => s.status === 'SELECTED').length;
-  const activeAssignments = asnsArray.filter(a => a.status === 'ACTIVE').length;
+  const activeAssignments = asnsArray.filter(a => a.status === 'ACTIVE' || a.status === 'EXTENDED').length;
   // PurchaseOrderResponseDTO uses PascalCase keys and has no SUBMITTED/DRAFT status -
   // PENDING is the real "awaiting hiring-manager approval" state.
   const pendingPOs = posArray.filter(p => p.Status === 'PENDING').length;
