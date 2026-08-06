@@ -8,7 +8,7 @@ import { useConfirmation } from '../../context/ConfirmationContext';
 import '../../styles/contractor.css';
 
 function Timesheets() {
-  const { addToast } = useToast();
+  const { showToast } = useToast();
   const { showConfirmation } = useConfirmation();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -55,7 +55,7 @@ function Timesheets() {
         }
       } catch (err) {
         if (active) {
-          addToast(getErrorMessage(err), 'error');
+          showToast(getErrorMessage(err), 'error');
         }
       } finally {
         if (active) {
@@ -65,7 +65,7 @@ function Timesheets() {
     };
     loadTimesheets();
     return () => { active = false; };
-  }, [addToast]);
+  }, [showToast]);
 
   // 2. Fetch specific timesheet details on dropdown change
   useEffect(() => {
@@ -192,7 +192,7 @@ function Timesheets() {
     try {
       ({ editLines, totalHours } = prepareEditLines());
     } catch (validationError) {
-      addToast(validationError.message, 'error');
+      showToast(validationError.message, 'error');
       return;
     }
 
@@ -205,13 +205,25 @@ function Timesheets() {
     setActionLoading(true);
     setError('');
     try {
-      const updated = await updateTimesheet(timesheet.id, { lines: editLines });
-      setTimesheet(updated);
-      buildWeekGrid(updated, linesData);
-      setIsDraftSaved(true); // Enable submit button upon successful save
-      addToast('Success', 'Timesheet draft saved successfully!', 'success');
+      // 1. Update lines on backend
+      await updateTimesheet(timesheet.id, { lines: editLines });
+
+      // 2. Re-fetch full, fresh timesheet object
+      const freshDetails = await getTimesheetDetails(timesheet.id);
+      setTimesheet(freshDetails);
+
+      // 3. Rebuild week grid using strictly backend data (do NOT pass linesData)
+      buildWeekGrid(freshDetails);
+
+      // 4. Update status in dropdown list array
+      setTimesheetList((prevList) =>
+        prevList.map((item) => (item.id === freshDetails.id ? { ...item, status: freshDetails.status } : item))
+      );
+
+      setIsDraftSaved(true);
+      showToast('Timesheet draft saved successfully!', 'success');
     } catch (err) {
-      addToast(getErrorMessage(err), 'error');
+      showToast(getErrorMessage(err), 'error');
     } finally {
       setActionLoading(false);
     }
@@ -225,7 +237,7 @@ function Timesheets() {
     try {
       ({ editLines, totalHours } = prepareEditLines());
     } catch (validationError) {
-      addToast(validationError.message, 'error');
+      showToast(validationError.message, 'error');
       return;
     }
 
@@ -242,13 +254,24 @@ function Timesheets() {
       await updateTimesheet(timesheet.id, { lines: editLines });
 
       // 2. Perform submission
-      const submitted = await submitTimesheet(timesheet.id);
-      setTimesheet(submitted);
-      buildWeekGrid(submitted, linesData);
+      await submitTimesheet(timesheet.id);
+
+      // 3. Re-fetch complete, freshly updated timesheet details from API
+      const freshDetails = await getTimesheetDetails(timesheet.id);
+
+      // 4. Set state and rebuild grid strictly from server response (NO linesData passed)
+      setTimesheet(freshDetails);
+      buildWeekGrid(freshDetails);
+
+      // 5. Update dropdown status label in timesheetList
+      setTimesheetList((prevList) =>
+        prevList.map((item) => (item.id === freshDetails.id ? { ...item, status: freshDetails.status } : item))
+      );
+
       setIsDraftSaved(false);
-      addToast('Success', 'Timesheet submitted successfully for review!', 'success');
+      showToast('Timesheet submitted successfully for review!', 'success');
     } catch (err) {
-      addToast(getErrorMessage(err), 'error');
+      showToast(getErrorMessage(err), 'error');
     } finally {
       setActionLoading(false);
     }
@@ -263,9 +286,14 @@ function Timesheets() {
     try {
       await addTimesheetComment(timesheet.id, { comment: commentText.trim() });
       setCommentText('');
-      addToast('Success', 'Comment added to timesheet thread!', 'success');
+
+      // Refresh details to pick up updated comment thread
+      const freshDetails = await getTimesheetDetails(timesheet.id);
+      setTimesheet(freshDetails);
+
+      showToast('Comment added to timesheet thread!', 'success');
     } catch (err) {
-      addToast(getErrorMessage(err), 'error');
+      showToast(getErrorMessage(err), 'error');
     } finally {
       setActionLoading(false);
     }
@@ -354,154 +382,154 @@ function Timesheets() {
 
           {timesheet && (
             <div>
-          {/* Daily Logs Grid Sheet */}
-          <div className="gf-card p-0 overflow-hidden mb-4">
-            <Table responsive className="align-middle mb-0">
-              <thead className="bg-light">
-                <tr className="text-uppercase text-muted border-bottom" style={{ fontSize: '0.75rem' }}>
-                  <th className="p-3" style={{ width: '150px' }}>Day</th>
-                  <th className="p-3" style={{ width: '150px' }}>Date</th>
-                  <th className="p-3" style={{ width: '140px' }}>Hours Logged <span className="text-danger">*</span></th>
-                  <th className="p-3">Activity Description</th>
-                </tr>
-              </thead>
-              <tbody>
-                {linesData.map((line, idx) => {
-                  const isEditable = ['DRAFT', 'REJECTED', 'REVISED'].includes(timesheet.status);
-                  return (
-                    <tr key={idx} className={line.isWeekend ? 'bg-light text-muted' : ''}>
-                      <td className="p-3 fw-bold">
-                        {line.dayName} {!line.isWeekend && <span className="text-danger">*</span>}
-                      </td>
-                      <td className="p-3 small">{line.workDate}</td>
-                      <td className="p-3">
-                        <Form.Control
-                          type="number"
-                          value={line.hoursWorked}
-                          onChange={(e) => handleLineChange(idx, 'hoursWorked', e.target.value)}
-                          disabled={!isEditable}
-                          min="0"
-                          max="24"
-                          step="0.5"
-                          placeholder={line.isWeekend ? "0.00" : "Required..."}
-                          className="grid-input no-spinners"
-                          style={{ maxWidth: '100px' }}
-                        />
-                      </td>
-                      <td className="p-3">
-                        <Form.Control
-                          type="text"
-                          value={line.activityDesc}
-                          onChange={(e) => handleLineChange(idx, 'activityDesc', e.target.value)}
-                          disabled={!isEditable}
-                          placeholder={line.isWeekend ? "Describe activities (optional)..." : "Describe your activities (required)..."}
-                          className="grid-input"
-                        />
-                      </td>
+              {/* Daily Logs Grid Sheet */}
+              <div className="gf-card p-0 overflow-hidden mb-4">
+                <Table responsive className="align-middle mb-0">
+                  <thead className="bg-light">
+                    <tr className="text-uppercase text-muted border-bottom" style={{ fontSize: '0.75rem' }}>
+                      <th className="p-3" style={{ width: '150px' }}>Day</th>
+                      <th className="p-3" style={{ width: '150px' }}>Date</th>
+                      <th className="p-3" style={{ width: '140px' }}>Hours Logged <span className="text-danger">*</span></th>
+                      <th className="p-3">Activity Description</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </Table>
-          </div>
+                  </thead>
+                  <tbody>
+                    {linesData.map((line, idx) => {
+                      const isEditable = ['DRAFT', 'REJECTED', 'REVISED'].includes(timesheet.status);
+                      return (
+                        <tr key={idx} className={line.isWeekend ? 'bg-light text-muted' : ''}>
+                          <td className="p-3 fw-bold">
+                            {line.dayName} {!line.isWeekend && <span className="text-danger">*</span>}
+                          </td>
+                          <td className="p-3 small">{line.workDate}</td>
+                          <td className="p-3">
+                            <Form.Control
+                              type="number"
+                              value={line.hoursWorked}
+                              onChange={(e) => handleLineChange(idx, 'hoursWorked', e.target.value)}
+                              disabled={!isEditable}
+                              min="0"
+                              max="24"
+                              step="0.5"
+                              placeholder={line.isWeekend ? "0.00" : "Required..."}
+                              className="grid-input no-spinners"
+                              style={{ maxWidth: '100px' }}
+                            />
+                          </td>
+                          <td className="p-3">
+                            <Form.Control
+                              type="text"
+                              value={line.activityDesc}
+                              onChange={(e) => handleLineChange(idx, 'activityDesc', e.target.value)}
+                              disabled={!isEditable}
+                              placeholder={line.isWeekend ? "Describe activities (optional)..." : "Describe your activities (required)..."}
+                              className="grid-input"
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </Table>
+              </div>
 
-          {/* Status and Summaries Grid */}
-          <div className="row g-3 mb-4">
-            <div className="col-md-3">
-              <div className="gf-card mb-0 p-3 h-100 d-flex flex-column justify-content-between">
-                <div>
-                  <span className="text-uppercase text-muted font-bold small" style={{ fontSize: '0.65rem' }}>Status</span>
-                  <div className="mt-1">
-                    <span className={`gf-badge badge-${timesheet.status.toLowerCase()}`}>
-                      {timesheet.status}
-                    </span>
+              {/* Status and Summaries Grid */}
+              <div className="row g-3 mb-4">
+                <div className="col-md-3">
+                  <div className="gf-card mb-0 p-3 h-100 d-flex flex-column justify-content-between">
+                    <div>
+                      <span className="text-uppercase text-muted font-bold small" style={{ fontSize: '0.65rem' }}>Status</span>
+                      <div className="mt-1">
+                        <span className={`gf-badge badge-${timesheet.status.toLowerCase()}`}>
+                          {timesheet.status}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-muted small mb-0 mt-2">Current submission status</p>
                   </div>
                 </div>
-                <p className="text-muted small mb-0 mt-2">Current submission status</p>
-              </div>
-            </div>
 
-            <div className="col-md-3">
-              <div className="gf-card mb-0 p-3 h-100 d-flex flex-column justify-content-between">
-                <div>
-                  <span className="text-uppercase text-muted font-bold small" style={{ fontSize: '0.65rem' }}>Total Hours Logged</span>
-                  <h4 className="fw-black text-slate-800 mt-1 mb-0">{computedWeekTotal} hrs</h4>
+                <div className="col-md-3">
+                  <div className="gf-card mb-0 p-3 h-100 d-flex flex-column justify-content-between">
+                    <div>
+                      <span className="text-uppercase text-muted font-bold small" style={{ fontSize: '0.65rem' }}>Total Hours Logged</span>
+                      <h4 className="fw-black text-slate-800 mt-1 mb-0">{computedWeekTotal} hrs</h4>
+                    </div>
+                    <p className="text-muted small mb-0 mt-2">
+                      Reg: {timesheet.hoursLogged ?? '0.00'}h | OT: {timesheet.overtimeLogged ?? '0.00'}h
+                    </p>
+                  </div>
                 </div>
-                <p className="text-muted small mb-0 mt-2">
-                  Reg: {timesheet.hoursLogged ?? '0.00'}h | OT: {timesheet.overtimeLogged ?? '0.00'}h
-                </p>
-              </div>
-            </div>
 
-            <div className="col-md-3">
-              <div className="gf-card mb-0 p-3 h-100 d-flex flex-column justify-content-between">
-                <div>
-                  <span className="text-uppercase text-muted font-bold small" style={{ fontSize: '0.65rem' }}>Overtime Hours</span>
-                  <h4 className="fw-black text-slate-800 mt-1 mb-0">{timesheet.overtimeLogged ?? '0.00'} hrs</h4>
+                <div className="col-md-3">
+                  <div className="gf-card mb-0 p-3 h-100 d-flex flex-column justify-content-between">
+                    <div>
+                      <span className="text-uppercase text-muted font-bold small" style={{ fontSize: '0.65rem' }}>Overtime Hours</span>
+                      <h4 className="fw-black text-slate-800 mt-1 mb-0">{timesheet.overtimeLogged ?? '0.00'} hrs</h4>
+                    </div>
+                    <p className="text-muted small mb-0 mt-2">Hours over regular basis (40h+)</p>
+                  </div>
                 </div>
-                <p className="text-muted small mb-0 mt-2">Hours over regular basis (40h+)</p>
-              </div>
-            </div>
 
-            <div className="col-md-3">
-              <div className="gf-card mb-0 p-3 h-100 d-flex flex-column justify-content-between">
-                <div>
-                  <span className="text-uppercase text-muted font-bold small" style={{ fontSize: '0.65rem' }}>Billable Amount</span>
-                  <h4 className="fw-black text-green-600 mt-1 mb-0">${timesheet.billableAmount ?? '0.00'}</h4>
+                <div className="col-md-3">
+                  <div className="gf-card mb-0 p-3 h-100 d-flex flex-column justify-content-between">
+                    <div>
+                      <span className="text-uppercase text-muted font-bold small" style={{ fontSize: '0.65rem' }}>Billable Amount</span>
+                      <h4 className="fw-black text-green-600 mt-1 mb-0">${timesheet.billableAmount ?? '0.00'}</h4>
+                    </div>
+                    <p className="text-muted small mb-0 mt-2">Agreed rate weight summary</p>
+                  </div>
                 </div>
-                <p className="text-muted small mb-0 mt-2">Agreed rate weight summary</p>
               </div>
-            </div>
-          </div>
 
-          {/* Rejection / Correction Comment Box */}
-          {timesheet.status === 'REJECTED' && (
-            <div className="gf-card border-danger bg-red-light p-3 mb-4">
-              <h6 className="fw-bold text-danger mb-2">Rejection Notice</h6>
-              <p className="text-muted small mb-3">
-                This timesheet draft has been rejected by the Hiring Manager. Please review feedback, modify your logged hours, add a comment explanation, and submit again.
-              </p>
+              {/* Rejection / Correction Comment Box */}
+              {timesheet.status === 'REJECTED' && (
+                <div className="gf-card border-danger bg-red-light p-3 mb-4">
+                  <h6 className="fw-bold text-danger mb-2">Rejection Notice</h6>
+                  <p className="text-muted small mb-3">
+                    This timesheet draft has been rejected by the Hiring Manager. Please review feedback, modify your logged hours, add a comment explanation, and submit again.
+                  </p>
 
-              <Form onSubmit={handleCommentSubmit} className="d-flex gap-2">
-                <Form.Control
-                  type="text"
-                  value={commentText}
-                  onChange={(e) => setCommentText(e.target.value)}
-                  placeholder="Explain modifications / add notes..."
-                  required
-                />
-                <Button type="submit" variant="danger" disabled={actionLoading}>
-                  Add Comment
-                </Button>
-              </Form>
+                  <Form onSubmit={handleCommentSubmit} className="d-flex gap-2">
+                    <Form.Control
+                      type="text"
+                      value={commentText}
+                      onChange={(e) => setCommentText(e.target.value)}
+                      placeholder="Explain modifications / add notes..."
+                      required
+                    />
+                    <Button type="submit" variant="danger" disabled={actionLoading}>
+                      Add Comment
+                    </Button>
+                  </Form>
+                </div>
+              )}
+
+              {/* Action Row */}
+              {['DRAFT', 'REJECTED', 'REVISED'].includes(timesheet.status) && (
+                <div className="d-flex justify-content-end gap-3 mt-4">
+                  <Button
+                    variant="outline-primary"
+                    className="btn-gf-outline px-4 py-2"
+                    onClick={handleSaveDraft}
+                    disabled={actionLoading}
+                  >
+                    Save Draft
+                  </Button>
+                  <Button
+                    className="btn-gf-primary px-4 py-2"
+                    onClick={handleSubmit}
+                    disabled={actionLoading || !isDraftSaved}
+                  >
+                    Submit Timesheet
+                  </Button>
+                </div>
+              )}
             </div>
           )}
-
-          {/* Action Row */}
-          {['DRAFT', 'REJECTED', 'REVISED'].includes(timesheet.status) && (
-            <div className="d-flex justify-content-end gap-3 mt-4">
-              <Button
-                variant="outline-primary"
-                className="btn-gf-outline px-4 py-2"
-                onClick={handleSaveDraft}
-                disabled={actionLoading}
-              >
-                Save Draft
-              </Button>
-              <Button
-                className="btn-gf-primary px-4 py-2"
-                onClick={handleSubmit}
-                disabled={actionLoading || !isDraftSaved}
-              >
-                Submit Timesheet
-              </Button>
-            </div>
-          )}
-        </div>
+        </>
       )}
-    </>
-  )}
-</div>
+    </div>
   );
 }
 

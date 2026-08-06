@@ -6,7 +6,7 @@ import { getErrorMessage } from '../../services/errorUtils';
 import { useToast } from '../../context/ToastContext';
 
 function Payments() {
-  const { addToast } = useToast();
+  const { showToast } = useToast();
   const [searchParams] = useSearchParams();
   const searchQuery = searchParams.get('search') || '';
 
@@ -61,7 +61,7 @@ function Payments() {
       setEarnings(sorted);
       calculateSummary(sorted);
     } catch (err) {
-      addToast(getErrorMessage(err), 'error');
+      showToast(getErrorMessage(err), 'error');
     } finally {
       setLoading(false);
     }

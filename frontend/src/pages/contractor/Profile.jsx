@@ -18,7 +18,7 @@ import { useConfirmation } from '../../context/ConfirmationContext';
 import '../../styles/contractor.css';
 
 function Profile() {
-  const { addToast } = useToast();
+  const { showToast } = useToast();
   const { showConfirmation } = useConfirmation();
   const [profile, setProfile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(true);
@@ -177,9 +177,9 @@ function Profile() {
         experienceYears: parseInt(personalForm.experienceYears, 10),
       });
       setProfile(updated);
-      addToast('Success', 'Personal details updated successfully!', 'success');
+      showToast('Personal details updated successfully!', 'success');
     } catch (err) {
-      addToast(getErrorMessage(err), 'error');
+      showToast(getErrorMessage(err), 'error');
     } finally {
       setActionLoading(false);
     }
@@ -189,7 +189,7 @@ function Profile() {
   const handleAddSkill = async (e) => {
     e.preventDefault();
     if (!skillForm.skillId) {
-      addToast('Error', 'Please select a skill from the list', 'danger');
+      showToast('Please select a skill from the list', 'danger');
       return;
     }
     setActionLoading(true);
@@ -201,9 +201,9 @@ function Profile() {
       });
       setProfile(updated);
       setSkillForm({ skillId: '', proficiencyLevel: 'BEGINNER', yearsOfExperience: '' });
-      addToast('Success', 'Skill mapped successfully!', 'success');
+      showToast('Skill mapped successfully!', 'success');
     } catch (err) {
-      addToast(getErrorMessage(err), 'error');
+      showToast(getErrorMessage(err), 'error');
     } finally {
       setActionLoading(false);
     }
@@ -221,7 +221,7 @@ function Profile() {
       const updated = await getMyProfile();
       setProfile(updated);
     } catch (err) {
-      addToast(getErrorMessage(err), 'error');
+      showToast(getErrorMessage(err), 'error');
     } finally {
       setActionLoading(false);
     }
@@ -237,9 +237,9 @@ function Profile() {
       setCertifications(certs);
       setShowCertModal(false);
       setCertForm({ name: '', issuingAuthority: '', issueDate: '', expiryDate: '', certificateNumber: '' });
-      addToast('Success', 'Certification added successfully!', 'success');
+      showToast('Certification added successfully!', 'success');
     } catch (err) {
-      addToast(getErrorMessage(err), 'error');
+      showToast(getErrorMessage(err), 'error');
     } finally {
       setActionLoading(false);
     }
@@ -256,7 +256,7 @@ function Profile() {
       const certs = await getProfileCerts(profile.id);
       setCertifications(certs);
     } catch (err) {
-      addToast(getErrorMessage(err), 'error');
+      showToast(getErrorMessage(err), 'error');
     } finally {
       setActionLoading(false);
     }
@@ -287,9 +287,9 @@ function Profile() {
         verifyer_email: '',
         verifyer_phone: '',
       });
-      addToast('Success', 'Engagement logged for verification!', 'success');
+      showToast('Engagement logged for verification!', 'success');
     } catch (err) {
-      addToast(getErrorMessage(err), 'error');
+      showToast(getErrorMessage(err), 'error');
     } finally {
       setActionLoading(false);
     }
@@ -411,10 +411,11 @@ function Profile() {
                     <Form.Group className="mb-3" controlId="profileExperience">
                       <Form.Label className="uppercase-label">Experience Years</Form.Label>
                       <Form.Control
-                        type="number"
+                        type="text"
                         value={personalForm.experienceYears}
-
+                        onChange={(e) => setPersonalForm({ ...personalForm, experienceYears: e.target.value })}
                         min="0"
+                        maxLength = {2}
                         required
                       />
                     </Form.Group>
@@ -423,10 +424,11 @@ function Profile() {
                     <Form.Group className="mb-3" controlId="profileRate">
                       <Form.Label className="uppercase-label">Hourly Rate (₹)</Form.Label>
                       <Form.Control
-                        type="number"
+                        type="text"
                         value={personalForm.hourlyRate}
-
+                        onChange={(e) => setPersonalForm({ ...personalForm, hourlyRate: e.target.value })}
                         step="0.01"
+                        maxLength={15}
                         min="0.01"
                         required
                       />
@@ -437,7 +439,7 @@ function Profile() {
                       <Form.Label className="uppercase-label">Preferred Engagement</Form.Label>
                       <Form.Select
                         value={personalForm.preferredEngagementType}
-
+                        onChange={(e) => setPersonalForm({ ...personalForm, preferredEngagementType: e.target.value })}
                       >
                         <option value="REMOTE">Remote</option>
                         <option value="ONSITE">Onsite</option>
@@ -466,7 +468,7 @@ function Profile() {
                         as="textarea"
                         rows={2}
                         value={personalForm.address}
-
+                        onChange={(e) => setPersonalForm({ ...personalForm, address: e.target.value })}
                       />
                     </Form.Group>
                   </Col>

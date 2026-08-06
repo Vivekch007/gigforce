@@ -7,7 +7,7 @@ import { useToast } from '../../context/ToastContext';
 import '../../styles/contractor.css';
 
 function Absences() {
-  const { addToast } = useToast();
+  const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -57,7 +57,7 @@ function Absences() {
         setForm((prev) => ({ ...prev, assignmentId: list[0].id }));
       }
     } catch (err) {
-      addToast(getErrorMessage(err), 'error');
+      showToast(getErrorMessage(err), 'error');
     } finally {
       if (showSpinner) setLoading(false);
     }
@@ -70,7 +70,7 @@ function Absences() {
   const handleApplyLeave = async (e) => {
     e.preventDefault();
     if (!form.assignmentId) {
-      addToast('Error', 'Please select an active assignment placement.', 'danger');
+      showToast('Please select an active assignment placement.', 'danger');
       return;
     }
     setActionLoading(true);
@@ -86,10 +86,10 @@ function Absences() {
         duration: 'FULL_DAY',
         reason: '',
       });
-      addToast('Success', 'Leave request submitted successfully!', 'success');
+      showToast('Leave request submitted successfully!', 'success');
       loadData(false); // Refresh silently
     } catch (err) {
-      addToast(getErrorMessage(err), 'error');
+      showToast(getErrorMessage(err), 'error');
     } finally {
       setActionLoading(false);
     }

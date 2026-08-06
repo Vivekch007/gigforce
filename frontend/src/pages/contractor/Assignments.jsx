@@ -7,7 +7,7 @@ import { useToast } from '../../context/ToastContext';
 import '../../styles/contractor.css';
 
 function Assignments() {
-  const { addToast } = useToast();
+  const { showToast } = useToast();
   const [searchParams] = useSearchParams();
   const searchQuery = searchParams.get('search') || '';
 
@@ -33,7 +33,7 @@ function Assignments() {
         }
       } catch (err) {
         if (active) {
-          addToast(getErrorMessage(err), 'error');
+          showToast(getErrorMessage(err), 'error');
         }
       } finally {
         if (active) {
@@ -43,7 +43,7 @@ function Assignments() {
     };
     loadAssignments();
     return () => { active = false; };
-  }, [addToast]);
+  }, [showToast]);
 
   // Reset page when search query changes
   useEffect(() => {
