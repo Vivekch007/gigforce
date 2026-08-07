@@ -588,10 +588,6 @@ function VendorSubmissions() {
                       </td>
                       <td className="text-end">
                         <div className="d-flex justify-content-end gap-1">
-                          <Button size="sm" variant="outline-primary" onClick={() => loadCandidateDrawer(sub)}>
-                            View Resume
-                          </Button>
-
                           {sub.status === 'SUBMITTED' && (
                             <>
                               <Button size="sm" className="btn-gf-primary" onClick={() => handleShortlist(sub.id)}>
