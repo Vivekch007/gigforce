@@ -13,6 +13,8 @@ import com.gigforce.identity.event.ContractorProfileCreationEvent;
 import com.gigforce.identity.mapper.UserMapper;
 import com.gigforce.identity.repository.UserRepository;
 import com.gigforce.identity.repository.PasswordResetTokenRepository;
+import com.gigforce.identity.repository.RefreshTokenRepository;
+import com.gigforce.identity.entity.RefreshToken;
 import com.gigforce.notification.service.EmailService;
 import com.gigforce.security.JwtService;
 import com.gigforce.notification.publisher.NotificationPublisher;
@@ -25,6 +27,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -44,6 +47,10 @@ public class AuthServiceImpl implements AuthService {
     private final ContractorProfileService contractorProfileService;
     private final NotificationPublisher notificationPublisher;
     private final org.springframework.context.ApplicationEventPublisher applicationEventPublisher;
+    private final RefreshTokenRepository refreshTokenRepository;
+
+    @Value("${jwt.refreshExpiration}")
+    private long refreshExpiration;
 
     public AuthServiceImpl(
             EmailService emailService,
@@ -56,6 +63,7 @@ public class AuthServiceImpl implements AuthService {
             AuditService auditService,
             ContractorProfileService contractorProfileService,
             PasswordResetTokenRepository passwordResetTokenRepository,
+            RefreshTokenRepository refreshTokenRepository,
             NotificationPublisher notificationPublisher,
             org.springframework.context.ApplicationEventPublisher applicationEventPublisher) {
         this.userRepository = userRepository;
@@ -68,6 +76,7 @@ public class AuthServiceImpl implements AuthService {
         this.userMapper = userMapper;
         this.auditService = auditService;
         this.passwordResetTokenRepository = passwordResetTokenRepository;
+        this.refreshTokenRepository = refreshTokenRepository;
         this.notificationPublisher = notificationPublisher;
         this.applicationEventPublisher = applicationEventPublisher;
     }
@@ -174,6 +183,23 @@ public class AuthServiceImpl implements AuthService {
         UserDetails userDetails = userDetailsService.loadUserByUsername(request.getEmail());
         String accessToken = jwtService.generateToken(userDetails, user.getRole().name());
 
+        // Revoke all existing valid tokens for the user
+        java.util.List<RefreshToken> validTokens = refreshTokenRepository.findAllByUserAndIsRevokedFalse(user);
+        if (!validTokens.isEmpty()) {
+            validTokens.forEach(t -> t.setRevoked(true));
+            refreshTokenRepository.saveAll(validTokens);
+        }
+
+        // Generate and save new refresh token
+        String refreshTokenString = UUID.randomUUID().toString();
+        RefreshToken refreshToken = RefreshToken.builder()
+                .token(refreshTokenString)
+                .user(user)
+                .expiryDate(LocalDateTime.now().plusSeconds(refreshExpiration / 1000))
+                .isRevoked(false)
+                .build();
+        refreshTokenRepository.save(refreshToken);
+
         // Audit Logging
         auditService.logAction(
                 user.getId(),
@@ -184,6 +210,7 @@ public class AuthServiceImpl implements AuthService {
 
         return LoginResponseDTO.builder()
                 .accessToken(accessToken)
+                .refreshToken(refreshTokenString)
                 .email(user.getEmail())
                 .role(user.getRole().name())
                 .build();
@@ -275,12 +302,57 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public void logout(String currentUsername) {
         User user = userRepository.findByEmail(currentUsername).orElse(null);
-        String userId = user != null ? user.getId() : "";
+        if (user != null) {
+            refreshTokenRepository.deleteByUser(user);
+            auditService.logAction(
+                    user.getId(),
+                    "USER_LOGOUT",
+                    "USER",
+                    user.getId(),
+                    "User logged out successfully: " + currentUsername);
+        }
+    }
+
+    @Override
+    @Transactional
+    public LoginResponseDTO refreshToken(RefreshTokenRequestDTO request) {
+        RefreshToken refreshToken = refreshTokenRepository.findByToken(request.getRefreshToken())
+                .orElseThrow(() -> new InvalidCredentialsException("Refresh token is not in database!"));
+
+        if (refreshToken.isExpired()) {
+            refreshTokenRepository.delete(refreshToken);
+            throw new InvalidCredentialsException("Refresh token was expired. Please make a new signin request");
+        }
+
+        if (refreshToken.isRevoked()) {
+            // Security alert: Someone tried to use a revoked token. Revoke all tokens for this user.
+            User user = refreshToken.getUser();
+            refreshTokenRepository.deleteByUser(user);
+            auditService.logAction(
+                    user.getId(),
+                    "SECURITY_ALERT",
+                    "USER",
+                    user.getId(),
+                    "Attempt to use a revoked refresh token for user " + user.getEmail());
+            throw new InvalidCredentialsException("Refresh token is revoked. Please make a new signin request");
+        }
+
+        User user = refreshToken.getUser();
+        UserDetails userDetails = userDetailsService.loadUserByUsername(user.getEmail());
+        String newAccessToken = jwtService.generateToken(userDetails, user.getRole().name());
+
         auditService.logAction(
-                userId,
-                "USER_LOGOUT",
+                user.getId(),
+                "TOKEN_REFRESH",
                 "USER",
-                userId,
-                "User logged out successfully: " + currentUsername);
+                user.getId(),
+                "Access token refreshed for user " + user.getEmail());
+
+        return LoginResponseDTO.builder()
+                .accessToken(newAccessToken)
+                .refreshToken(refreshToken.getToken())
+                .email(user.getEmail())
+                .role(user.getRole().name())
+                .build();
     }
 }

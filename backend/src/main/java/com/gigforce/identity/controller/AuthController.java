@@ -40,6 +40,13 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/refresh")
+    @Operation(summary = "Refresh token", description = "Validates refresh token and returns a new JWT access token.")
+    public ResponseEntity<LoginResponseDTO> refreshToken(@Valid @RequestBody RefreshTokenRequestDTO request) {
+        LoginResponseDTO response = authService.refreshToken(request);
+        return ResponseEntity.ok(response);
+    }
+
     @PostMapping("/forgot-password")
     @Operation(summary = "Forgot password request", description = "Generates a password reset token for the specified email.")
     public ResponseEntity<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequestDTO request) {

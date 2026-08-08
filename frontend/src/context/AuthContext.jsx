@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import AuthContext from './AuthContextInstance';
 import * as authService from '../services/authService';
-import { TOKEN_STORAGE_KEY, USER_STORAGE_KEY } from '../services/apiClient';
+import { TOKEN_STORAGE_KEY, REFRESH_TOKEN_STORAGE_KEY, USER_STORAGE_KEY } from '../services/apiClient';
 
 function readStoredUser() {
   try {
@@ -45,8 +45,9 @@ export function AuthProvider({ children }) {
   }, []);
 
   const loginUser = useCallback(async (credentials) => {
-    const data = await authService.login(credentials); // { accessToken, email, role }
+    const data = await authService.login(credentials); // { accessToken, refreshToken, email, role }
     setToken(data.accessToken);
+    localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, data.refreshToken);
     setUser({ email: data.email, role: data.role });
     return data;
   }, []);
@@ -60,6 +61,7 @@ export function AuthProvider({ children }) {
       setToken(null);
       setUser(null);
       localStorage.removeItem(TOKEN_STORAGE_KEY);
+      localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
       localStorage.removeItem(USER_STORAGE_KEY);
     }
   }, []);
