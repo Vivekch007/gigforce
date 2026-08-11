@@ -8,8 +8,6 @@ import RegisterPage from './pages/auth/RegisterPage';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 import ResetPasswordPage from './pages/auth/ResetPasswordPage';
 
-
-
 // Contractor Workspace Components
 import ContractorLayout from './layouts/ContractorLayout';
 import Dashboard from './pages/contractor/Dashboard';
@@ -77,7 +75,10 @@ import AdminProfile from './pages/admin/Profile';
 import { ToastProvider } from './context/ToastContext';
 import { ConfirmationProvider } from './context/ConfirmationContext';
 
+
+
 function App() {
+
   return (
     <Router>
       <AuthProvider>
