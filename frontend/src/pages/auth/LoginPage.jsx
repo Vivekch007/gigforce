@@ -71,7 +71,7 @@ function LoginPage() {
             id="loginEmail"
             type="email"
             name="email"
-            className="enterprise-form-control"
+            className="enterprise-form-control form-control"
             value={form.email}
             onChange={handleChange}
             placeholder="name@company.com"
@@ -90,7 +90,7 @@ function LoginPage() {
               id="loginPassword"
               type={showPassword ? 'text' : 'password'}
               name="password"
-              className="enterprise-form-control pe-5"
+              className="enterprise-form-control form-control pe-5"
               value={form.password}
               onChange={handleChange}
               placeholder="••••••••"

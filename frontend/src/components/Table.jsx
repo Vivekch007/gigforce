@@ -2,7 +2,7 @@ import React from 'react';
 
 function Table({ headers = [], children, className = '', responsive = true }) {
   const tableElement = (
-    <table className={`enterprise-table ${className}`}>
+    <table className={`enterprise-table table-mobile-scaled ${className}`}>
       {headers.length > 0 && (
         <thead>
           <tr>

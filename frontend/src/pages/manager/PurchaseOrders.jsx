@@ -125,7 +125,7 @@ function PurchaseOrders() {
         <Form.Select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="enterprise-form-select"
+          className="enterprise-form-select form-select"
           style={{ width: '200px' }}
         >
           <option value="ALL">All Statuses</option>

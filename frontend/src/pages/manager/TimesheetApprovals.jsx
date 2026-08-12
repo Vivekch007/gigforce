@@ -189,7 +189,7 @@ function TimesheetApprovals() {
                 setSelectedMonthYear(e.target.value);
                 setCurrentPage(1);
               }}
-              className="enterprise-form-control"
+              className="enterprise-form-control form-control"
               style={{ width: '180px' }}
             />
             {selectedMonthYear && (
@@ -214,7 +214,7 @@ function TimesheetApprovals() {
               setStatusFilter(e.target.value);
               setCurrentPage(1);
             }}
-            className="enterprise-form-select"
+            className="enterprise-form-select form-select"
             style={{ width: '170px' }}
           >
             <option value="ALL">All Statuses</option>
@@ -290,7 +290,7 @@ function TimesheetApprovals() {
                       setCurrentPage(1);
                     }}
                     style={{ width: '70px' }}
-                    className="enterprise-form-select"
+                    className="enterprise-form-select form-select"
                   >
                     <option value={5}>5</option>
                     <option value={10}>10</option>
@@ -370,7 +370,7 @@ function TimesheetApprovals() {
 
               <h6 className="fw-bold text-dark mb-2">Daily Entries</h6>
               <div className="table-responsive">
-                <table className="enterprise-table table-bordered table-sm align-middle text-center" style={{ width: '100%' }}>
+                <table className="enterprise-table table-bordered table-sm align-middle text-center table-mobile-scaled" style={{ width: '100%' }}>
                   <thead className="table-light">
                     <tr>
                       <th>Day</th>
@@ -444,7 +444,7 @@ function TimesheetApprovals() {
               placeholder={actionType === 'APPROVE' ? 'Add signing remarks...' : 'Provide details on what needs correction...'}
               value={remarksText}
               onChange={(e) => setRemarksText(e.target.value)}
-              className="enterprise-form-control"
+              className="enterprise-form-control form-control"
               required={actionType === 'REJECT'}
             />
           </Form.Group>

@@ -197,7 +197,7 @@ function MyRequisitions() {
           <Form.Select
             value={statusFilter}
             onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(0); }}
-            className="enterprise-form-select"
+            className="enterprise-form-select form-select"
             style={{ width: '200px' }}
           >
             <option value="ALL">All Statuses</option>
@@ -281,7 +281,7 @@ function MyRequisitions() {
                       size="sm"
                       value={pageSize}
                       onChange={handlePageSizeChange}
-                      className="enterprise-form-select"
+                      className="enterprise-form-select form-select"
                       style={{ width: '70px', padding: '2px 8px' }}
                     >
                       <option value={5}>5</option>
@@ -409,13 +409,13 @@ function MyRequisitions() {
                 <Col md={12}>
                   <Form.Group controlId="editTitle">
                     <Form.Label className="enterprise-form-label">Job Title</Form.Label>
-                    <Form.Control type="text" name="title" value={editForm.title} onChange={handleEditChange} className="enterprise-form-control" required />
+                    <Form.Control type="text" name="title" value={editForm.title} onChange={handleEditChange} className="enterprise-form-control form-control" required />
                   </Form.Group>
                 </Col>
                 <Col md={4}>
                   <Form.Group controlId="editSkill">
                     <Form.Label className="enterprise-form-label">Core Skill</Form.Label>
-                    <Form.Select name="requiredSkillId" value={editForm.requiredSkillId} onChange={handleEditChange} className="enterprise-form-select">
+                    <Form.Select name="requiredSkillId" value={editForm.requiredSkillId} onChange={handleEditChange} className="enterprise-form-select form-select">
                       {skills.map(s => (
                         <option key={s.id} value={s.id}>{s.name}</option>
                       ))}
@@ -425,7 +425,7 @@ function MyRequisitions() {
                 <Col md={4}>
                   <Form.Group controlId="editEngagement">
                     <Form.Label className="enterprise-form-label">Employment Type</Form.Label>
-                    <Form.Select name="engagementType" value={editForm.engagementType} onChange={handleEditChange} className="enterprise-form-select">
+                    <Form.Select name="engagementType" value={editForm.engagementType} onChange={handleEditChange} className="enterprise-form-select form-select">
                       <option value="ONSITE">On-Site</option>
                       <option value="REMOTE">Remote</option>
                       <option value="HYBRID">Hybrid</option>
@@ -435,7 +435,7 @@ function MyRequisitions() {
                 <Col md={4}>
                   <Form.Group controlId="editExpLevel">
                     <Form.Label className="enterprise-form-label">Experience Level</Form.Label>
-                    <Form.Select name="experienceLevel" value={editForm.experienceLevel} onChange={handleEditChange} className="enterprise-form-select">
+                    <Form.Select name="experienceLevel" value={editForm.experienceLevel} onChange={handleEditChange} className="enterprise-form-select form-select">
                       <option value="JUNIOR">Junior (1-3 yrs)</option>
                       <option value="MID">Mid-Level (3-5 yrs)</option>
                       <option value="SENIOR">Senior (5+ yrs)</option>
@@ -445,31 +445,31 @@ function MyRequisitions() {
                 <Col md={3}>
                   <Form.Group controlId="editMinExp">
                     <Form.Label className="enterprise-form-label">Min Exp (Years)</Form.Label>
-                    <Form.Control type="number" name="minExperienceYears" value={editForm.minExperienceYears} onChange={handleEditChange} className="enterprise-form-control" min={0} />
+                    <Form.Control type="number" name="minExperienceYears" value={editForm.minExperienceYears} onChange={handleEditChange} className="enterprise-form-control form-control" min={0} />
                   </Form.Group>
                 </Col>
                 <Col md={3}>
                   <Form.Group controlId="editQuantity">
                     <Form.Label className="enterprise-form-label">Positions Required</Form.Label>
-                    <Form.Control type="number" name="quantity" value={editForm.quantity} onChange={handleEditChange} className="enterprise-form-control" min={1} />
+                    <Form.Control type="number" name="quantity" value={editForm.quantity} onChange={handleEditChange} className="enterprise-form-control form-control" min={1} />
                   </Form.Group>
                 </Col>
                 <Col md={3}>
                   <Form.Group controlId="editRate">
                     <Form.Label className="enterprise-form-label">Max Rate (₹ / Hr)</Form.Label>
-                    <Form.Control type="number" step="0.01" name="maxHourlyRate" value={editForm.maxHourlyRate} onChange={handleEditChange} className="enterprise-form-control" min={0.01} />
+                    <Form.Control type="number" step="0.01" name="maxHourlyRate" value={editForm.maxHourlyRate} onChange={handleEditChange} className="enterprise-form-control form-control" min={0.01} />
                   </Form.Group>
                 </Col>
                 <Col md={3}>
                   <Form.Group controlId="editStartDate">
                     <Form.Label className="enterprise-form-label">Start Date</Form.Label>
-                    <Form.Control type="date" name="startDate" value={editForm.startDate} onChange={handleEditChange} className="enterprise-form-control" />
+                    <Form.Control type="date" name="startDate" value={editForm.startDate} onChange={handleEditChange} className="enterprise-form-control form-control" />
                   </Form.Group>
                 </Col>
                 <Col md={12}>
                   <Form.Group controlId="editDesc">
                     <Form.Label className="enterprise-form-label">Job Description</Form.Label>
-                    <Form.Control as="textarea" rows={3} name="description" value={editForm.description} onChange={handleEditChange} className="enterprise-form-control" maxLength={1000} />
+                    <Form.Control as="textarea" rows={3} name="description" value={editForm.description} onChange={handleEditChange} className="enterprise-form-control form-control" maxLength={1000} />
                   </Form.Group>
                 </Col>
               </Row>

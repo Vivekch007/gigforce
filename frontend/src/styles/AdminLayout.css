@@ -8,7 +8,7 @@
 
 /* Sidebar Styling */
 .admin-sidebar {
-  width: 260px;
+  width: 100%; max-width: 260px;
   background-color: #0f172a; /* Slate 900 sidebar */
   color: #94a3b8;
   display: flex;
@@ -130,7 +130,7 @@
 
 .topbar-search {
   position: relative;
-  width: 320px;
+  width: 100%; max-width: 320px;
 }
 
 .topbar-search input {
@@ -233,6 +233,6 @@
   
   .topbar-search {
     width: 100%;
-    max-width: 220px;
+    max-width: 100%; max-width: 220px;
   }
 }

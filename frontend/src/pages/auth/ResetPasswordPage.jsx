@@ -92,7 +92,7 @@ function ResetPasswordPage() {
           <input
             id="resetToken"
             name="token"
-            className={`enterprise-form-control ${fieldErrors.token ? 'is-invalid' : ''}`}
+            className={`enterprise-form-control form-control ${fieldErrors.token ? 'is-invalid' : ''}`}
             value={form.token}
             onChange={handleChange}
             placeholder="ENTER RESET CODE"
@@ -112,7 +112,7 @@ function ResetPasswordPage() {
               id="resetNewPassword"
               type={showNewPassword ? 'text' : 'password'}
               name="newPassword"
-              className={`enterprise-form-control pe-5 ${fieldErrors.newPassword ? 'is-invalid' : ''}`}
+              className={`enterprise-form-control form-control pe-5 ${fieldErrors.newPassword ? 'is-invalid' : ''}`}
               value={form.newPassword}
               onChange={handleChange}
               placeholder="New password"
@@ -145,7 +145,7 @@ function ResetPasswordPage() {
               id="resetConfirmPassword"
               type={showConfirmNewPassword ? 'text' : 'password'}
               name="confirmPassword"
-              className={`enterprise-form-control pe-5 ${fieldErrors.confirmPassword ? 'is-invalid' : ''}`}
+              className={`enterprise-form-control form-control pe-5 ${fieldErrors.confirmPassword ? 'is-invalid' : ''}`}
               value={form.confirmPassword}
               onChange={handleChange}
               placeholder="Confirm new password"

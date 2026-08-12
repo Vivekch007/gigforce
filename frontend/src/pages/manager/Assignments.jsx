@@ -363,7 +363,7 @@ function Assignments() {
           <Form.Select
             value={statusFilter}
             onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(0); }}
-            className="enterprise-form-select"
+            className="enterprise-form-select form-select"
             style={{ width: '220px' }}
           >
             <option value="ALL">All Assignments</option>
@@ -498,7 +498,7 @@ function Assignments() {
                   setCurrentPage(0);
                 }}
                 style={{ width: '80px' }}
-                className="enterprise-form-select"
+                className="enterprise-form-select form-select"
               >
                 <option value={5}>5</option>
                 <option value={10}>10</option>
@@ -648,7 +648,7 @@ function Assignments() {
               <Form.Select
                 value={amendForm.amendmentType}
                 onChange={(e) => handleAmendmentTypeChange(e.target.value)}
-                className="enterprise-form-select"
+                className="enterprise-form-select form-select"
                 required
               >
                 <option value="EXTENSION">Extension</option>
@@ -673,7 +673,7 @@ function Assignments() {
                     type="date"
                     value={amendForm.effectiveDate}
                     onChange={(e) => setAmendForm(prev => ({ ...prev, effectiveDate: e.target.value }))}
-                    className="enterprise-form-control"
+                    className="enterprise-form-control form-control"
                     required
                   />
                 </Form.Group>
@@ -687,7 +687,7 @@ function Assignments() {
                     placeholder={amendForm.amendmentType === 'RATE_REVISION' ? 'Enter new daily rate' : amendForm.amendmentType === 'SCOPE_CHANGE' ? 'Describe the new scope...' : undefined}
                     value={amendForm.newValue}
                     onChange={(e) => setAmendForm(prev => ({ ...prev, newValue: e.target.value }))}
-                    className="enterprise-form-control"
+                    className="enterprise-form-control form-control"
                     required
                   />
                 </Form.Group>
@@ -700,7 +700,7 @@ function Assignments() {
                     placeholder="e.g. Project Extension, Client Request..."
                     value={amendForm.reason}
                     onChange={(e) => setAmendForm(prev => ({ ...prev, reason: e.target.value }))}
-                    className="enterprise-form-control"
+                    className="enterprise-form-control form-control"
                     required
                   />
                 </Form.Group>
@@ -715,7 +715,7 @@ function Assignments() {
                 placeholder="Provide justification notes or details..."
                 value={amendForm.remarks}
                 onChange={(e) => setAmendForm(prev => ({ ...prev, remarks: e.target.value }))}
-                className="enterprise-form-control"
+                className="enterprise-form-control form-control"
               />
             </Form.Group>
           </Form>
@@ -927,7 +927,7 @@ function Assignments() {
                   placeholder="Add approval notes, or a reason for rejection..."
                   value={reviewRemarks}
                   onChange={(e) => setReviewRemarks(e.target.value)}
-                  className="enterprise-form-control"
+                  className="enterprise-form-control form-control"
                 />
               </Form.Group>
             </div>

@@ -110,14 +110,14 @@ function Profile() {
         {/* Right Form */}
         <Col lg={8}>
           <Card className="gf-card p-4 border-0 bg-white">
-            <div className="d-flex justify-content-between align-items-center mb-4">
+            <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2 mb-4 admin-profile-header">
               <h5 className="fw-bold text-slate-800 mb-0">System Credentials</h5>
               {!editing ? (
-                <Button variant="outline-primary" onClick={() => setEditing(true)}>Edit Details</Button>
+                <Button variant="outline-primary" className="btn-sm px-3 py-1 fw-medium" onClick={() => setEditing(true)}>Edit Details</Button>
               ) : (
-                <div className="d-flex gap-2">
-                  <Button variant="outline-secondary" onClick={() => { setEditing(false); loadProfile(); }}>Cancel</Button>
-                  <Button className="btn-gf-primary" onClick={handleSave}>Save Changes</Button>
+                <div className="d-flex align-items-center gap-2 ms-sm-auto">
+                  <Button variant="outline-secondary" className="btn-sm px-3 py-1 fw-medium" onClick={() => { setEditing(false); loadProfile(); }}>Cancel</Button>
+                  <Button className="btn-gf-primary btn-sm px-3 py-1 fw-medium text-nowrap" onClick={handleSave}>Save Changes</Button>
                 </div>
               )}
             </div>

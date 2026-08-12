@@ -6,6 +6,7 @@ import {
   markNotificationAsRead, 
   dismissNotification 
 } from '../services/notificationService';
+import { Offcanvas } from 'react-bootstrap';
 
 function Topbar({
   searchPlaceholder = 'Search...',
@@ -17,7 +18,6 @@ function Topbar({
   profilePath = '/profile',
   userName = '',
   userInitials = '',
-  toggleSidebar,
   isAdmin = false // Pass true if the logged in user is Admin
 }) {
   const [unreadCount, setUnreadCount] = useState(0);
@@ -152,29 +152,30 @@ function Topbar({
   }
 
   return (
-    <header className="enterprise-topbar">
-      <div className="d-flex align-items-center gap-3">
-        {toggleSidebar && (
-          <button className="btn btn-enterprise-secondary d-md-none p-1 px-2" onClick={toggleSidebar}>
-            <i className="bi bi-list"></i>
-          </button>
-        )}
+    <div className="d-flex align-items-center flex-nowrap w-100 justify-content-end">
+      <div className="d-flex align-items-center gap-1 ms-auto flex-shrink-1 overflow-hidden">
 
         {isSearchSupported && onSearchChange && (
-          <div className="topbar-search-box">
+          <div className="topbar-search-box p-1 p-sm-2">
             <i className="bi bi-search"></i>
             <input
               type="text"
               placeholder={searchPlaceholder}
               value={searchVal}
               onChange={onSearchChange}
+              className="form-control form-control-sm"
             />
+          </div>
+        )}
+
+        {userRoleBadge && (
+          <div className="badge bg-light text-dark border p-1 p-sm-2 fw-normal text-truncate navbar-workspace-badge ms-1 ms-sm-2 flex-shrink-1">
+            <span className="d-inline-block text-truncate w-100">{userRoleBadge}</span>
           </div>
         )}
       </div>
 
-      <div className="topbar-actions">
-        {userRoleBadge && <span className="topbar-role-badge">{userRoleBadge}</span>}
+      <div className="d-flex align-items-center gap-1 gap-sm-3 ms-2 flex-shrink-0">
 
         {/* Hide bell icon completely if user is Admin */}
         {!isUserAdmin && (
@@ -208,15 +209,27 @@ function Topbar({
             </button>
 
             {isOpen && (
-              <div className="notification-popover">
-                <div className="notification-popover-header d-flex justify-content-between align-items-center">
-                  <h6>Notifications</h6>
-                  {notifications.some((n) => n.status === 'UNREAD') && (
-                    <button onClick={handleMarkAllRead}>Mark all as read</button>
-                  )}
+              <div 
+                className="position-absolute end-0 mt-2 bg-white shadow-lg border rounded-3 notification-popup-card" 
+                style={{ zIndex: 1050 }}
+              >
+                {/* Header */}
+                <div className="d-flex align-items-center justify-content-between p-3 border-bottom bg-light rounded-top-3">
+                  <h6 className="fw-bold m-0 fs-6">Notifications</h6>
+                  <div className="d-flex align-items-center gap-3">
+                    {notifications.some((n) => n.status === 'UNREAD') && (
+                      <button onClick={handleMarkAllRead} className="btn btn-link text-decoration-none p-0" style={{ fontSize: '0.80rem' }}>
+                        Mark all read
+                      </button>
+                    )}
+                    <button className="btn btn-link btn-sm text-muted p-0 text-decoration-none" onClick={() => setIsOpen(false)}>
+                      <i className="bi bi-x fs-5"></i>
+                    </button>
+                  </div>
                 </div>
 
-                <div className="notification-list">
+                {/* List Content */}
+                <div className="notification-list-body p-2 overflow-y-auto">
                   {loading ? (
                     <div className="p-4 text-center text-muted">
                       <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
@@ -228,18 +241,18 @@ function Topbar({
                       return (
                         <div
                           key={notif.id}
-                          className={`notification-card ${isUnread ? 'unread' : ''}`}
+                          className={`card mb-2 p-2 border position-relative ${isUnread ? 'border-primary bg-light' : 'bg-white'}`}
                         >
-                          <button
-                            className="notification-dismiss-btn"
-                            onClick={() => handleDismiss(notif.id, isUnread)}
-                            title="Dismiss"
-                          >
-                            <i className="bi bi-x"></i>
-                          </button>
-                          <h6 className="notification-card-title">{notif.title}</h6>
-                          <p className="notification-card-msg">{notif.message}</p>
-                          <span className="notification-card-time">
+                          <div className="d-flex justify-content-between align-items-start">
+                            <strong className="fs-7 pe-3">{notif.title}</strong>
+                            <button
+                              className="btn-close btn-close-xs position-absolute top-0 end-0 mt-2 me-2"
+                              onClick={() => handleDismiss(notif.id, isUnread)}
+                              title="Dismiss"
+                            ></button>
+                          </div>
+                          <p className="small text-muted mb-1 fs-7 pe-1">{notif.message}</p>
+                          <span className="text-muted text-end d-block" style={{ fontSize: '0.7rem' }}>
                             {formatRelativeTime(notif.createdDate)}
                           </span>
                         </div>
@@ -247,14 +260,16 @@ function Topbar({
                     })
                   ) : (
                     <div className="notification-empty-state text-center py-4 text-muted">
-                      <i className="bi bi-inbox d-block mb-2" style={{ fontSize: '1.5rem' }}></i>
-                      <p className="mb-0 small">You&apos;re all caught up! No new notifications.</p>
+                      <i className="bi bi-inbox d-block mb-2 text-secondary" style={{ fontSize: '1.5rem' }}></i>
+                      <p className="mb-0 small fs-7">You're all caught up! No new notifications.</p>
                     </div>
                   )}
                 </div>
 
-                <div className="notification-popover-footer">
+                {/* Footer */}
+                <div className="p-2 border-top text-center bg-light rounded-bottom-3">
                   <button
+                    className="btn btn-link text-primary text-decoration-none small fw-semibold fs-7 p-0"
                     onClick={() => {
                       setIsOpen(false);
                       navigate(notificationsPath);
@@ -276,7 +291,7 @@ function Topbar({
           {userInitials && <div className="topbar-avatar">{userInitials}</div>}
         </NavLink>
       </div>
-    </header>
+    </div>
   );
 }
 

@@ -9,10 +9,27 @@
   background-color: var(--gf-bg);
 }
 
+@media (max-width: 991.98px) {
+  .enterprise-layout-wrapper {
+    padding-left: 0;
+  }
+  .enterprise-global-header .logo-container {
+    width: auto;
+    border-right: none;
+    padding: 0 16px;
+  }
+}
+
 .enterprise-page-content {
   flex-grow: 1;
   overflow-y: auto;
-  padding: 40px;
+  padding: 16px;
+}
+
+@media (min-width: 768px) {
+  .enterprise-page-content {
+    padding: 40px;
+  }
 }
 
 /* Sidebar Custom Rules */
@@ -32,7 +49,7 @@
 }
 
 .enterprise-sidebar {
-  width: 260px;
+  width: 100%; max-width: 260px;
   background-color: var(--gf-card);
   border-right: 1px solid var(--gf-border);
   display: flex;
@@ -65,7 +82,7 @@
 }
 
 .enterprise-global-header .logo-container {
-  width: 260px;
+  width: 100%; max-width: 260px;
   height: 64px;
   display: flex;
   align-items: center;
@@ -161,7 +178,7 @@
 
 .topbar-search-box {
   position: relative;
-  width: 320px;
+  width: 100%; max-width: 320px;
 }
 
 .topbar-search-box input {
@@ -301,7 +318,7 @@
   right: 0;
   top: 100%;
   margin-top: 8px;
-  width: 360px; /* fixed/max width between 320px and 384px */
+  width: 100%; max-width: 360px; /* fixed/max width between 320px and 384px */
   background-color: var(--gf-card);
   border: 1px solid var(--gf-border);
   border-radius: var(--gf-radius);
@@ -448,4 +465,196 @@
 .notification-empty-state p {
   margin: 0;
   font-size: 13px;
+}
+
+/* Navbar Right-Side Truncation for Mobile S, M, L */
+.navbar-workspace-badge {
+  font-size: 0.72rem;
+  max-width: 70px;
+}
+
+@media (min-width: 375px) {
+  .navbar-workspace-badge {
+    font-size: 0.78rem;
+    max-width: 95px;
+  }
+}
+
+@media (min-width: 425px) {
+  .navbar-workspace-badge {
+    font-size: 0.82rem;
+    max-width: 125px;
+  }
+}
+
+@media (min-width: 576px) {
+  .navbar-workspace-badge {
+    font-size: 0.875rem;
+    max-width: none;
+  }
+}
+
+/* Fluid Table Scaling (<= 425px) */
+@media (max-width: 425px) {
+  .table-responsive {
+    margin-bottom: clamp(0.5rem, 3vw, 1rem) !important;
+  }
+  .table-mobile-scaled {
+    font-size: clamp(0.65rem, 3.2vw, 0.85rem) !important;
+  }
+  .table-mobile-scaled th,
+  .table-mobile-scaled td {
+    padding: clamp(0.25rem, 1.2vw, 0.5rem) clamp(0.35rem, 1.8vw, 0.75rem) !important;
+  }
+}
+
+/* Ultra-Compact Table Sizing (<= 320px) */
+@media (max-width: 320px) {
+  .table-responsive {
+    margin-bottom: 0.25rem !important;
+  }
+  .table-mobile-scaled {
+    font-size: 0.6rem !important;
+  }
+  .table-mobile-scaled th,
+  .table-mobile-scaled td {
+    padding: 0.15rem 0.25rem !important;
+  }
+}
+
+/* Standard Table Sizing (> 425px) */
+@media (min-width: 425.01px) {
+  .table-mobile-scaled {
+    font-size: 0.95rem;
+  }
+  .table-mobile-scaled th,
+  .table-mobile-scaled td {
+    padding: 0.75rem 1rem !important;
+  }
+}
+
+/* Profile Badge Truncation Widths per Mobile Breakpoint */
+.mobile-profile-badge {
+  max-width: 75px;
+}
+@media (min-width: 375px) {
+  .mobile-profile-badge {
+    max-width: 100px;
+  }
+}
+@media (min-width: 425px) {
+  .mobile-profile-badge {
+    max-width: 130px;
+  }
+}
+
+/* Custom CSS override (if Bootstrap classes need extra constraint) */
+.admin-profile-header .btn {
+  font-size: 0.85rem !important;
+  line-height: 1.2 !important;
+  white-space: nowrap !important;
+}
+
+@media (max-width: 575px) {
+  .admin-profile-header .btn {
+    font-size: 0.78rem !important;
+    padding: 0.3rem 0.6rem !important;
+  }
+}
+
+/* Compact Notification Pop-up Sizing */
+.notification-popup-card {
+  width: 340px !important;
+  max-width: 90vw !important; /* Prevents overflow on mobile devices */
+}
+
+/* Scrollbar and Text Sizing inside Popup */
+.notification-list-body {
+  max-height: 320px;
+}
+
+.fs-7 {
+  font-size: 0.78rem !important;
+}
+
+.btn-close-xs {
+  font-size: 0.65rem;
+}
+
+/* Ensure Notification Popup Stacks Above All Elements */
+.notification-popup-card,
+.dropdown-menu.notification-dropdown {
+  position: absolute !important;
+  top: 100% !important;
+  right: 0 !important;
+  z-index: 1070 !important;
+  box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.15) !important;
+  background-color: #ffffff !important;
+}
+
+/* Fix Parent Header Stacking Context */
+.navbar, 
+header, 
+.top-header-container,
+.enterprise-global-header,
+.enterprise-topbar {
+  z-index: 1030 !important; 
+  overflow: visible !important; 
+}
+
+/* Mobile Sizing overrides for Notification Popup (<= 425px) */
+@media (max-width: 425px) {
+  .notification-popup-card {
+    width: 300px !important;
+  }
+  .notification-popup-card .p-3 {
+    padding: 0.65rem !important;
+  }
+  .notification-popup-card .p-2 {
+    padding: 0.45rem !important;
+  }
+  .notification-popup-card .mb-2 {
+    margin-bottom: 0.45rem !important;
+  }
+  .notification-popup-card .fs-6 {
+    font-size: 0.9rem !important;
+  }
+  .notification-popup-card .fs-7 {
+    font-size: 0.75rem !important;
+  }
+  .notification-popup-card .btn-close-xs {
+    font-size: 0.6rem !important;
+  }
+  .notification-list-body {
+    max-height: 280px !important;
+  }
+}
+
+/* Mobile Sizing overrides for Notification Popup (<= 320px) */
+@media (max-width: 320px) {
+  .notification-popup-card {
+    width: 270px !important;
+    right: -10px !important; /* Slight shift to avoid edge touching */
+  }
+  .notification-popup-card .p-3 {
+    padding: 0.4rem !important;
+  }
+  .notification-popup-card .p-2 {
+    padding: 0.3rem !important;
+  }
+  .notification-popup-card .mb-2 {
+    margin-bottom: 0.3rem !important;
+  }
+  .notification-popup-card .fs-6 {
+    font-size: 0.82rem !important;
+  }
+  .notification-popup-card .fs-7 {
+    font-size: 0.68rem !important;
+  }
+  .notification-popup-card .btn-close-xs {
+    font-size: 0.5rem !important;
+  }
+  .notification-list-body {
+    max-height: 240px !important;
+  }
 }

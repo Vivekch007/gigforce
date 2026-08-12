@@ -307,7 +307,7 @@ function OpenRequisitions() {
                 <Form.Label className="enterprise-form-label">Proposed Rate (₹/day)</Form.Label>
                 <Form.Control
                   type="number"
-                  className="enterprise-form-control"
+                  className="enterprise-form-control form-control"
                   value={proposedRate}
                   onChange={(e) => setProposedRate(e.target.value)}
                 />

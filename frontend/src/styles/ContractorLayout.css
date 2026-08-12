@@ -8,7 +8,7 @@
 
 /* Sidebar Styling - fixed to the viewport so it stays put while page content scrolls */
 .contractor-sidebar {
-  width: 260px;
+  width: 100%; max-width: 260px;
   background-color: #0b0f19; /* Deeper slate dark */
   color: #94a3b8;
   display: flex;
@@ -135,7 +135,7 @@
 
 .topbar-search {
   position: relative;
-  width: 280px;
+  width: 100%; max-width: 280px;
 }
 
 .topbar-search input {
@@ -175,7 +175,7 @@
 }
 
 .topbar-search-sm {
-  width: 190px !important;
+  width: 100%; max-width: 190px;
 }
 
 .topbar-search-sm input {
@@ -265,6 +265,6 @@
   
   .topbar-search {
     display: block; /* Keep search bar visible next to notifications */
-    width: 140px;
+    width: 100%; max-width: 140px;
   }
 }

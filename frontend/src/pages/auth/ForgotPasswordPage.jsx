@@ -112,7 +112,7 @@ function ForgotPasswordPage() {
             <input
               id="forgotEmail"
               type="email"
-              className={`enterprise-form-control ${emailError ? 'is-invalid' : ''}`}
+              className={`enterprise-form-control form-control ${emailError ? 'is-invalid' : ''}`}
               value={email}
               onChange={(event) => {
                 setEmail(event.target.value);

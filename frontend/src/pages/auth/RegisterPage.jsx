@@ -135,168 +135,184 @@ function RegisterPage() {
         </Alert>
       )}
 
-      <form onSubmit={handleSubmit} noValidate className="d-flex flex-column gap-3">
+      <form onSubmit={handleSubmit} noValidate className="row g-3">
         {/* Full Name */}
-        <div className="enterprise-form-group m-0">
-          <label className="enterprise-form-label" htmlFor="registerName">
-            Full Name <span className="text-danger">*</span>
-          </label>
-          <input
-            id="registerName"
-            name="name"
-            className={`enterprise-form-control ${fieldErrors.name ? 'is-invalid' : ''}`}
-            value={form.name}
-            onChange={handleChange}
-            placeholder="John Doe"
-            maxLength={FIELD_MAX_LENGTH}
-            required
-          />
-          {fieldErrors.name && <div className="invalid-feedback text-danger mt-1 small">{fieldErrors.name}</div>}
+        <div className="col-12 col-md-6">
+          <div className="enterprise-form-group m-0">
+            <label className="enterprise-form-label" htmlFor="registerName">
+              Full Name <span className="text-danger">*</span>
+            </label>
+            <input
+              id="registerName"
+              name="name"
+              className={`enterprise-form-control form-control ${fieldErrors.name ? 'is-invalid' : ''}`}
+              value={form.name}
+              onChange={handleChange}
+              placeholder="John Doe"
+              maxLength={FIELD_MAX_LENGTH}
+              required
+            />
+            {fieldErrors.name && <div className="invalid-feedback text-danger mt-1 small">{fieldErrors.name}</div>}
+          </div>
         </div>
 
         {/* Email Address */}
-        <div className="enterprise-form-group m-0">
-          <label className="enterprise-form-label" htmlFor="registerEmail">
-            Email Address <span className="text-danger">*</span>
-          </label>
-          <input
-            id="registerEmail"
-            type="email"
-            name="email"
-            className={`enterprise-form-control ${fieldErrors.email ? 'is-invalid' : ''}`}
-            value={form.email}
-            onChange={handleChange}
-            placeholder="name@company.com"
-            autoComplete="email"
-            maxLength={FIELD_MAX_LENGTH}
-            required
-          />
-          {fieldErrors.email && <div className="invalid-feedback text-danger mt-1 small">{fieldErrors.email}</div>}
+        <div className="col-12 col-md-6">
+          <div className="enterprise-form-group m-0">
+            <label className="enterprise-form-label" htmlFor="registerEmail">
+              Email Address <span className="text-danger">*</span>
+            </label>
+            <input
+              id="registerEmail"
+              type="email"
+              name="email"
+              className={`enterprise-form-control form-control ${fieldErrors.email ? 'is-invalid' : ''}`}
+              value={form.email}
+              onChange={handleChange}
+              placeholder="name@company.com"
+              autoComplete="email"
+              maxLength={FIELD_MAX_LENGTH}
+              required
+            />
+            {fieldErrors.email && <div className="invalid-feedback text-danger mt-1 small">{fieldErrors.email}</div>}
+          </div>
         </div>
 
         {/* Phone */}
-        <div className="enterprise-form-group m-0">
-          <label className="enterprise-form-label" htmlFor="registerPhone">
-            Phone <span className="text-danger">*</span>
-          </label>
-          <input
-            id="registerPhone"
-            name="phone"
-            className={`enterprise-form-control ${fieldErrors.phone ? 'is-invalid' : ''}`}
-            value={form.phone}
-            onChange={handleChange}
-            placeholder="10 digit number"
-            maxLength={PHONE_MAX_LENGTH}
-            inputMode="numeric"
-            required
-          />
-          {fieldErrors.phone && <div className="invalid-feedback text-danger mt-1 small">{fieldErrors.phone}</div>}
+        <div className="col-12 col-md-6">
+          <div className="enterprise-form-group m-0">
+            <label className="enterprise-form-label" htmlFor="registerPhone">
+              Phone <span className="text-danger">*</span>
+            </label>
+            <input
+              id="registerPhone"
+              name="phone"
+              className={`enterprise-form-control form-control ${fieldErrors.phone ? 'is-invalid' : ''}`}
+              value={form.phone}
+              onChange={handleChange}
+              placeholder="10 digit number"
+              maxLength={PHONE_MAX_LENGTH}
+              inputMode="numeric"
+              required
+            />
+            {fieldErrors.phone && <div className="invalid-feedback text-danger mt-1 small">{fieldErrors.phone}</div>}
+          </div>
         </div>
 
         {/* Org Unit ID */}
-        <div className="enterprise-form-group m-0">
-          <label className="enterprise-form-label" htmlFor="registerOrgUnitId">
-            Org Unit ID {isOrgUnitRequired && <span className="text-danger">*</span>}
-          </label>
-          <input
-            id="registerOrgUnitId"
-            name="orgUnitId"
-            className={`enterprise-form-control ${fieldErrors.orgUnitId ? 'is-invalid' : ''}`}
-            value={form.orgUnitId}
-            onChange={handleChange}
-            placeholder="e.g. ORG1"
-            maxLength={FIELD_MAX_LENGTH}
-          />
-          {fieldErrors.orgUnitId && <div className="invalid-feedback text-danger mt-1 small">{fieldErrors.orgUnitId}</div>}
-          {!isOrgUnitRequired && !fieldErrors.orgUnitId && (
-            <span className="text-muted d-block mt-1" style={{ fontSize: '11px' }}>Optional for this role.</span>
-          )}
+        <div className="col-12 col-md-6">
+          <div className="enterprise-form-group m-0">
+            <label className="enterprise-form-label" htmlFor="registerOrgUnitId">
+              Org Unit ID {isOrgUnitRequired && <span className="text-danger">*</span>}
+            </label>
+            <input
+              id="registerOrgUnitId"
+              name="orgUnitId"
+              className={`enterprise-form-control form-control ${fieldErrors.orgUnitId ? 'is-invalid' : ''}`}
+              value={form.orgUnitId}
+              onChange={handleChange}
+              placeholder="e.g. ORG1"
+              maxLength={FIELD_MAX_LENGTH}
+            />
+            {fieldErrors.orgUnitId && <div className="invalid-feedback text-danger mt-1 small">{fieldErrors.orgUnitId}</div>}
+            {!isOrgUnitRequired && !fieldErrors.orgUnitId && (
+              <span className="text-muted d-block mt-1" style={{ fontSize: '11px' }}>Optional for this role.</span>
+            )}
+          </div>
         </div>
 
         {/* Role Select Dropdown */}
-        <div className="enterprise-form-group m-0">
-          <label className="enterprise-form-label" htmlFor="registerRole">
-            Role <span className="text-danger">*</span>
-          </label>
-          <select id="registerRole" name="role" className="enterprise-form-select" value={form.role} onChange={handleChange}>
-            {ROLE_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+        <div className="col-12">
+          <div className="enterprise-form-group m-0">
+            <label className="enterprise-form-label" htmlFor="registerRole">
+              Role <span className="text-danger">*</span>
+            </label>
+            <select id="registerRole" name="role" className="enterprise-form-select form-select" value={form.role} onChange={handleChange}>
+              {ROLE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {/* Password */}
-        <div className="enterprise-form-group m-0">
-          <label className="enterprise-form-label" htmlFor="registerPassword">
-            Password <span className="text-danger">*</span>
-          </label>
-          <div className="position-relative">
-            <input
-              id="registerPassword"
-              type={showPassword ? 'text' : 'password'}
-              name="password"
-              className={`enterprise-form-control pe-5 ${fieldErrors.password ? 'is-invalid' : ''}`}
-              value={form.password}
-              onChange={handleChange}
-              placeholder="••••••••"
-              autoComplete="new-password"
-              maxLength={FIELD_MAX_LENGTH}
-              required
-            />
-            <button
-              type="button"
-              className="position-absolute end-0 top-50 translate-middle-y border-0 bg-transparent pe-3 text-muted"
-              onClick={() => setShowPassword(!showPassword)}
-              style={{ outline: 'none' }}
-            >
-              <i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
-            </button>
+        <div className="col-12 col-md-6">
+          <div className="enterprise-form-group m-0">
+            <label className="enterprise-form-label" htmlFor="registerPassword">
+              Password <span className="text-danger">*</span>
+            </label>
+            <div className="position-relative">
+              <input
+                id="registerPassword"
+                type={showPassword ? 'text' : 'password'}
+                name="password"
+                className={`enterprise-form-control form-control pe-5 ${fieldErrors.password ? 'is-invalid' : ''}`}
+                value={form.password}
+                onChange={handleChange}
+                placeholder="••••••••"
+                autoComplete="new-password"
+                maxLength={FIELD_MAX_LENGTH}
+                required
+              />
+              <button
+                type="button"
+                className="position-absolute end-0 top-50 translate-middle-y border-0 bg-transparent pe-3 text-muted"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{ outline: 'none' }}
+              >
+                <i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
+              </button>
+            </div>
+            {fieldErrors.password && <div className="invalid-feedback text-danger mt-1 small d-block">{fieldErrors.password}</div>}
           </div>
-          {fieldErrors.password && <div className="invalid-feedback text-danger mt-1 small d-block">{fieldErrors.password}</div>}
         </div>
 
         {/* Confirm Password */}
-        <div className="enterprise-form-group m-0">
-          <label className="enterprise-form-label" htmlFor="registerConfirmPassword">
-            Confirm Password <span className="text-danger">*</span>
-          </label>
-          <div className="position-relative">
-            <input
-              id="registerConfirmPassword"
-              type={showConfirmPassword ? 'text' : 'password'}
-              name="confirmPassword"
-              className={`enterprise-form-control pe-5 ${fieldErrors.confirmPassword ? 'is-invalid' : ''}`}
-              value={form.confirmPassword}
-              onChange={handleChange}
-              placeholder="••••••••"
-              autoComplete="new-password"
-              maxLength={FIELD_MAX_LENGTH}
-              required
-            />
-            <button
-              type="button"
-              className="position-absolute end-0 top-50 translate-middle-y border-0 bg-transparent pe-3 text-muted"
-              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              style={{ outline: 'none' }}
-            >
-              <i className={`bi ${showConfirmPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
-            </button>
+        <div className="col-12 col-md-6">
+          <div className="enterprise-form-group m-0">
+            <label className="enterprise-form-label" htmlFor="registerConfirmPassword">
+              Confirm Password <span className="text-danger">*</span>
+            </label>
+            <div className="position-relative">
+              <input
+                id="registerConfirmPassword"
+                type={showConfirmPassword ? 'text' : 'password'}
+                name="confirmPassword"
+                className={`enterprise-form-control form-control pe-5 ${fieldErrors.confirmPassword ? 'is-invalid' : ''}`}
+                value={form.confirmPassword}
+                onChange={handleChange}
+                placeholder="••••••••"
+                autoComplete="new-password"
+                maxLength={FIELD_MAX_LENGTH}
+                required
+              />
+              <button
+                type="button"
+                className="position-absolute end-0 top-50 translate-middle-y border-0 bg-transparent pe-3 text-muted"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                style={{ outline: 'none' }}
+              >
+                <i className={`bi ${showConfirmPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
+              </button>
+            </div>
+            {fieldErrors.confirmPassword && <div className="invalid-feedback text-danger mt-1 small d-block">{fieldErrors.confirmPassword}</div>}
           </div>
-          {fieldErrors.confirmPassword && <div className="invalid-feedback text-danger mt-1 small d-block">{fieldErrors.confirmPassword}</div>}
         </div>
 
-        {!fieldErrors.password && !fieldErrors.confirmPassword && (
-          <span className="text-muted d-block" style={{ fontSize: '11px', marginTop: '-4px' }}>
-            At least 8 chars with an uppercase, lowercase, digit, and special char (@$!%*?&#). Max 50 chars.
-          </span>
-        )}
+        <div className="col-12">
+          {!fieldErrors.password && !fieldErrors.confirmPassword && (
+            <span className="text-muted d-block mb-3" style={{ fontSize: '11px', marginTop: '-4px' }}>
+              At least 8 chars with an uppercase, lowercase, digit, and special char (@$!%*?&#). Max 50 chars.
+            </span>
+          )}
 
-        {/* Submit Button */}
-        <button type="submit" className="btn-enterprise-primary w-100 py-2 justify-content-center mt-2" disabled={submitting}>
-          {submitting ? <Spinner animation="border" size="sm" /> : 'Create Account'}
-        </button>
+          {/* Submit Button */}
+          <button type="submit" className="btn-enterprise-primary w-100 py-2 justify-content-center" disabled={submitting}>
+            {submitting ? <Spinner animation="border" size="sm" /> : 'Create Account'}
+          </button>
+        </div>
       </form>
     </AuthLayout>
   );

@@ -273,13 +273,13 @@ function InvoiceCreation() {
 
                 <Row className="g-2 mb-3">
                   <Col md={4}>
-                    <Form.Control type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)} size="sm" className="enterprise-form-control" />
+                    <Form.Control type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)} size="sm" className="enterprise-form-control form-control" />
                   </Col>
                   <Col md={4}>
-                    <Form.Control type="text" placeholder="Search ID..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} size="sm" className="enterprise-form-control" />
+                    <Form.Control type="text" placeholder="Search ID..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} size="sm" className="enterprise-form-control form-control" />
                   </Col>
                   <Col md={4}>
-                    <Form.Control type="text" placeholder="Search Contractor..." value={filterContractor} onChange={e => setFilterContractor(e.target.value)} size="sm" className="enterprise-form-control" />
+                    <Form.Control type="text" placeholder="Search Contractor..." value={filterContractor} onChange={e => setFilterContractor(e.target.value)} size="sm" className="enterprise-form-control form-control" />
                   </Col>
                 </Row>
 
@@ -426,7 +426,7 @@ function InvoiceCreation() {
                           setCurrentPage(1);
                         }}
                         style={{ width: '150px' }}
-                        className="enterprise-form-control"
+                        className="enterprise-form-control form-control"
                       >
                         <option value="ALL">All Statuses</option>
                         <option value="SUBMITTED">Submitted</option>
@@ -448,7 +448,7 @@ function InvoiceCreation() {
                         }}
                         size="sm"
                         style={{ width: '160px' }}
-                        className="enterprise-form-control"
+                        className="enterprise-form-control form-control"
                       />
                     </div>
                   </div>
@@ -553,7 +553,7 @@ function InvoiceCreation() {
                         value={itemsPerPage}
                         onChange={handleItemsPerPageChange}
                         style={{ width: '75px' }}
-                        className="enterprise-form-control"
+                        className="enterprise-form-control form-control"
                       >
                         <option value={5}>5</option>
                         <option value={10}>10</option>

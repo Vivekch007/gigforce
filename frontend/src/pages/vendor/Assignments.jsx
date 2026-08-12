@@ -258,7 +258,7 @@ function Assignments() {
               <Form.Group className="mb-3" controlId="amendType">
                 <Form.Label className="enterprise-form-label">Amendment Type *</Form.Label>
                 <Form.Select
-                  className="enterprise-form-select"
+                  className="enterprise-form-select form-select"
                   value={amendForm.amendmentType}
                   onChange={(e) => handleAmendmentTypeChange(e.target.value)}
                 >
@@ -283,7 +283,7 @@ function Assignments() {
                     <Form.Control
                       type="date"
                       required
-                      className="enterprise-form-control"
+                      className="enterprise-form-control form-control"
                       value={amendForm.effectiveDate}
                       onChange={(e) => setAmendForm(prev => ({ ...prev, effectiveDate: e.target.value }))}
                     />
@@ -297,7 +297,7 @@ function Assignments() {
                       required
                       step={amendForm.amendmentType === 'RATE_REVISION' ? '0.01' : undefined}
                       placeholder={amendForm.amendmentType === 'RATE_REVISION' ? 'e.g. 6000' : amendForm.amendmentType === 'SCOPE_CHANGE' ? 'Describe the new scope...' : undefined}
-                      className="enterprise-form-control"
+                      className="enterprise-form-control form-control"
                       value={amendForm.newValue}
                       onChange={(e) => setAmendForm(prev => ({ ...prev, newValue: e.target.value }))}
                     />
@@ -310,7 +310,7 @@ function Assignments() {
                       type="text"
                       required
                       placeholder="e.g. Project Extension, Client Request..."
-                      className="enterprise-form-control"
+                      className="enterprise-form-control form-control"
                       value={amendForm.reason}
                       onChange={(e) => setAmendForm(prev => ({ ...prev, reason: e.target.value }))}
                     />
@@ -323,7 +323,7 @@ function Assignments() {
                 <Form.Control
                   as="textarea"
                   rows={2}
-                  className="enterprise-form-control"
+                  className="enterprise-form-control form-control"
                   placeholder="Provide additional details..."
                   value={amendForm.remarks}
                   onChange={(e) => setAmendForm(prev => ({ ...prev, remarks: e.target.value }))}
@@ -336,7 +336,7 @@ function Assignments() {
                   <div className="py-2 text-center text-muted small">Loading history...</div>
                 ) : amendmentsHistory.length > 0 ? (
                   <div className="table-responsive">
-                    <table className="table table-hover table-sm align-middle">
+                    <table className="table table-hover table-sm align-middle table-mobile-scaled">
                       <thead>
                         <tr className="bg-light text-muted small">
                           <th>Date</th>

@@ -75,14 +75,19 @@ function FinanceLayout() {
   return (
     <div className="app-layout-shell">
       <header className="enterprise-global-header">
-        <div className="logo-container">
-          <NavLink to="/finance/dashboard" className="gf-brand-logo">
-            <i className="bi bi-briefcase-fill text-primary"></i>
-            <span>GigForce</span>
-          </NavLink>
-        </div>
-        <div className="main-header-nav">
-          <Topbar
+        <div className="container-fluid px-2 w-100 d-flex align-items-center justify-content-between flex-nowrap h-100">
+          <div className="d-flex align-items-center gap-1 flex-shrink-0">
+            <button className="btn btn-link text-dark p-1 me-1 d-lg-none" onClick={toggleSidebar} aria-label="Toggle navigation">
+              <i className="bi bi-list fs-4"></i>
+            </button>
+            <NavLink to="/finance/dashboard" className="navbar-brand d-flex align-items-center gap-1 m-0 fw-bold fs-6 text-decoration-none">
+              <i className="bi bi-briefcase-fill text-primary"></i>
+              <span className="text-dark">GigForce</span>
+            </NavLink>
+          </div>
+          
+          <div className="d-flex align-items-center flex-grow-1 justify-content-end ms-2">
+            <Topbar
             searchPlaceholder={searchPlaceholder}
             searchVal={searchVal}
             onSearchChange={handleSearchChange}
@@ -92,8 +97,8 @@ function FinanceLayout() {
             profilePath="/finance/profile"
             userName={getDisplayName()}
             userInitials={getInitials()}
-            toggleSidebar={toggleSidebar}
           />
+          </div>
         </div>
       </header>
 
@@ -104,6 +109,8 @@ function FinanceLayout() {
         userName={getDisplayName()}
         userInitials={getInitials()}
         onLogout={handleLogout}
+        show={showSidebar}
+        onHide={() => setShowSidebar(false)}
       />
 
       <div className="enterprise-layout-wrapper flex-grow-1">

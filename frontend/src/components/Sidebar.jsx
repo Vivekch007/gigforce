@@ -1,16 +1,17 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
+import { Offcanvas } from 'react-bootstrap';
 
-function Sidebar({ brandName = 'GigForce', links = [], userRole = '', userName = '', userInitials = '', onLogout }) {
-  return (
-    <aside className="enterprise-sidebar">
-      
-      <ul className="sidebar-menu-list">
+function Sidebar({ show, onHide, brandName = 'GigForce', links = [], userRole = '', userName = '', userInitials = '', onLogout }) {
+  const sidebarContent = (
+    <>
+      <ul className="sidebar-menu-list mt-3">
         {links.map((link, idx) => (
           <li key={idx}>
             <NavLink
               to={link.to}
               className={({ isActive }) => `sidebar-item-link text-decoration-none ${isActive ? 'active' : ''}`}
+              onClick={onHide} // Auto-close mobile sidebar on navigation
             >
               <i className={link.icon}></i>
               <span>{link.label}</span>
@@ -19,7 +20,7 @@ function Sidebar({ brandName = 'GigForce', links = [], userRole = '', userName =
         ))}
       </ul>
 
-      <div className="sidebar-footer-profile">
+      <div className="sidebar-footer-profile mt-auto">
         <div className="d-flex align-items-center gap-2">
           <div className="topbar-avatar">{userInitials}</div>
           <div className="d-flex flex-column" style={{ minWidth: '0' }}>
@@ -37,7 +38,28 @@ function Sidebar({ brandName = 'GigForce', links = [], userRole = '', userName =
           </button>
         )}
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Desktop Sidebar */}
+      <aside className="enterprise-sidebar d-none d-lg-flex">
+        {sidebarContent}
+      </aside>
+
+      {/* Mobile Offcanvas Sidebar */}
+      <Offcanvas show={show} onHide={onHide} className="d-lg-none" style={{ width: '260px' }}>
+        <Offcanvas.Header closeButton className="border-bottom">
+          <Offcanvas.Title className="fw-bold fs-5 text-dark d-flex align-items-center gap-2">
+            <i className="bi bi-briefcase-fill text-primary"></i> {brandName}
+          </Offcanvas.Title>
+        </Offcanvas.Header>
+        <Offcanvas.Body className="d-flex flex-column p-0">
+          {sidebarContent}
+        </Offcanvas.Body>
+      </Offcanvas>
+    </>
   );
 }
 

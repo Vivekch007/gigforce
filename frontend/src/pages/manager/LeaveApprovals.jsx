@@ -232,7 +232,7 @@ function LeaveApprovals() {
               size="sm"
               value={filterType}
               onChange={(e) => setFilterType(e.target.value)}
-              className="border-start-0 shadow-none fw-semibold enterprise-form-select"
+              className="border-start-0 shadow-none fw-semibold enterprise-form-select form-select"
               style={{ minWidth: '110px' }}
             >
               <option value="all">All Time</option>
@@ -245,7 +245,7 @@ function LeaveApprovals() {
               size="sm"
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(Number(e.target.value))}
-              className="shadow-none fw-semibold enterprise-form-select"
+              className="shadow-none fw-semibold enterprise-form-select form-select"
               style={{ width: '120px' }}
             >
               {[
@@ -262,7 +262,7 @@ function LeaveApprovals() {
               size="sm"
               value={selectedYear}
               onChange={(e) => setSelectedYear(Number(e.target.value))}
-              className="shadow-none fw-semibold enterprise-form-select"
+              className="shadow-none fw-semibold enterprise-form-select form-select"
               style={{ width: '90px' }}
             >
               {availableYears.map((yr) => (
@@ -455,7 +455,7 @@ function LeaveApprovals() {
                       setCurrentPage(1);
                     }}
                     style={{ width: '70px' }}
-                    className="enterprise-form-select"
+                    className="enterprise-form-select form-select"
                   >
                     <option value={5}>5</option>
                     <option value={10}>10</option>
@@ -568,7 +568,7 @@ function LeaveApprovals() {
               placeholder="e.g. Schedule conflicts on these dates. Please coordinate shift cover."
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}
-              className="enterprise-form-control"
+              className="enterprise-form-control form-control"
               required
             />
           </Form.Group>
